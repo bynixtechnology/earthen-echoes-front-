@@ -447,7 +447,7 @@ export default function Header() {
         className={`
           fixed
           inset-0
-          z-[999]
+          z-999
 
           bg-black/40
 
@@ -482,12 +482,12 @@ export default function Header() {
           top-0
           right-0
 
-          z-[1000]
+          z-1000
 
-          w-[280px]
+          w-70
           max-w-[85%]
 
-          h-[100dvh]
+          h-dvh
 
           bg-background
 

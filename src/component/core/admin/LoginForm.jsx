@@ -1,97 +1,397 @@
 import { useState } from "react";
-import { Lock, User, Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 
-export default function LoginForm({ email, setemail, password, setPassword, handleSubmit, error, loading }) {
-  const [showPassword, setShowPassword] = useState(false);
+import {
+  Lock,
+  Mail,
+  Eye,
+  EyeOff,
+  Loader2,
+  ShieldCheck,
+} from "lucide-react";
+
+export default function LoginForm({
+  email,
+  setEmail,
+  password,
+  setPassword,
+  handleSubmit,
+  error,
+  setError,
+  loading,
+}) {
+  /*
+  |--------------------------------------------------------------------------
+  | State
+  |--------------------------------------------------------------------------
+  */
+
+  const [showPassword, setShowPassword] =
+    useState(false);
+
+  /*
+  |--------------------------------------------------------------------------
+  | Email Change
+  |--------------------------------------------------------------------------
+  */
+
+  const handleEmailChange = (e) => {
+    setEmail(e.target.value);
+
+    if (error) {
+      setError("");
+    }
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | Password Change
+  |--------------------------------------------------------------------------
+  */
+
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value);
+
+    if (error) {
+      setError("");
+    }
+  };
 
   return (
-    <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-slate-200/80 backdrop-blur-sm transition-all duration-300 hover:shadow-2xl">
-      
-      {/* Premium Branding Header */}
+    <div
+      className="
+        max-w-md
+        w-full
+        bg-white
+        p-6
+        sm:p-8
+        rounded-2xl
+        shadow-xl
+        border
+        border-slate-200/80
+      "
+    >
+      {/* ================================================================
+          HEADER
+      ================================================================= */}
+
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-950 text-amber-500 mb-4 shadow-inner ring-4 ring-slate-100">
+        <div
+          className="
+            inline-flex
+            items-center
+            justify-center
+            w-14
+            h-14
+            rounded-2xl
+            bg-slate-950
+            text-amber-500
+            mb-4
+            shadow-inner
+            ring-4
+            ring-slate-100
+          "
+        >
           <ShieldCheck size={28} />
         </div>
-        <h2 className="text-3xl font-bold text-slate-900 tracking-tight font-heading">
+
+        <h2
+          className="
+            text-3xl
+            font-bold
+            text-slate-900
+            tracking-tight
+            font-heading
+          "
+        >
           Earthen Echoes
         </h2>
-        <p className="text-xs uppercase tracking-[0.15em] text-slate-400 mt-1.5 font-medium">
+
+        <p
+          className="
+            text-xs
+            uppercase
+            tracking-[0.15em]
+            text-slate-400
+            mt-1.5
+            font-medium
+          "
+        >
           Admin Control Center
         </p>
       </div>
 
-     
+      {/* ================================================================
+          ERROR MESSAGE
+      ================================================================= */}
+
       {error && (
-        <div className="bg-red-50 text-red-700 p-3.5 rounded-xl text-sm mb-5 font-medium text-center border border-red-100 animate-shake flex items-center justify-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+        <div
+          className="
+            bg-red-50
+            text-red-700
+            p-3.5
+            rounded-xl
+            text-sm
+            mb-5
+            font-medium
+            text-center
+            border
+            border-red-100
+            flex
+            items-center
+            justify-center
+            gap-2
+          "
+        >
+          <span
+            className="
+              w-1.5
+              h-1.5
+              rounded-full
+              bg-red-500
+            "
+          />
+
           {error}
         </div>
       )}
 
-      {/* Form Fields */}
-      <form onSubmit={handleSubmit} className="space-y-5">
-        
-        {/* Username Field */}
+      {/* ================================================================
+          LOGIN FORM
+      ================================================================= */}
+
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-5"
+        noValidate
+      >
+        {/* ================= EMAIL ================= */}
+
         <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5 pl-1">
-   email
+          <label
+            htmlFor="admin-email"
+            className="
+              text-xs
+              font-bold
+              text-slate-500
+              uppercase
+              tracking-wider
+              block
+              mb-1.5
+              pl-1
+            "
+          >
+            Email
           </label>
+
           <div className="relative group">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 transition-colors group-focus-within:text-slate-800">
-              <User size={18} />
-            </span>
-            <input 
-              type="text" 
+            <Mail
+              size={18}
+              className="
+                absolute
+                left-3.5
+                top-1/2
+                -translate-y-1/2
+                text-slate-400
+                pointer-events-none
+                transition-colors
+                group-focus-within:text-slate-800
+              "
+            />
+
+            <input
+              id="admin-email"
+              type="email"
               required
+              autoComplete="email"
+              disabled={loading}
               value={email}
-              onChange={(e) => setemail(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950/20 focus:border-slate-950 focus:bg-white transition-all duration-200 text-sm text-slate-800 placeholder-slate-400" 
-              placeholder="Enter admin email"
+              onChange={handleEmailChange}
+              placeholder="admin@gmail.com"
+              className="
+                w-full
+                pl-11
+                pr-4
+                py-3
+                bg-slate-50/50
+                border
+                border-slate-200
+                rounded-xl
+                outline-none
+                text-sm
+                text-slate-800
+                placeholder:text-slate-400
+                transition-all
+                duration-200
+
+                focus:ring-2
+                focus:ring-slate-950/20
+                focus:border-slate-950
+                focus:bg-white
+
+                disabled:bg-slate-100
+                disabled:cursor-not-allowed
+                disabled:opacity-70
+              "
             />
           </div>
         </div>
 
-        {/* Password Field */}
+        {/* ================= PASSWORD ================= */}
+
         <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5 pl-1">
+          <label
+            htmlFor="admin-password"
+            className="
+              text-xs
+              font-bold
+              text-slate-500
+              uppercase
+              tracking-wider
+              block
+              mb-1.5
+              pl-1
+            "
+          >
             Password
           </label>
+
           <div className="relative group">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 transition-colors group-focus-within:text-slate-800">
-              <Lock size={18} />
-            </span>
-            <input 
-              type={showPassword ? "text" : "password"} 
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full pl-11 pr-11 py-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-950/20 focus:border-slate-950 focus:bg-white transition-all duration-200 text-sm text-slate-800 placeholder-slate-400 font-mono" 
-              placeholder="••••••••"
+            <Lock
+              size={18}
+              className="
+                absolute
+                left-3.5
+                top-1/2
+                -translate-y-1/2
+                text-slate-400
+                pointer-events-none
+                transition-colors
+                group-focus-within:text-slate-800
+              "
             />
-            {/* Password Eye Toggle Icon */}
+
+            <input
+              id="admin-password"
+              type={
+                showPassword
+                  ? "text"
+                  : "password"
+              }
+              required
+              autoComplete="current-password"
+              disabled={loading}
+              value={password}
+              onChange={handlePasswordChange}
+              placeholder="••••••••"
+              className="
+                w-full
+                pl-11
+                pr-12
+                py-3
+                bg-slate-50/50
+                border
+                border-slate-200
+                rounded-xl
+                outline-none
+                text-sm
+                text-slate-800
+                placeholder:text-slate-400
+                transition-all
+                duration-200
+
+                focus:ring-2
+                focus:ring-slate-950/20
+                focus:border-slate-950
+                focus:bg-white
+
+                disabled:bg-slate-100
+                disabled:cursor-not-allowed
+                disabled:opacity-70
+              "
+            />
+
+            {/* Show / Hide Password */}
+
             <button
               type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-slate-700 transition"
+              disabled={loading}
+              onClick={() =>
+                setShowPassword(
+                  (prev) => !prev
+                )
+              }
+              className="
+                absolute
+                right-3.5
+                top-1/2
+                -translate-y-1/2
+                flex
+                items-center
+                justify-center
+                text-slate-400
+                hover:text-slate-700
+                transition
+                disabled:cursor-not-allowed
+              "
+              aria-label={
+                showPassword
+                  ? "Hide password"
+                  : "Show password"
+              }
             >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              {showPassword ? (
+                <EyeOff size={18} />
+              ) : (
+                <Eye size={18} />
+              )}
             </button>
           </div>
         </div>
 
-        {/* Action Button */}
-        <button 
-          type="submit" 
+        {/* ================= LOGIN BUTTON ================= */}
+
+        <button
+          type="submit"
           disabled={loading}
-          className="w-full bg-slate-950 text-white py-3.5 rounded-xl font-bold hover:bg-slate-900 active:scale-[0.99] transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-75 disabled:pointer-events-none flex items-center justify-center gap-2 mt-2"
+          className="
+            w-full
+            min-h-12.5
+            bg-slate-950
+            text-white
+            py-3.5
+            rounded-xl
+            font-bold
+            hover:bg-slate-900
+            active:scale-[0.99]
+            transition-all
+            duration-200
+            shadow-md
+            hover:shadow-lg
+            disabled:opacity-60
+            disabled:cursor-not-allowed
+            flex
+            items-center
+            justify-center
+            gap-2
+            mt-2
+          "
         >
           {loading ? (
             <>
-              <Loader2 className="animate-spin" size={18} />
-              Verifying Security Token...
+              <Loader2
+                className="animate-spin"
+                size={18}
+              />
+
+              Authenticating...
             </>
           ) : (
-            "Secure Sign In"
+            <>
+              <ShieldCheck size={18} />
+
+              Secure Sign In
+            </>
           )}
         </button>
       </form>

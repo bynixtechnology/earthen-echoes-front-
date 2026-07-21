@@ -1,52 +1,329 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { AuthService } from "../../../services/productService"; 
-import { showToast } from "../../../config/toast";
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  useDispatch,
+  useSelector,
+} from "react-redux";
+
+import {
+  useNavigate,
+} from "react-router-dom";
+
+import {
+  loginAdmin,
+} from "../../../redux/thunks/authThunk";
+
+import {
+  clearAuthError,
+} from "../../../redux/slices/authSlice";
+
+import {
+  showToast,
+} from "../../../config/toast";
+
 import LoginForm from "../../../component/core/admin/LoginForm";
 
+
 export default function AdminLogin() {
-  const [email, setemail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  
-  const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  /*
+  |--------------------------------------------------------------------------
+  | Redux
+  |--------------------------------------------------------------------------
+  */
+
+  const dispatch =
+    useDispatch();
+
+  const navigate =
+    useNavigate();
+
+
+  const {
+    user,
+    isAuthenticated,
+    loading,
+    error,
+  } = useSelector(
+    (state) =>
+      state.auth
+  );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Local Form State
+  |--------------------------------------------------------------------------
+  */
+
+  const [
+    email,
+    setEmail,
+  ] = useState("");
+
+
+  const [
+    password,
+    setPassword,
+  ] = useState("");
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Already Logged In
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(() => {
+
+    if (
+      isAuthenticated &&
+      user?.role === "admin"
+    ) {
+
+      navigate(
+        "/admin/dashboard",
+        {
+          replace: true,
+        }
+      );
+
+    }
+
+  }, [
+    isAuthenticated,
+    user,
+    navigate,
+  ]);
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Clear Old Error
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(() => {
+
+    dispatch(
+      clearAuthError()
+    );
+
+  }, [dispatch]);
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Handle Login
+  |--------------------------------------------------------------------------
+  */
+
+  const handleLogin = async (
+    e
+  ) => {
+
     e.preventDefault();
-    if (loading) return;
 
-    setLoading(true);
-    setError("");
+
+    if (loading) {
+      return;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Clean Email
+    |--------------------------------------------------------------------------
+    */
+
+    const cleanEmail =
+      email
+        .trim()
+        .toLowerCase();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Validation
+    |--------------------------------------------------------------------------
+    */
+
+    if (!cleanEmail) {
+
+      showToast.error(
+        "Email is required."
+      );
+
+      return;
+
+    }
+
+
+    if (!password) {
+
+      showToast.error(
+        "Password is required."
+      );
+
+      return;
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Clear Previous Error
+    |--------------------------------------------------------------------------
+    */
+
+    dispatch(
+      clearAuthError()
+    );
+
 
     try {
-      const data = await AuthService.login({ email, password });
-      
-      if (data?.token) {
-        localStorage.setItem("adminToken", data.token);
-        showToast.success("Authorization granted. Welcome back.");
-        navigate("/admin/dashboard");
-      }
-    } catch (err) {
-      
-      setError(err.message);
-      showToast.error(err.message);
-    } finally {
-      setLoading(false);
+
+      /*
+      |--------------------------------------------------------------------------
+      | Dispatch Login Thunk
+      |--------------------------------------------------------------------------
+      */
+
+      const result =
+        await dispatch(
+
+          loginAdmin({
+
+            email:
+              cleanEmail,
+
+            password,
+
+          })
+
+        ).unwrap();
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | Success Toast
+      |--------------------------------------------------------------------------
+      */
+
+      showToast.success(
+
+        `Welcome back, ${
+          result?.user?.name ||
+          "Admin"
+        }.`
+
+      );
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | Navigate
+      |--------------------------------------------------------------------------
+      */
+
+      navigate(
+        "/admin/dashboard",
+        {
+          replace: true,
+        }
+      );
+
+    } catch (message) {
+
+      /*
+      |--------------------------------------------------------------------------
+      | Error Toast
+      |--------------------------------------------------------------------------
+      */
+
+      showToast.error(
+
+        typeof message ===
+          "string"
+
+          ? message
+
+          : "Unable to login. Please try again."
+
+      );
+
     }
+
   };
 
+
+  /*
+  |--------------------------------------------------------------------------
+  | Clear Error From LoginForm
+  |--------------------------------------------------------------------------
+  */
+
+  const handleClearError =
+    () => {
+
+      dispatch(
+        clearAuthError()
+      );
+
+    };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | UI
+  |--------------------------------------------------------------------------
+  */
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
-      <LoginForm 
+
+    <div
+      className="
+        min-h-screen
+        flex
+        items-center
+        justify-center
+        bg-slate-100
+        px-4
+        py-10
+      "
+    >
+
+      <LoginForm
+
         email={email}
-        setemail={setemail}
+
+        setEmail={setEmail}
+
         password={password}
-        setPassword={setPassword}
-        handleSubmit={handleLogin}
+
+        setPassword={
+          setPassword
+        }
+
+        handleSubmit={
+          handleLogin
+        }
+
         error={error}
+
+        setError={
+          handleClearError
+        }
+
         loading={loading}
+
       />
+
     </div>
+
   );
+
 }

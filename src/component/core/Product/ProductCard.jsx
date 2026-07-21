@@ -21,11 +21,7 @@ import {
   useSearchParams,
 } from "react-router-dom";
 
-import axiosInstance from "../../../config/axiosInstance";
 
-import {
-  API_ENDPOINTS,
-} from "../../../constants/apiEndpoints";
 
 import {
   useCart,

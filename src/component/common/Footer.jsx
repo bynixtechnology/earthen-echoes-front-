@@ -26,7 +26,7 @@ import {
 
 import {
   CategoryService,
-} from "../../services/productService";
+} from "../../services/categoryService";
 
 
 const Footer = () => {

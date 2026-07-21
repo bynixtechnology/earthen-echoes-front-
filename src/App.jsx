@@ -1,12 +1,10 @@
 import {
   Routes,
   Route,
+  Navigate,
 } from "react-router-dom";
 
-import {
-  Phone,
-  ArrowUp,
-} from "lucide-react";
+
 
 import {
   Toaster,
@@ -28,27 +26,12 @@ import AddProduct from "./component/page/admin/AddProduct";
 import AddCategory from "./component/page/admin/AddCategory";
 
 import ProtectedRoute from "./component/core/admin/ProtectedRoute";
-
 import ScrollToTop from "./component/core/ScrollToTop";
 
 
 function App() {
 
-  /*
-  |--------------------------------------------------------------------------
-  | Manual Back To Top
-  |--------------------------------------------------------------------------
-  */
-
-  const handleBackToTop = () => {
-
-    window.scrollTo({
-      top: 0,
-      left: 0,
-      behavior: "smooth",
-    });
-
-  };
+  
 
 
   return (
@@ -61,57 +44,55 @@ function App() {
       />
 
 
-      {/* ================================================================
-          AUTO SCROLL TO TOP ON ROUTE CHANGE
-      ================================================================= */}
-
       <ScrollToTop />
 
 
-      {/* ================================================================
-          ROUTES
-      ================================================================= */}
-
       <Routes>
 
-        {/* ================= PUBLIC ROUTES ================= */}
+        {/* ============================================================
+            PUBLIC WEBSITE
+        ============================================================ */}
 
-        <Route element={<MainLayout />}>
+        <Route
+          element={<MainLayout />}
+        >
 
           <Route
-            path="/"
+            index
             element={<Home />}
           />
 
           <Route
-            path="/about"
+            path="about"
             element={<About />}
           />
 
           <Route
-            path="/contact"
+            path="contact"
             element={<Contact />}
           />
 
           <Route
-            path="/products"
+            path="products"
             element={<Product />}
           />
 
           <Route
-            path="/products/:id"
+            path="products/:id"
             element={<ProductDetails />}
           />
 
           <Route
-            path="/cart"
+            path="cart"
             element={<CartPage />}
           />
 
         </Route>
 
 
-        {/* ================= ADMIN LOGIN ================= */}
+        {/* ============================================================
+            ADMIN LOGIN
+        ============================================================ */}
 
         <Route
           path="/admin/login"
@@ -119,24 +100,43 @@ function App() {
         />
 
 
-        {/* ================= PROTECTED ADMIN ================= */}
+        {/* ============================================================
+            PROTECTED ADMIN ROUTES
+        ============================================================ */}
 
-        <Route element={<ProtectedRoute />}>
+        <Route
+          element={<ProtectedRoute />}
+        >
 
           <Route
             path="/admin"
             element={<AdminLayout />}
           >
 
+            {/* /admin -> /admin/dashboard */}
+
+            <Route
+              index
+              element={
+                <Navigate
+                  to="dashboard"
+                  replace
+                />
+              }
+            />
+
+
             <Route
               path="dashboard"
               element={<Dashboard />}
             />
 
+
             <Route
               path="add-product"
               element={<AddProduct />}
             />
+
 
             <Route
               path="add-category"
@@ -147,78 +147,31 @@ function App() {
 
         </Route>
 
+
+        {/* ============================================================
+            UNKNOWN ROUTE
+        ============================================================ */}
+
+        <Route
+          path="*"
+          element={
+            <Navigate
+              to="/"
+              replace
+            />
+          }
+        />
+
       </Routes>
 
 
-      {/* ================================================================
-          WHATSAPP FLOATING BUTTON
-      ================================================================= */}
-
-      <a
-        href="https://wa.me/919876543210"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Contact us on WhatsApp"
-        className="
-          fixed
-          bottom-6
-          right-6
-          z-50
-          flex
-          h-14
-          w-14
-          items-center
-          justify-center
-          rounded-full
-          bg-[#25D366]
-          text-white
-          shadow-2xl
-          transition
-          hover:scale-110
-        "
-      >
-
-        <Phone size={26} />
-
-      </a>
-
-
-      {/* ================================================================
-          MANUAL BACK TO TOP BUTTON
-      ================================================================= */}
-
-      <button
-        type="button"
-        onClick={handleBackToTop}
-        aria-label="Back to top"
-        className="
-          fixed
-          bottom-6
-          left-6
-          z-50
-          flex
-          h-10
-          w-10
-          items-center
-          justify-center
-          rounded-full
-          border
-          border-border
-          bg-card
-          shadow-lg
-          transition
-          hover:bg-muted
-        "
-      >
-
-        <ArrowUp size={18} />
-
-      </button>
+     
 
     </>
 
   );
 
 }
+
 
 export default App;
