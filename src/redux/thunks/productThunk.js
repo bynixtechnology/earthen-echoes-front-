@@ -18,8 +18,11 @@ const getErrorMessage = (
   fallback
 ) => {
   return (
-    error?.response?.data?.message ||
-    error?.response?.data?.error ||
+    error?.response?.data
+      ?.message ||
+    error?.response?.data
+      ?.error ||
+    error?.data?.message ||
     error?.message ||
     fallback
   );
@@ -30,24 +33,42 @@ const getErrorMessage = (
 |--------------------------------------------------------------------------
 | Normalize Products Response
 |--------------------------------------------------------------------------
+|
+| Supported:
+|
+| []
+|
+| { products: [] }
+|
+| { data: [] }
+|
+| { data: { products: [] } }
+|
+| Axios:
+| {
+|   data: {
+|     data: []
+|   }
+| }
+|
+| Axios:
+| {
+|   data: {
+|     data: {
+|       products: []
+|     }
+|   }
+| }
+|
 */
 
 const normalizeProducts = (
   response
 ) => {
-
   if (
     Array.isArray(response)
   ) {
     return response;
-  }
-
-  if (
-    Array.isArray(
-      response?.data
-    )
-  ) {
-    return response.data;
   }
 
   if (
@@ -60,13 +81,71 @@ const normalizeProducts = (
 
   if (
     Array.isArray(
-      response?.data?.products
+      response?.data
     )
   ) {
-    return response.data.products;
+    return response.data;
+  }
+
+  if (
+    Array.isArray(
+      response?.data
+        ?.products
+    )
+  ) {
+    return response.data
+      .products;
+  }
+
+  if (
+    Array.isArray(
+      response?.data?.data
+    )
+  ) {
+    return response.data
+      .data;
+  }
+
+  if (
+    Array.isArray(
+      response?.data?.data
+        ?.products
+    )
+  ) {
+    return response.data
+      .data.products;
   }
 
   return [];
+};
+
+
+/*
+|--------------------------------------------------------------------------
+| Normalize Single Product Response
+|--------------------------------------------------------------------------
+*/
+
+const normalizeProduct = (
+  response
+) => {
+  return (
+    response?.data?.data
+      ?.product ||
+
+    response?.data
+      ?.product ||
+
+    response?.data?.data ||
+
+    response?.product ||
+
+    response?.data ||
+
+    response ||
+
+    null
+  );
 };
 
 
@@ -86,20 +165,19 @@ export const fetchProducts =
         rejectWithValue,
       }
     ) => {
-
       try {
-
         const response =
           await ProductService.getAll(
             params
           );
 
-        return normalizeProducts(
-          response
-        );
+        const products =
+          normalizeProducts(
+            response
+          );
 
+        return products;
       } catch (error) {
-
         console.error(
           "FETCH PRODUCTS ERROR:",
           error
@@ -111,9 +189,7 @@ export const fetchProducts =
             "Unable to fetch products."
           )
         );
-
       }
-
     }
   );
 
@@ -134,15 +210,11 @@ export const fetchProductById =
         rejectWithValue,
       }
     ) => {
-
       try {
-
         if (!id) {
-
           return rejectWithValue(
             "Product ID is required."
           );
-
         }
 
         const response =
@@ -150,30 +222,24 @@ export const fetchProductById =
             id
           );
 
-
         const product =
-          response?.data?.product ||
-          response?.data ||
-          response?.product ||
-          response;
-
+          normalizeProduct(
+            response
+          );
 
         if (
           !product ||
           typeof product !==
-            "object"
+            "object" ||
+          Array.isArray(product)
         ) {
-
           return rejectWithValue(
             "Product not found."
           );
-
         }
 
         return product;
-
       } catch (error) {
-
         console.error(
           "FETCH PRODUCT BY ID ERROR:",
           error
@@ -185,9 +251,7 @@ export const fetchProductById =
             "Unable to fetch product."
           )
         );
-
       }
-
     }
   );
 
@@ -208,28 +272,26 @@ export const fetchProductsByCategory =
         rejectWithValue,
       }
     ) => {
-
       try {
-
         if (!categoryId) {
-
           return rejectWithValue(
             "Category ID is required."
           );
-
         }
 
         const response =
-          await ProductService.getByCategory(
-            categoryId
+          await ProductService
+            .getByCategory(
+              categoryId
+            );
+
+        const products =
+          normalizeProducts(
+            response
           );
 
-        return normalizeProducts(
-          response
-        );
-
+        return products;
       } catch (error) {
-
         console.error(
           "FETCH PRODUCTS BY CATEGORY ERROR:",
           error
@@ -241,9 +303,7 @@ export const fetchProductsByCategory =
             "Unable to fetch category products."
           )
         );
-
       }
-
     }
   );
 
@@ -264,41 +324,50 @@ export const createProduct =
         rejectWithValue,
       }
     ) => {
-
       try {
-
-        if (
-          !formData
-        ) {
-
+        if (!formData) {
           return rejectWithValue(
             "Product data is required."
           );
-
         }
-
 
         const response =
           await ProductService.create(
             formData
           );
 
+        const product =
+          normalizeProduct(
+            response
+          );
 
-        console.log(
-          "CREATE PRODUCT RESPONSE:",
-          response
-        );
+        /*
+        |--------------------------------------------------------------------------
+        | Return actual created product
+        |--------------------------------------------------------------------------
+        |
+        | Slice ko complete API response nahi,
+        | actual product object milega.
+        |
+        */
 
+        if (
+          !product ||
+          typeof product !==
+            "object" ||
+          Array.isArray(product)
+        ) {
+          return rejectWithValue(
+            "Invalid product response."
+          );
+        }
 
-        return response;
-
+        return product;
       } catch (error) {
-
         console.error(
           "CREATE PRODUCT ERROR:",
           error
         );
-
 
         return rejectWithValue(
           getErrorMessage(
@@ -306,9 +375,7 @@ export const createProduct =
             "Unable to create product."
           )
         );
-
       }
-
     }
   );
 
@@ -332,26 +399,18 @@ export const updateProduct =
         rejectWithValue,
       }
     ) => {
-
       try {
-
         if (!id) {
-
           return rejectWithValue(
             "Product ID is required."
           );
-
         }
 
-
         if (!data) {
-
           return rejectWithValue(
             "Product data is required."
           );
-
         }
-
 
         const response =
           await ProductService.update(
@@ -359,16 +418,40 @@ export const updateProduct =
             data
           );
 
+        const product =
+          normalizeProduct(
+            response
+          );
 
-        return response;
+        if (
+          !product ||
+          typeof product !==
+            "object" ||
+          Array.isArray(product)
+        ) {
+          return rejectWithValue(
+            "Invalid updated product response."
+          );
+        }
 
+        /*
+        |--------------------------------------------------------------------------
+        | Ensure ID Available
+        |--------------------------------------------------------------------------
+        */
+
+        return {
+          ...product,
+
+          _id:
+            product?._id ||
+            id,
+        };
       } catch (error) {
-
         console.error(
           "UPDATE PRODUCT ERROR:",
           error
         );
-
 
         return rejectWithValue(
           getErrorMessage(
@@ -376,9 +459,7 @@ export const updateProduct =
             "Unable to update product."
           )
         );
-
       }
-
     }
   );
 
@@ -399,32 +480,36 @@ export const deleteProduct =
         rejectWithValue,
       }
     ) => {
-
       try {
-
         if (!id) {
-
           return rejectWithValue(
             "Product ID is required."
           );
-
         }
-
 
         await ProductService.delete(
           id
         );
 
+        /*
+        |--------------------------------------------------------------------------
+        | Return Deleted Product ID
+        |--------------------------------------------------------------------------
+        |
+        | Slice:
+        |
+        | state.products = state.products.filter(
+        |   product => product._id !== action.payload
+        | )
+        |
+        */
 
         return id;
-
       } catch (error) {
-
         console.error(
           "DELETE PRODUCT ERROR:",
           error
         );
-
 
         return rejectWithValue(
           getErrorMessage(
@@ -432,8 +517,6 @@ export const deleteProduct =
             "Unable to delete product."
           )
         );
-
       }
-
     }
   );

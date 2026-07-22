@@ -1,7 +1,6 @@
 import React from 'react'
-import ProductHeroSection from '../core/Product/ProductHeroSection'
-import ProductCard from '../core/Product/ProductCard'
-
+import ProductHeroSection from "../../core/Product/ProductHeroSection"
+import ProductCard from "../../core/Product/ProductCard"
 const Product = () => {
   return (
     <>

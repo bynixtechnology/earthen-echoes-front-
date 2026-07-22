@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import ProductDetailHeroSection from "../core/productdetails/ProductDetailHeroSection";
-import ProductTreasure from "../core/productdetails/ProductTreasure";
+import ProductDetailHeroSection from "../../core/productdetails/ProductDetailHeroSection";
+import ProductTreasure from "../../core/productdetails/ProductTreasure";
 
 const ProductDetails = () => {
 

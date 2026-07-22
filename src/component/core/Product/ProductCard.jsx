@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Loader2,
   Search,
+  RefreshCw,
 } from "lucide-react";
 
 import {
@@ -21,20 +22,63 @@ import {
   useSearchParams,
 } from "react-router-dom";
 
-
+import {
+  useDispatch,
+  useSelector,
+} from "react-redux";
 
 import {
   useCart,
 } from "../../core/context/CartContext";
 
 
+
+import {
+  selectProducts,
+  selectProductsLoading,
+  selectProductError,
+} from "../../../redux/slices/productSlice";
+import { fetchProducts } from "../../../redux/thunks/productThunk";
+
+
 const ProductCard = () => {
+  /*
+  |--------------------------------------------------------------------------
+  | Redux
+  |--------------------------------------------------------------------------
+  */
+
+  const dispatch =
+    useDispatch();
+
+  const products =
+    useSelector(
+      selectProducts
+    );
+
+  const loading =
+    useSelector(
+      selectProductsLoading
+    );
+
+  const error =
+    useSelector(
+      selectProductError
+    );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Cart
+  |--------------------------------------------------------------------------
+  */
 
   const {
     addToCart,
   } = useCart();
 
-    /*
+
+  /*
   |--------------------------------------------------------------------------
   | URL Query Parameters
   |--------------------------------------------------------------------------
@@ -52,23 +96,6 @@ const ProductCard = () => {
 
   /*
   |--------------------------------------------------------------------------
-  | Product State
-  |--------------------------------------------------------------------------
-  */
-
-  const [
-    products,
-    setProducts,
-  ] = useState([]);
-
-  const [
-    loading,
-    setLoading,
-  ] = useState(false);
-
-
-  /*
-  |--------------------------------------------------------------------------
   | Filter State
   |--------------------------------------------------------------------------
   */
@@ -82,30 +109,6 @@ const ProductCard = () => {
     selectedCategories,
     setSelectedCategories,
   ] = useState([]);
-
-  /*
-|--------------------------------------------------------------------------
-| Apply Category Filter From URL
-|--------------------------------------------------------------------------
-*/
-
-useEffect(() => {
-
-  if (categoryFromUrl) {
-
-    setSelectedCategories([
-      categoryFromUrl,
-    ]);
-
-    setCurrentPage(1);
-
-  } else {
-
-    setSelectedCategories([]);
-
-  }
-
-}, [categoryFromUrl]);
 
   const [
     selectedMaterials,
@@ -144,82 +147,49 @@ useEffect(() => {
 
   /*
   |--------------------------------------------------------------------------
-  | Fetch Products
+  | Fetch Products Using Redux
   |--------------------------------------------------------------------------
   */
 
   useEffect(() => {
+    dispatch(
+      fetchProducts()
+    );
+  }, [dispatch]);
 
-    getProducts();
 
-  }, []);
+  /*
+  |--------------------------------------------------------------------------
+  | Apply Category Filter From URL
+  |--------------------------------------------------------------------------
+  */
 
+  useEffect(() => {
+    if (categoryFromUrl) {
+      setSelectedCategories([
+        categoryFromUrl,
+      ]);
+    } else {
+      setSelectedCategories([]);
+    }
 
-  const getProducts =
-    async () => {
-
-      try {
-
-        setLoading(true);
-
-        const res =
-          await axiosInstance.get(
-            API_ENDPOINTS.PRODUCT.GET_ALL
-          );
-
-        console.log(
-          "PRODUCT RESPONSE:",
-          res.data
-        );
-
-        const productData =
-          Array.isArray(res?.data?.data)
-            ? res.data.data
-            : Array.isArray(res?.data)
-            ? res.data
-            : [];
-
-        setProducts(
-          productData
-        );
-
-      } catch (error) {
-
-        console.error(
-          "GET PRODUCTS ERROR:",
-          error
-        );
-
-        setProducts([]);
-
-      } finally {
-
-        setLoading(false);
-
-      }
-
-    };
+    setCurrentPage(1);
+  }, [categoryFromUrl]);
 
 
   /*
   |--------------------------------------------------------------------------
   | Dynamic Categories
   |--------------------------------------------------------------------------
-  |
-  | Products ke populated category se categories generate hongi.
-  |
   */
 
   const categories =
     useMemo(() => {
-
       const categoryMap =
         new Map();
 
-
       products.forEach(
         (product) => {
-
           const category =
             product?.category;
 
@@ -227,55 +197,48 @@ useEffect(() => {
             return;
           }
 
-
           const id =
             typeof category ===
             "object"
-              ? category._id
+              ? category?._id
               : category;
-
 
           const name =
             typeof category ===
             "object"
-              ? category.name
+              ? category?.name
               : "Category";
-
 
           if (!id) {
             return;
           }
 
-
           if (
             categoryMap.has(id)
           ) {
-
             categoryMap.get(
               id
             ).count += 1;
-
           } else {
-
             categoryMap.set(
               id,
               {
                 _id: id,
-                name,
+
+                name:
+                  name ||
+                  "Category",
+
                 count: 1,
               }
             );
-
           }
-
         }
       );
-
 
       return Array.from(
         categoryMap.values()
       );
-
     }, [products]);
 
 
@@ -287,7 +250,6 @@ useEffect(() => {
 
   const materials =
     useMemo(() => {
-
       const values =
         products
           .map(
@@ -298,11 +260,9 @@ useEffect(() => {
           )
           .filter(Boolean);
 
-
       return [
         ...new Set(values),
       ];
-
     }, [products]);
 
 
@@ -314,7 +274,6 @@ useEffect(() => {
 
   const placements =
     useMemo(() => {
-
       const values =
         products
           .map(
@@ -325,11 +284,9 @@ useEffect(() => {
           )
           .filter(Boolean);
 
-
       return [
         ...new Set(values),
       ];
-
     }, [products]);
 
 
@@ -341,54 +298,46 @@ useEffect(() => {
 
   const highestPrice =
     useMemo(() => {
-
       if (
         products.length === 0
       ) {
         return 10000;
       }
 
-
       const highest =
         Math.max(
           ...products.map(
             (product) =>
               Number(
-                product.price
+                product?.price
               ) || 0
           )
         );
-
 
       return (
         Math.ceil(
           highest / 500
         ) * 500 || 10000
       );
-
     }, [products]);
 
 
   /*
   |--------------------------------------------------------------------------
-  | Set Initial Max Price
+  | Set Initial Maximum Price
   |--------------------------------------------------------------------------
   */
 
   useEffect(() => {
-
     if (
       products.length > 0
     ) {
-
       setMaxPrice(
         highestPrice
       );
-
     }
-
   }, [
-    products,
+    products.length,
     highestPrice,
   ]);
 
@@ -401,35 +350,28 @@ useEffect(() => {
 
   const handleCategoryChange =
     (categoryId) => {
-
       setSelectedCategories(
         (previous) => {
-
           if (
             previous.includes(
               categoryId
             )
           ) {
-
             return previous.filter(
               (id) =>
-                id !== categoryId
+                id !==
+                categoryId
             );
-
           }
-
 
           return [
             ...previous,
             categoryId,
           ];
-
         }
       );
 
-
       setCurrentPage(1);
-
     };
 
 
@@ -441,35 +383,28 @@ useEffect(() => {
 
   const handleMaterialChange =
     (material) => {
-
       setSelectedMaterials(
         (previous) => {
-
           if (
             previous.includes(
               material
             )
           ) {
-
             return previous.filter(
               (item) =>
-                item !== material
+                item !==
+                material
             );
-
           }
-
 
           return [
             ...previous,
             material,
           ];
-
         }
       );
 
-
       setCurrentPage(1);
-
     };
 
 
@@ -481,35 +416,28 @@ useEffect(() => {
 
   const handlePlacementChange =
     (placement) => {
-
       setSelectedPlacements(
         (previous) => {
-
           if (
             previous.includes(
               placement
             )
           ) {
-
             return previous.filter(
               (item) =>
-                item !== placement
+                item !==
+                placement
             );
-
           }
-
 
           return [
             ...previous,
             placement,
           ];
-
         }
       );
 
-
       setCurrentPage(1);
-
     };
 
 
@@ -521,14 +449,10 @@ useEffect(() => {
 
   const filteredProducts =
     useMemo(() => {
-
       return products.filter(
         (product) => {
-
           /*
-          |------------------------------
           | Search
-          |------------------------------
           */
 
           const searchValue =
@@ -536,65 +460,66 @@ useEffect(() => {
               .trim()
               .toLowerCase();
 
+          const title =
+            String(
+              product?.title || ""
+            ).toLowerCase();
+
+          const sku =
+            String(
+              product?.sku || ""
+            ).toLowerCase();
+
+          const collectionName =
+            String(
+              product
+                ?.collectionName ||
+                ""
+            ).toLowerCase();
 
           const matchesSearch =
             !searchValue ||
-
-            product?.title
-              ?.toLowerCase()
-              .includes(
-                searchValue
-              ) ||
-
-            product?.sku
-              ?.toLowerCase()
-              .includes(
-                searchValue
-              ) ||
-
-            product
-              ?.collectionName
-              ?.toLowerCase()
-              .includes(
-                searchValue
-              );
+            title.includes(
+              searchValue
+            ) ||
+            sku.includes(
+              searchValue
+            ) ||
+            collectionName.includes(
+              searchValue
+            );
 
 
           /*
-          |------------------------------
           | Category
-          |------------------------------
           */
 
           const categoryId =
-            typeof product.category ===
+            typeof product
+              ?.category ===
             "object"
               ? product
                   ?.category
                   ?._id
-              : product.category;
-
+              : product
+                  ?.category;
 
           const matchesCategory =
             selectedCategories
               .length === 0 ||
-
             selectedCategories.includes(
               categoryId
             );
 
 
           /*
-          |------------------------------
           | Price
-          |------------------------------
           */
 
           const productPrice =
             Number(
-              product.price
+              product?.price
             ) || 0;
-
 
           const matchesPrice =
             productPrice <=
@@ -602,9 +527,7 @@ useEffect(() => {
 
 
           /*
-          |------------------------------
           | Material
-          |------------------------------
           */
 
           const composition =
@@ -612,20 +535,16 @@ useEffect(() => {
               ?.specifications
               ?.composition;
 
-
           const matchesMaterial =
             selectedMaterials
               .length === 0 ||
-
             selectedMaterials.includes(
               composition
             );
 
 
           /*
-          |------------------------------
           | Placement
-          |------------------------------
           */
 
           const placement =
@@ -633,59 +552,42 @@ useEffect(() => {
               ?.specifications
               ?.placement;
 
-
           const matchesPlacement =
             selectedPlacements
               .length === 0 ||
-
             selectedPlacements.includes(
               placement
             );
 
 
           /*
-          |------------------------------
           | Availability
-          |------------------------------
           */
 
           const stock =
             Number(
-              product.stock
+              product?.stock
             ) || 0;
-
 
           let matchesAvailability =
             true;
-
 
           if (
             availability ===
             "inStock"
           ) {
-
             matchesAvailability =
               stock > 0;
-
           }
-
 
           if (
             availability ===
             "outOfStock"
           ) {
-
             matchesAvailability =
               stock <= 0;
-
           }
 
-
-          /*
-          |------------------------------
-          | Return Combined Result
-          |------------------------------
-          */
 
           return (
             matchesSearch &&
@@ -695,10 +597,8 @@ useEffect(() => {
             matchesPlacement &&
             matchesAvailability
           );
-
         }
       );
-
     }, [
       products,
       search,
@@ -719,21 +619,21 @@ useEffect(() => {
   const totalPages =
     Math.max(
       1,
+
       Math.ceil(
         filteredProducts.length /
           productsPerPage
       )
     );
 
-
   const startIndex =
     (currentPage - 1) *
     productsPerPage;
 
-
   const currentProducts =
     filteredProducts.slice(
       startIndex,
+
       startIndex +
         productsPerPage
     );
@@ -741,18 +641,39 @@ useEffect(() => {
 
   /*
   |--------------------------------------------------------------------------
-  | Reset Current Page
+  | Reset Page When Filters Change
   |--------------------------------------------------------------------------
   */
 
   useEffect(() => {
-
     setCurrentPage(1);
-
   }, [
     search,
     maxPrice,
     availability,
+    selectedMaterials,
+    selectedPlacements,
+  ]);
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Prevent Invalid Current Page
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(() => {
+    if (
+      currentPage >
+      totalPages
+    ) {
+      setCurrentPage(
+        totalPages
+      );
+    }
+  }, [
+    currentPage,
+    totalPages,
   ]);
 
 
@@ -763,7 +684,6 @@ useEffect(() => {
   */
 
   const clearFilters = () => {
-
     setSearch("");
 
     setSelectedCategories([]);
@@ -779,7 +699,6 @@ useEffect(() => {
     );
 
     setCurrentPage(1);
-
   };
 
 
@@ -791,52 +710,176 @@ useEffect(() => {
 
   const formatPrice =
     (price) => {
-
       return Number(
         price || 0
       ).toLocaleString(
         "en-IN"
       );
-
     };
 
 
   /*
   |--------------------------------------------------------------------------
-  | Loading
+  | Product Image Helper
   |--------------------------------------------------------------------------
   */
 
-  if (loading) {
+  const getProductImage =
+    (product) => {
+      const firstImage =
+        product
+          ?.images?.[0];
 
+      if (
+        typeof firstImage ===
+        "string"
+      ) {
+        return firstImage;
+      }
+
+      return (
+        firstImage?.url ||
+        firstImage?.secure_url ||
+        "/placeholder.png"
+      );
+    };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Loading UI
+  |--------------------------------------------------------------------------
+  */
+
+  if (
+    loading &&
+    products.length === 0
+  ) {
     return (
-
       <div
         className="
-          min-h-[400px]
+          min-h-[500px]
           flex
+          flex-col
           items-center
           justify-center
+          gap-3
         "
       >
-
         <Loader2
-          size={32}
+          size={36}
           className="
             animate-spin
             text-primary
           "
         />
 
+        <p
+          className="
+            text-sm
+            text-muted-foreground
+          "
+        >
+          Loading products...
+        </p>
       </div>
-
     );
+  }
 
+
+  /*
+  |--------------------------------------------------------------------------
+  | API Error UI
+  |--------------------------------------------------------------------------
+  */
+
+  if (
+    error &&
+    products.length === 0
+  ) {
+    return (
+      <div
+        className="
+          min-h-[500px]
+          flex
+          flex-col
+          items-center
+          justify-center
+          text-center
+          px-4
+        "
+      >
+        <div
+          className="
+            max-w-md
+            w-full
+            border
+            border-border
+            rounded-2xl
+            bg-card
+            p-8
+            shadow-sm
+          "
+        >
+          <h2
+            className="
+              text-xl
+              font-heading
+              font-bold
+              mb-2
+            "
+          >
+            Unable to load products
+          </h2>
+
+          <p
+            className="
+              text-sm
+              text-muted-foreground
+              mb-6
+            "
+          >
+            {error}
+          </p>
+
+          <button
+            type="button"
+
+            onClick={() =>
+              dispatch(
+                fetchProducts()
+              )
+            }
+
+            className="
+              inline-flex
+              items-center
+              justify-center
+              gap-2
+              px-5
+              py-2.5
+              rounded-lg
+              bg-primary
+              text-primary-foreground
+              text-sm
+              font-semibold
+              hover:bg-primary/90
+              transition-colors
+            "
+          >
+            <RefreshCw
+              size={16}
+            />
+
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
   }
 
 
   return (
-
     <section
       className="
         max-w-7xl
@@ -848,8 +891,9 @@ useEffect(() => {
         flex-1
       "
     >
-
-      {/* Search + Count */}
+      {/* ================================================================
+          HEADER + SEARCH
+      ================================================================= */}
 
       <div
         className="
@@ -862,9 +906,7 @@ useEffect(() => {
           mb-8
         "
       >
-
         <div>
-
           <h2
             className="
               text-2xl
@@ -897,9 +939,7 @@ useEffect(() => {
             </strong>
 
             {" "}products
-
           </p>
-
         </div>
 
 
@@ -912,15 +952,16 @@ useEffect(() => {
             sm:w-80
           "
         >
-
           <Search
             size={17}
+
             className="
               absolute
               left-3
               top-1/2
               -translate-y-1/2
               text-muted-foreground
+              pointer-events-none
             "
           />
 
@@ -951,11 +992,10 @@ useEffect(() => {
               outline-none
               focus:ring-1
               focus:ring-primary
+              transition
             "
           />
-
         </div>
-
       </div>
 
 
@@ -967,7 +1007,6 @@ useEffect(() => {
           gap-8
         "
       >
-
         {/* ================================================================
             FILTER SIDEBAR
         ================================================================= */}
@@ -984,9 +1023,10 @@ useEffect(() => {
             border
             border-border/60
             self-start
+            lg:sticky
+            lg:top-24
           "
         >
-
           {/* Filter Header */}
 
           <div
@@ -999,7 +1039,6 @@ useEffect(() => {
               pb-4
             "
           >
-
             <h3
               className="
                 font-heading
@@ -1010,17 +1049,15 @@ useEffect(() => {
                 gap-2
               "
             >
-
               <Funnel
                 size={18}
+
                 className=
                   "text-primary"
               />
 
               Filters
-
             </h3>
-
 
             <button
               type="button"
@@ -1038,7 +1075,6 @@ useEffect(() => {
             >
               Clear All
             </button>
-
           </div>
 
 
@@ -1050,7 +1086,6 @@ useEffect(() => {
             className=
               "space-y-3"
           >
-
             <h4
               className="
                 font-heading
@@ -1063,7 +1098,6 @@ useEffect(() => {
               Category
             </h4>
 
-
             <div
               className="
                 space-y-2
@@ -1071,22 +1105,17 @@ useEffect(() => {
                 text-muted-foreground
               "
             >
-
               {categories.length ===
               0 ? (
-
                 <p
                   className=
                     "text-xs"
                 >
                   No categories
                 </p>
-
               ) : (
-
                 categories.map(
                   (category) => (
-
                     <label
                       key={
                         category._id
@@ -1100,7 +1129,6 @@ useEffect(() => {
                         hover:text-foreground
                       "
                     >
-
                       <input
                         type="checkbox"
 
@@ -1118,22 +1146,25 @@ useEffect(() => {
 
                         className="
                           rounded
-                          text-primary
-                          focus:ring-primary
+                          accent-primary
                         "
                       />
 
-                      <span>
+                      <span
+                        className="
+                          flex-1
+                          truncate
+                        "
+                      >
                         {
                           category.name
                         }
                       </span>
 
-
                       <span
                         className="
                           text-xs
-                          ml-auto
+                          text-muted-foreground
                         "
                       >
                         (
@@ -1142,16 +1173,11 @@ useEffect(() => {
                         }
                         )
                       </span>
-
                     </label>
-
                   )
                 )
-
               )}
-
             </div>
-
           </div>
 
 
@@ -1167,7 +1193,6 @@ useEffect(() => {
               pt-6
             "
           >
-
             <h4
               className="
                 font-heading
@@ -1180,22 +1205,20 @@ useEffect(() => {
               Price Range
             </h4>
 
-
             <div
               className=
                 "space-y-4"
             >
-
               <div
                 className="
                   flex
                   items-center
                   justify-between
+                  gap-3
                   text-xs
                   text-muted-foreground
                 "
               >
-
                 <span>
                   ₹0
                 </span>
@@ -1208,9 +1231,7 @@ useEffect(() => {
                     )
                   }
                 </span>
-
               </div>
-
 
               <input
                 type="range"
@@ -1227,14 +1248,15 @@ useEffect(() => {
                   maxPrice
                 }
 
-                onChange={(e) =>
+                onChange={(e) => {
                   setMaxPrice(
                     Number(
-                      e.target
-                        .value
+                      e.target.value
                     )
-                  )
-                }
+                  );
+
+                  setCurrentPage(1);
+                }}
 
                 className="
                   w-full
@@ -1246,186 +1268,8 @@ useEffect(() => {
                   accent-primary
                 "
               />
-
             </div>
-
           </div>
-
-
-          {/* ============================================================
-              MATERIAL
-          ============================================================= */}
-
-          {materials.length > 0 && (
-
-            <div
-              className="
-                space-y-3
-                border-t
-                border-border/40
-                pt-6
-              "
-            >
-
-              <h4
-                className="
-                  font-heading
-                  font-bold
-                  text-xs
-                  uppercase
-                  tracking-wider
-                "
-              >
-                Clay Material
-              </h4>
-
-
-              <div
-                className="
-                  space-y-2
-                  text-sm
-                  text-muted-foreground
-                "
-              >
-
-                {materials.map(
-                  (material) => (
-
-                    <label
-                      key={
-                        material
-                      }
-
-                      className="
-                        flex
-                        items-start
-                        gap-2
-                        cursor-pointer
-                        hover:text-foreground
-                      "
-                    >
-
-                      <input
-                        type="checkbox"
-
-                        checked={
-                          selectedMaterials.includes(
-                            material
-                          )
-                        }
-
-                        onChange={() =>
-                          handleMaterialChange(
-                            material
-                          )
-                        }
-
-                        className="
-                          mt-1
-                          rounded
-                          text-primary
-                        "
-                      />
-
-                      <span>
-                        {material}
-                      </span>
-
-                    </label>
-
-                  )
-                )}
-
-              </div>
-
-            </div>
-
-          )}
-
-
-          {/* ============================================================
-              PLACEMENT
-          ============================================================= */}
-
-          {placements.length >
-            0 && (
-
-            <div
-              className="
-                space-y-3
-                border-t
-                border-border/40
-                pt-6
-              "
-            >
-
-              <h4
-                className="
-                  font-heading
-                  font-bold
-                  text-xs
-                  uppercase
-                  tracking-wider
-                "
-              >
-                Placement
-              </h4>
-
-
-              <div
-                className="
-                  space-y-2
-                  text-sm
-                  text-muted-foreground
-                "
-              >
-
-                {placements.map(
-                  (placement) => (
-
-                    <label
-                      key={
-                        placement
-                      }
-
-                      className="
-                        flex
-                        items-center
-                        gap-2
-                        cursor-pointer
-                      "
-                    >
-
-                      <input
-                        type="checkbox"
-
-                        checked={
-                          selectedPlacements.includes(
-                            placement
-                          )
-                        }
-
-                        onChange={() =>
-                          handlePlacementChange(
-                            placement
-                          )
-                        }
-                      />
-
-                      {
-                        placement
-                      }
-
-                    </label>
-
-                  )
-                )}
-
-              </div>
-
-            </div>
-
-          )}
 
 
           {/* ============================================================
@@ -1440,7 +1284,6 @@ useEffect(() => {
               pt-6
             "
           >
-
             <h4
               className="
                 font-heading
@@ -1453,12 +1296,10 @@ useEffect(() => {
               Availability
             </h4>
 
-
             <div
               className=
                 "space-y-2"
             >
-
               <label
                 className="
                   flex
@@ -1468,7 +1309,6 @@ useEffect(() => {
                   cursor-pointer
                 "
               >
-
                 <input
                   type="radio"
 
@@ -1479,15 +1319,19 @@ useEffect(() => {
                     "all"
                   }
 
-                  onChange={() =>
+                  onChange={() => {
                     setAvailability(
                       "all"
-                    )
-                  }
+                    );
+
+                    setCurrentPage(1);
+                  }}
+
+                  className=
+                    "accent-primary"
                 />
 
                 All Products
-
               </label>
 
 
@@ -1500,7 +1344,6 @@ useEffect(() => {
                   cursor-pointer
                 "
               >
-
                 <input
                   type="radio"
 
@@ -1511,15 +1354,19 @@ useEffect(() => {
                     "inStock"
                   }
 
-                  onChange={() =>
+                  onChange={() => {
                     setAvailability(
                       "inStock"
-                    )
-                  }
+                    );
+
+                    setCurrentPage(1);
+                  }}
+
+                  className=
+                    "accent-primary"
                 />
 
                 In Stock Only
-
               </label>
 
 
@@ -1532,7 +1379,6 @@ useEffect(() => {
                   cursor-pointer
                 "
               >
-
                 <input
                   type="radio"
 
@@ -1543,21 +1389,22 @@ useEffect(() => {
                     "outOfStock"
                   }
 
-                  onChange={() =>
+                  onChange={() => {
                     setAvailability(
                       "outOfStock"
-                    )
-                  }
+                    );
+
+                    setCurrentPage(1);
+                  }}
+
+                  className=
+                    "accent-primary"
                 />
 
                 Out of Stock
-
               </label>
-
             </div>
-
           </div>
-
         </aside>
 
 
@@ -1568,18 +1415,24 @@ useEffect(() => {
         <div
           className="
             flex-1
+            min-w-0
             flex
             flex-col
           "
         >
-
           {currentProducts.length ===
           0 ? (
+            /*
+            |--------------------------------------------------------------------------
+            | Empty State
+            |--------------------------------------------------------------------------
+            */
 
             <div
               className="
                 min-h-[400px]
                 border
+                border-border/60
                 rounded-xl
                 flex
                 flex-col
@@ -1587,11 +1440,12 @@ useEffect(() => {
                 justify-center
                 text-center
                 p-8
+                bg-card
               "
             >
-
               <Funnel
                 size={40}
+
                 className="
                   text-muted-foreground
                   mb-4
@@ -1612,12 +1466,14 @@ useEffect(() => {
                   text-sm
                   text-muted-foreground
                   mt-2
+                  max-w-sm
                 "
               >
                 No products match
                 the selected filters.
+                Try changing your
+                search or filters.
               </p>
-
 
               <button
                 type="button"
@@ -1635,483 +1491,497 @@ useEffect(() => {
                   rounded-lg
                   text-sm
                   font-semibold
+                  hover:bg-primary/90
+                  transition-colors
                 "
               >
                 Clear Filters
               </button>
-
             </div>
-
           ) : (
+            /*
+            |--------------------------------------------------------------------------
+            | Product Grid
+            |--------------------------------------------------------------------------
+            */
 
             <div
               className="
                 grid
                 grid-cols-1
                 sm:grid-cols-2
-                lg:grid-cols-3
+                xl:grid-cols-3
                 gap-8
               "
             >
-
               {currentProducts.map(
-                (product) => (
+                (product) => {
+                  const stock =
+                    Number(
+                      product?.stock
+                    ) || 0;
 
-                  <Link
-                    key={
-                      product._id
-                    }
+                  const inStock =
+                    stock > 0;
 
-                    to={
-                      `/products/${product._id}`
-                    }
+                  return (
+                    <Link
+                      key={
+                        product._id
+                      }
 
-                    className="
-                      group
-                      bg-card
-                      rounded-xl
-                      overflow-hidden
-                      shadow-sm
-                      hover:shadow-lg
-                      transition-all
-                      duration-300
-                      flex
-                      flex-col
-                      border
-                      border-border/40
-                    "
-                  >
+                      to={
+                        `/products/${product._id}`
+                      }
 
-                    {/* Image */}
-
-                    <div
                       className="
-                        relative
+                        group
+                        bg-card
+                        rounded-xl
                         overflow-hidden
-                        aspect-square
-                        bg-muted
-                      "
-                    >
-
-                      <img
-                        src={
-                          product
-                            ?.images?.[0]
-                            ?.url ||
-
-                          product
-                            ?.images?.[0] ||
-
-                          "/placeholder.png"
-                        }
-
-                        alt={
-                          product.title
-                        }
-
-                        className="
-                          w-full
-                          h-full
-                          object-cover
-                          group-hover:scale-105
-                          transition-transform
-                          duration-500
-                        "
-                      />
-
-
-                      {/* Stock Badge */}
-
-                      <span
-                        className={`
-                          absolute
-                          top-3
-                          left-3
-                          px-2.5
-                          py-1
-                          rounded-full
-                          text-[10px]
-                          font-bold
-
-                          ${
-                            Number(
-                              product.stock
-                            ) > 0
-
-                              ? "bg-green-100 text-green-700"
-
-                              : "bg-red-100 text-red-700"
-                          }
-                        `}
-                      >
-
-                        {
-                          Number(
-                            product.stock
-                          ) > 0
-                            ? "In Stock"
-                            : "Out of Stock"
-                        }
-
-                      </span>
-
-
-                      {/* Wishlist */}
-
-                      <button
-                        type="button"
-
-                        onClick={(e) => {
-
-                          e.preventDefault();
-
-                          e.stopPropagation();
-
-                        }}
-
-                        className="
-                          absolute
-                          top-3
-                          right-3
-                          w-8
-                          h-8
-                          rounded-full
-                          bg-background/80
-                          backdrop-blur-md
-                          flex
-                          items-center
-                          justify-center
-                          text-primary
-                          shadow
-                          z-10
-                        "
-                      >
-
-                        <Heart
-                          size={16}
-                        />
-
-                      </button>
-
-
-                      {/* Quick View */}
-
-                      <div
-                        className="
-                          absolute
-                          inset-x-0
-                          bottom-0
-                          p-4
-                          bg-gradient-to-t
-                          from-primary/70
-                          to-transparent
-                          translate-y-full
-                          group-hover:translate-y-0
-                          transition-transform
-                          duration-300
-                          flex
-                          justify-center
-                        "
-                      >
-
-                        <button
-                          type="button"
-
-                          onClick={(e) => {
-
-                            e.preventDefault();
-
-                            e.stopPropagation();
-
-                          }}
-
-                          className="
-                            px-3
-                            py-2
-                            bg-background
-                            rounded-md
-                            text-xs
-                            font-semibold
-                            flex
-                            items-center
-                            gap-1
-                          "
-                        >
-
-                          <Eye
-                            size={14}
-                          />
-
-                          Quick View
-
-                        </button>
-
-                      </div>
-
-                    </div>
-
-
-                    {/* Product Details */}
-
-                    <div
-                      className="
-                        p-5
-                        flex-1
+                        shadow-sm
+                        hover:shadow-lg
+                        hover:-translate-y-1
+                        transition-all
+                        duration-300
                         flex
                         flex-col
-                        justify-between
+                        border
+                        border-border/40
                       "
                     >
-
-                      <div>
-
-                        {/* Category */}
-
-                        <p
-                          className="
-                            text-[11px]
-                            uppercase
-                            tracking-wider
-                            text-primary
-                            font-semibold
-                            mb-2
-                          "
-                        >
-
-                          {
-                            product
-                              ?.category
-                              ?.name ||
-                            "Uncategorized"
-                          }
-
-                        </p>
-
-
-                        {/* Rating */}
-
-                        <div
-                          className="
-                            flex
-                            items-center
-                            gap-1
-                            text-xs
-                            mb-2
-                          "
-                        >
-
-                          {Array.from({
-                            length: 5,
-                          }).map(
-                            (_, idx) => (
-
-                              <Star
-                                key={idx}
-                                size={12}
-                                fill=
-                                  "currentColor"
-                                className=
-                                  "text-amber-500"
-                              />
-
-                            )
-                          )}
-
-
-                          <span
-                            className="
-                              text-muted-foreground
-                              ml-1
-                            "
-                          >
-
-                            (
-                            {
-                              product.rating ||
-                              0
-                            }
-                            )
-
-                          </span>
-
-                        </div>
-
-
-                        {/* Correct field: title */}
-
-                        <h3
-                          className="
-                            font-heading
-                            text-lg
-                            font-bold
-                            text-foreground
-                            group-hover:text-primary
-                            transition-colors
-                            mb-1
-                          "
-                        >
-
-                          {
-                            product.title
-                          }
-
-                        </h3>
-
-
-                        <p
-                          className="
-                            text-xs
-                            text-muted-foreground
-                            line-clamp-2
-                            mb-4
-                          "
-                        >
-
-                          {
-                            product.description
-                          }
-
-                        </p>
-
-                      </div>
-
+                      {/* Image */}
 
                       <div
                         className="
-                          border-t
-                          border-border/40
-                          pt-4
+                          relative
+                          overflow-hidden
+                          aspect-square
+                          bg-muted
                         "
                       >
-
-                        <div
-                          className="
-                            flex
-                            items-center
-                            gap-2
-                            mb-4
-                          "
-                        >
-
-                          <span
-                            className="
-                              font-heading
-                              text-lg
-                              font-bold
-                              text-primary
-                            "
-                          >
-
-                            ₹
-                            {
-                              formatPrice(
-                                product.price
-                              )
-                            }
-
-                          </span>
-
-
-                          {product.originalPrice && (
-
-                            <span
-                              className="
-                                text-xs
-                                text-muted-foreground
-                                line-through
-                              "
-                            >
-
-                              ₹
-                              {
-                                formatPrice(
-                                  product
-                                    .originalPrice
-                                )
-                              }
-
-                            </span>
-
-                          )}
-
-                        </div>
-
-
-                        <button
-                          type="button"
-
-                          disabled={
-                            Number(
-                              product.stock
-                            ) <= 0
+                        <img
+                          src={
+                            getProductImage(
+                              product
+                            )
                           }
 
-                          onClick={(e) => {
+                          alt={
+                            product
+                              ?.title ||
+                            "Product"
+                          }
 
-                            e.preventDefault();
+                          loading="lazy"
 
-                            e.stopPropagation();
-
-
-                            if (
-                              Number(
-                                product.stock
-                              ) > 0
-                            ) {
-
-                              addToCart(
-                                product
-                              );
-
-                            }
-
+                          onError={(e) => {
+                            e.currentTarget.src =
+                              "/placeholder.png";
                           }}
 
                           className="
                             w-full
-                            px-4
-                            py-2.5
-                            bg-primary
-                            text-primary-foreground
-                            rounded-lg
-                            text-xs
-                            font-semibold
-                            hover:bg-primary/90
-                            transition-colors
+                            h-full
+                            object-cover
+                            group-hover:scale-105
+                            transition-transform
+                            duration-500
+                          "
+                        />
+
+
+                        {/* Stock Badge */}
+
+                        <span
+                          className={`
+                            absolute
+                            top-3
+                            left-3
+                            px-2.5
+                            py-1
+                            rounded-full
+                            text-[10px]
+                            font-bold
+                            z-10
+
+                            ${
+                              inStock
+                                ? "bg-green-100 text-green-700"
+                                : "bg-red-100 text-red-700"
+                            }
+                          `}
+                        >
+                          {
+                            inStock
+                              ? "In Stock"
+                              : "Out of Stock"
+                          }
+                        </span>
+
+
+                        {/* Wishlist */}
+
+                        <button
+                          type="button"
+
+                          aria-label=
+                            "Add to wishlist"
+
+                          onClick={(e) => {
+                            e.preventDefault();
+
+                            e.stopPropagation();
+                          }}
+
+                          className="
+                            absolute
+                            top-3
+                            right-3
+                            w-9
+                            h-9
+                            rounded-full
+                            bg-background/90
+                            backdrop-blur-md
                             flex
                             items-center
                             justify-center
-                            gap-1.5
-                            disabled:opacity-50
-                            disabled:cursor-not-allowed
+                            text-primary
+                            shadow
+                            z-20
+                            hover:scale-105
+                            transition-transform
                           "
                         >
-
-                          <ShoppingCart
-                            size={14}
+                          <Heart
+                            size={17}
                           />
-
-                          {
-                            Number(
-                              product.stock
-                            ) > 0
-                              ? "Add to Cart"
-                              : "Out of Stock"
-                          }
-
                         </button>
 
+
+                        {/* Quick View */}
+
+                        <div
+                          className="
+                            absolute
+                            inset-x-0
+                            bottom-0
+                            p-4
+                            bg-gradient-to-t
+                            from-black/60
+                            to-transparent
+                            translate-y-full
+                            group-hover:translate-y-0
+                            transition-transform
+                            duration-300
+                            flex
+                            justify-center
+                          "
+                        >
+                          <button
+                            type="button"
+
+                            onClick={(e) => {
+                              e.preventDefault();
+
+                              e.stopPropagation();
+                            }}
+
+                            className="
+                              px-4
+                              py-2
+                              bg-background
+                              text-foreground
+                              rounded-md
+                              text-xs
+                              font-semibold
+                              flex
+                              items-center
+                              gap-1.5
+                              shadow-sm
+                            "
+                          >
+                            <Eye
+                              size={14}
+                            />
+
+                            Quick View
+                          </button>
+                        </div>
                       </div>
 
-                    </div>
 
-                  </Link>
+                      {/* Product Details */}
 
-                )
+                      <div
+                        className="
+                          p-5
+                          flex-1
+                          flex
+                          flex-col
+                          justify-between
+                        "
+                      >
+                        <div>
+                          {/* Category */}
+
+                          <p
+                            className="
+                              text-[11px]
+                              uppercase
+                              tracking-wider
+                              text-primary
+                              font-semibold
+                              mb-2
+                            "
+                          >
+                            {
+                              typeof product
+                                ?.category ===
+                              "object"
+                                ? product
+                                    ?.category
+                                    ?.name ||
+                                  "Uncategorized"
+                                : "Uncategorized"
+                            }
+                          </p>
+
+
+                          {/* Rating */}
+
+                          <div
+                            className="
+                              flex
+                              items-center
+                              gap-1
+                              text-xs
+                              mb-2
+                            "
+                          >
+                            {Array.from({
+                              length: 5,
+                            }).map(
+                              (
+                                _,
+                                index
+                              ) => (
+                                <Star
+                                  key={
+                                    index
+                                  }
+
+                                  size={12}
+
+                                  fill=
+                                    "currentColor"
+
+                                  className=
+                                    "text-amber-500"
+                                />
+                              )
+                            )}
+
+                            <span
+                              className="
+                                text-muted-foreground
+                                ml-1
+                              "
+                            >
+                              (
+                              {
+                                product
+                                  ?.rating ||
+                                0
+                              }
+                              )
+                            </span>
+                          </div>
+
+
+                          {/* Title */}
+
+                          <h3
+                            className="
+                              font-heading
+                              text-lg
+                              font-bold
+                              text-foreground
+                              group-hover:text-primary
+                              transition-colors
+                              mb-1
+                              line-clamp-2
+                            "
+                          >
+                            {
+                              product
+                                ?.title ||
+                              "Untitled Product"
+                            }
+                          </h3>
+
+
+                          {/* SKU */}
+
+                          {product?.sku && (
+                            <p
+                              className="
+                                text-[11px]
+                                text-muted-foreground
+                                mb-2
+                              "
+                            >
+                              SKU:{" "}
+                              {
+                                product.sku
+                              }
+                            </p>
+                          )}
+
+
+                          {/* Description */}
+
+                          <p
+                            className="
+                              text-xs
+                              text-muted-foreground
+                              line-clamp-2
+                              mb-4
+                            "
+                          >
+                            {
+                              product
+                                ?.description ||
+                              "No description available."
+                            }
+                          </p>
+                        </div>
+
+
+                        <div
+                          className="
+                            border-t
+                            border-border/40
+                            pt-4
+                          "
+                        >
+                          {/* Price */}
+
+                          <div
+                            className="
+                              flex
+                              flex-wrap
+                              items-center
+                              gap-2
+                              mb-4
+                            "
+                          >
+                            <span
+                              className="
+                                font-heading
+                                text-lg
+                                font-bold
+                                text-primary
+                              "
+                            >
+                              ₹
+                              {
+                                formatPrice(
+                                  product
+                                    ?.price
+                                )
+                              }
+                            </span>
+
+                            {product
+                              ?.originalPrice &&
+                              Number(
+                                product
+                                  .originalPrice
+                              ) >
+                                Number(
+                                  product
+                                    ?.price ||
+                                    0
+                                ) && (
+                                <span
+                                  className="
+                                    text-xs
+                                    text-muted-foreground
+                                    line-through
+                                  "
+                                >
+                                  ₹
+                                  {
+                                    formatPrice(
+                                      product
+                                        .originalPrice
+                                    )
+                                  }
+                                </span>
+                              )}
+                          </div>
+
+
+                          {/* Add To Cart */}
+
+                          <button
+                            type="button"
+
+                            disabled={
+                              !inStock
+                            }
+
+                            onClick={(e) => {
+                              e.preventDefault();
+
+                              e.stopPropagation();
+
+                              if (
+                                inStock
+                              ) {
+                                addToCart(
+                                  product
+                                );
+                              }
+                            }}
+
+                            className="
+                              w-full
+                              px-4
+                              py-2.5
+                              bg-primary
+                              text-primary-foreground
+                              rounded-lg
+                              text-xs
+                              font-semibold
+                              hover:bg-primary/90
+                              transition-colors
+                              flex
+                              items-center
+                              justify-center
+                              gap-1.5
+                              disabled:opacity-50
+                              disabled:cursor-not-allowed
+                            "
+                          >
+                            <ShoppingCart
+                              size={14}
+                            />
+
+                            {
+                              inStock
+                                ? "Add to Cart"
+                                : "Out of Stock"
+                            }
+                          </button>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                }
               )}
-
             </div>
-
           )}
 
 
@@ -2122,166 +1992,212 @@ useEffect(() => {
           {filteredProducts.length >
             0 &&
             totalPages > 1 && (
-
-            <div
-              className="
-                border-t
-                border-border/60
-                mt-10
-                pt-8
-              "
-            >
-
               <div
                 className="
-                  flex
-                  flex-wrap
-                  items-center
-                  justify-center
-                  gap-3
+                  border-t
+                  border-border/60
+                  mt-10
+                  pt-8
                 "
               >
-
-                <button
-                  type="button"
-
-                  disabled={
-                    currentPage === 1
-                  }
-
-                  onClick={() =>
-                    setCurrentPage(
-                      (previous) =>
-                        Math.max(
-                          1,
-                          previous - 1
-                        )
-                    )
-                  }
-
+                <div
                   className="
                     flex
+                    flex-wrap
                     items-center
-                    gap-2
-                    px-4
-                    py-2.5
-                    rounded-lg
-                    border
-                    disabled:opacity-40
+                    justify-center
+                    gap-3
                   "
                 >
+                  {/* Previous */}
 
-                  <ArrowLeft
-                    size={16}
-                  />
+                  <button
+                    type="button"
 
-                  Previous
+                    disabled={
+                      currentPage === 1
+                    }
 
-                </button>
+                    onClick={() => {
+                      setCurrentPage(
+                        (previous) =>
+                          Math.max(
+                            1,
 
-
-                {Array.from({
-                  length:
-                    totalPages,
-                }).map(
-                  (_, index) => {
-
-                    const page =
-                      index + 1;
-
-                    return (
-
-                      <button
-                        key={page}
-
-                        type="button"
-
-                        onClick={() =>
-                          setCurrentPage(
-                            page
+                            previous -
+                              1
                           )
-                        }
+                      );
 
-                        className={`
-                          w-10
-                          h-10
-                          rounded-lg
-                          font-semibold
+                      window.scrollTo({
+                        top: 0,
+                        behavior:
+                          "smooth",
+                      });
+                    }}
 
-                          ${
-                            currentPage ===
-                            page
+                    className="
+                      flex
+                      items-center
+                      gap-2
+                      px-4
+                      py-2.5
+                      rounded-lg
+                      border
+                      border-border
+                      text-sm
+                      font-medium
+                      hover:bg-muted
+                      transition-colors
+                      disabled:opacity-40
+                      disabled:cursor-not-allowed
+                    "
+                  >
+                    <ArrowLeft
+                      size={16}
+                    />
 
-                              ? "bg-primary text-primary-foreground"
-
-                              : "border hover:bg-muted"
-                          }
-                        `}
-                      >
-
-                        {page}
-
-                      </button>
-
-                    );
-
-                  }
-                )}
+                    Previous
+                  </button>
 
 
-                <button
-                  type="button"
+                  {/* Page Numbers */}
 
-                  disabled={
-                    currentPage ===
-                    totalPages
-                  }
+                  {Array.from({
+                    length:
+                      totalPages,
+                  }).map(
+                    (
+                      _,
+                      index
+                    ) => {
+                      const page =
+                        index + 1;
 
-                  onClick={() =>
-                    setCurrentPage(
-                      (previous) =>
-                        Math.min(
-                          totalPages,
-                          previous + 1
-                        )
-                    )
-                  }
+                      return (
+                        <button
+                          key={page}
 
+                          type="button"
+
+                          onClick={() => {
+                            setCurrentPage(
+                              page
+                            );
+
+                            window.scrollTo({
+                              top: 0,
+
+                              behavior:
+                                "smooth",
+                            });
+                          }}
+
+                          className={`
+                            w-10
+                            h-10
+                            rounded-lg
+                            text-sm
+                            font-semibold
+                            transition-colors
+
+                            ${
+                              currentPage ===
+                              page
+                                ? "bg-primary text-primary-foreground"
+                                : "border border-border hover:bg-muted"
+                            }
+                          `}
+                        >
+                          {page}
+                        </button>
+                      );
+                    }
+                  )}
+
+
+                  {/* Next */}
+
+                  <button
+                    type="button"
+
+                    disabled={
+                      currentPage ===
+                      totalPages
+                    }
+
+                    onClick={() => {
+                      setCurrentPage(
+                        (previous) =>
+                          Math.min(
+                            totalPages,
+
+                            previous +
+                              1
+                          )
+                      );
+
+                      window.scrollTo({
+                        top: 0,
+                        behavior:
+                          "smooth",
+                      });
+                    }}
+
+                    className="
+                      flex
+                      items-center
+                      gap-2
+                      px-4
+                      py-2.5
+                      rounded-lg
+                      border
+                      border-border
+                      text-sm
+                      font-medium
+                      hover:bg-muted
+                      transition-colors
+                      disabled:opacity-40
+                      disabled:cursor-not-allowed
+                    "
+                  >
+                    Next
+
+                    <ArrowRight
+                      size={16}
+                    />
+                  </button>
+                </div>
+
+
+                {/* Page Info */}
+
+                <p
                   className="
-                    flex
-                    items-center
-                    gap-2
-                    px-4
-                    py-2.5
-                    rounded-lg
-                    border
-                    disabled:opacity-40
+                    text-center
+                    text-xs
+                    text-muted-foreground
+                    mt-4
                   "
                 >
+                  Page{" "}
 
-                  Next
+                  <strong>
+                    {currentPage}
+                  </strong>
 
-                  <ArrowRight
-                    size={16}
-                  />
+                  {" "}of{" "}
 
-                </button>
-
+                  <strong>
+                    {totalPages}
+                  </strong>
+                </p>
               </div>
-
-            </div>
-
-          )}
-
+            )}
         </div>
-
       </div>
-
     </section>
-
   );
-
 };
-
 
 export default ProductCard;
