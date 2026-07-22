@@ -12,13 +12,31 @@ import {
   useNavigate,
 } from "react-router-dom";
 
-import {
-  loginAdmin,
-} from "../../../redux/thunks/authThunk";
+
+/*
+|--------------------------------------------------------------------------
+| Admin Redux
+|--------------------------------------------------------------------------
+*/
 
 import {
-  clearAuthError,
-} from "../../../redux/slices/authSlice";
+  loginAdmin,
+} from "../../../redux/thunks/adminAuthThunk";
+
+import {
+  clearAdminAuthError,
+  selectAdmin,
+  selectAdminAuthenticated,
+  selectAdminAuthLoading,
+  selectAdminAuthError,
+} from "../../../redux/slices/adminAuthSlice";
+
+
+/*
+|--------------------------------------------------------------------------
+| Helpers / Components
+|--------------------------------------------------------------------------
+*/
 
 import {
   showToast,
@@ -27,11 +45,11 @@ import {
 import LoginForm from "../../../component/core/admin/LoginForm";
 
 
-export default function AdminLogin() {
+const AdminLogin = () => {
 
   /*
   |--------------------------------------------------------------------------
-  | Redux
+  | Redux / Router
   |--------------------------------------------------------------------------
   */
 
@@ -42,20 +60,47 @@ export default function AdminLogin() {
     useNavigate();
 
 
-  const {
-    user,
-    isAuthenticated,
-    loading,
-    error,
-  } = useSelector(
-    (state) =>
-      state.auth
-  );
+  /*
+  |--------------------------------------------------------------------------
+  | Admin Auth State
+  |--------------------------------------------------------------------------
+  |
+  | IMPORTANT:
+  |
+  | Old:
+  | state.auth
+  |
+  | New:
+  | state.adminAuth
+  |
+  | Selectors use karne se component store structure se cleaner rahega.
+  |
+  */
+
+  const user =
+    useSelector(
+      selectAdmin
+    );
+
+  const isAuthenticated =
+    useSelector(
+      selectAdminAuthenticated
+    );
+
+  const loading =
+    useSelector(
+      selectAdminAuthLoading
+    );
+
+  const error =
+    useSelector(
+      selectAdminAuthError
+    );
 
 
   /*
   |--------------------------------------------------------------------------
-  | Local Form State
+  | Form State
   |--------------------------------------------------------------------------
   */
 
@@ -73,7 +118,7 @@ export default function AdminLogin() {
 
   /*
   |--------------------------------------------------------------------------
-  | Already Logged In
+  | Redirect Already Logged-In Admin
   |--------------------------------------------------------------------------
   */
 
@@ -81,7 +126,9 @@ export default function AdminLogin() {
 
     if (
       isAuthenticated &&
-      user?.role === "admin"
+      user?.role
+        ?.toLowerCase() ===
+        "admin"
     ) {
 
       navigate(
@@ -102,167 +149,208 @@ export default function AdminLogin() {
 
   /*
   |--------------------------------------------------------------------------
-  | Clear Old Error
+  | Clear Previous Admin Error On Mount
   |--------------------------------------------------------------------------
   */
 
   useEffect(() => {
 
     dispatch(
-      clearAuthError()
+      clearAdminAuthError()
     );
 
-  }, [dispatch]);
+  }, [
+    dispatch,
+  ]);
 
 
   /*
   |--------------------------------------------------------------------------
-  | Handle Login
+  | Handle Admin Login
   |--------------------------------------------------------------------------
   */
 
-  const handleLogin = async (
-    e
-  ) => {
+  const handleLogin =
+    async (e) => {
 
-    e.preventDefault();
-
-
-    if (loading) {
-      return;
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Clean Email
-    |--------------------------------------------------------------------------
-    */
-
-    const cleanEmail =
-      email
-        .trim()
-        .toLowerCase();
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Validation
-    |--------------------------------------------------------------------------
-    */
-
-    if (!cleanEmail) {
-
-      showToast.error(
-        "Email is required."
-      );
-
-      return;
-
-    }
-
-
-    if (!password) {
-
-      showToast.error(
-        "Password is required."
-      );
-
-      return;
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Clear Previous Error
-    |--------------------------------------------------------------------------
-    */
-
-    dispatch(
-      clearAuthError()
-    );
-
-
-    try {
-
-      /*
-      |--------------------------------------------------------------------------
-      | Dispatch Login Thunk
-      |--------------------------------------------------------------------------
-      */
-
-      const result =
-        await dispatch(
-
-          loginAdmin({
-
-            email:
-              cleanEmail,
-
-            password,
-
-          })
-
-        ).unwrap();
+      e.preventDefault();
 
 
       /*
       |--------------------------------------------------------------------------
-      | Success Toast
+      | Prevent Multiple Requests
       |--------------------------------------------------------------------------
       */
 
-      showToast.success(
-
-        `Welcome back, ${
-          result?.user?.name ||
-          "Admin"
-        }.`
-
-      );
+      if (loading) {
+        return;
+      }
 
 
       /*
       |--------------------------------------------------------------------------
-      | Navigate
+      | Normalize Input
       |--------------------------------------------------------------------------
       */
 
-      navigate(
-        "/admin/dashboard",
-        {
-          replace: true,
+      const cleanEmail =
+        email
+          ?.trim()
+          .toLowerCase();
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | Email Validation
+      |--------------------------------------------------------------------------
+      */
+
+      if (!cleanEmail) {
+
+        showToast.error(
+          "Email is required."
+        );
+
+        return;
+
+      }
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | Password Validation
+      |--------------------------------------------------------------------------
+      */
+
+      if (!password) {
+
+        showToast.error(
+          "Password is required."
+        );
+
+        return;
+
+      }
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | Clear Previous Error
+      |--------------------------------------------------------------------------
+      */
+
+      dispatch(
+        clearAdminAuthError()
+      );
+
+
+      try {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Login Admin
+        |--------------------------------------------------------------------------
+        */
+
+        const result =
+          await dispatch(
+
+            loginAdmin({
+
+              email:
+                cleanEmail,
+
+              password,
+
+            })
+
+          ).unwrap();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Extra Safety Check
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+          result?.user?.role
+            ?.toLowerCase() !==
+          "admin"
+        ) {
+
+          showToast.error(
+            "Access denied. Admin account required."
+          );
+
+          return;
+
         }
-      );
 
-    } catch (message) {
 
-      /*
-      |--------------------------------------------------------------------------
-      | Error Toast
-      |--------------------------------------------------------------------------
-      */
+        /*
+        |--------------------------------------------------------------------------
+        | Success Message
+        |--------------------------------------------------------------------------
+        */
 
-      showToast.error(
+        showToast.success(
 
-        typeof message ===
-          "string"
+          `Welcome back, ${
+            result?.user?.name ||
+            "Admin"
+          }.`
 
-          ? message
+        );
 
-          : "Unable to login. Please try again."
 
-      );
+        /*
+        |--------------------------------------------------------------------------
+        | Redirect To Admin Dashboard
+        |--------------------------------------------------------------------------
+        */
 
-    }
+        navigate(
+          "/admin/dashboard",
+          {
+            replace: true,
+          }
+        );
 
-  };
+      } catch (message) {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Login Error
+        |--------------------------------------------------------------------------
+        */
+
+        console.error(
+          "ADMIN LOGIN ERROR:",
+          message
+        );
+
+
+        showToast.error(
+
+          typeof message ===
+            "string"
+
+            ? message
+
+            : message?.message ||
+              "Unable to login. Please try again."
+
+        );
+
+      }
+
+    };
 
 
   /*
   |--------------------------------------------------------------------------
-  | Clear Error From LoginForm
+  | Clear Error From Login Form
   |--------------------------------------------------------------------------
   */
 
@@ -270,7 +358,7 @@ export default function AdminLogin() {
     () => {
 
       dispatch(
-        clearAuthError()
+        clearAdminAuthError()
       );
 
     };
@@ -287,10 +375,13 @@ export default function AdminLogin() {
     <div
       className="
         min-h-screen
+
         flex
         items-center
         justify-center
+
         bg-slate-100
+
         px-4
         py-10
       "
@@ -298,27 +389,61 @@ export default function AdminLogin() {
 
       <LoginForm
 
-        email={email}
+        /*
+        | Email
+        */
 
-        setEmail={setEmail}
+        email={
+          email
+        }
 
-        password={password}
+        setEmail={
+          setEmail
+        }
+
+
+        /*
+        | Password
+        */
+
+        password={
+          password
+        }
 
         setPassword={
           setPassword
         }
 
+
+        /*
+        | Submit
+        */
+
         handleSubmit={
           handleLogin
         }
 
-        error={error}
+
+        /*
+        | Error
+        */
+
+        error={
+          error
+        }
 
         setError={
           handleClearError
         }
 
-        loading={loading}
+
+        /*
+        | Loading
+        */
+
+        loading={
+          loading
+        }
 
       />
 
@@ -326,4 +451,7 @@ export default function AdminLogin() {
 
   );
 
-}
+};
+
+
+export default AdminLogin;

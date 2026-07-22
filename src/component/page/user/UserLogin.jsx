@@ -1,10 +1,10 @@
+
 import {
   useState,
 } from "react";
 
 import {
   Link,
-  useNavigate,
 } from "react-router-dom";
 
 import {
@@ -15,47 +15,55 @@ import {
   ArrowRight,
   ShieldCheck,
   ShoppingBag,
+  Sparkles,
 } from "lucide-react";
 
+
 const UserLogin = () => {
+
   /*
   |--------------------------------------------------------------------------
   | State
   |--------------------------------------------------------------------------
   */
 
-  const [formData, setFormData] =
-    useState({
-      email: "",
-      password: "",
-      rememberMe: false,
-    });
+  const [
+    formData,
+    setFormData,
+  ] = useState({
+    email: "",
+    password: "",
+    rememberMe: false,
+  });
+
 
   const [
     showPassword,
     setShowPassword,
   ] = useState(false);
 
+
   const [
     loading,
     setLoading,
   ] = useState(false);
 
-  const navigate = useNavigate();
 
   /*
   |--------------------------------------------------------------------------
-  | Handle Input
+  | Handle Change
   |--------------------------------------------------------------------------
   */
 
   const handleChange = (e) => {
+
     const {
       name,
       value,
       type,
       checked,
     } = e.target;
+
 
     setFormData((prev) => ({
       ...prev,
@@ -65,108 +73,113 @@ const UserLogin = () => {
           ? checked
           : value,
     }));
+
   };
+
 
   /*
   |--------------------------------------------------------------------------
   | Handle Login
   |--------------------------------------------------------------------------
-  |
-  | Abhi UI ready hai.
-  |
-  | Next step me yahan:
-  |
-  | dispatch(loginUser({...}))
-  |
-  | Redux thunk connect kar sakte hain.
-  |
   */
 
   const handleSubmit = async (e) => {
+
     e.preventDefault();
+
 
     if (loading) return;
 
+
     try {
+
       setLoading(true);
 
+
       console.log(
-        "LOGIN DATA:",
+        "USER LOGIN DATA:",
         formData
       );
 
-      /*
-      |--------------------------------------------------------------------------
-      | Temporary Demo
-      |--------------------------------------------------------------------------
-      |
-      | Redux login implement hone ke baad remove kar dena.
-      |
-      */
 
       await new Promise(
         (resolve) =>
-          setTimeout(resolve, 800)
+          setTimeout(
+            resolve,
+            800
+          )
       );
-
-      // Example:
-      // navigate("/account");
 
     } catch (error) {
+
       console.error(
-        "LOGIN ERROR:",
+        "USER LOGIN ERROR:",
         error
       );
+
     } finally {
+
       setLoading(false);
+
     }
+
   };
 
+
   return (
+
     <section
       className="
         relative
         min-h-[calc(100vh-80px)]
         overflow-hidden
-        bg-[#fbf7f2]
+        bg-background
         px-4
         py-12
+        flex
+        items-center
+        justify-center
+
         sm:px-6
         sm:py-16
+
         lg:px-8
       "
     >
+
       {/* ================================================================
-          DECORATIVE BACKGROUND
+          BACKGROUND DECORATION (Earthy Ambient Glows)
       ================================================================= */}
 
       <div
         className="
           pointer-events-none
           absolute
-          -left-24
-          top-20
-          h-72
-          w-72
+          -left-32
+          top-10
+          h-96
+          w-96
           rounded-full
-          bg-[#b45a2b]/8
-          blur-3xl
+          bg-primary/15
+          blur-[100px]
         "
       />
+
 
       <div
         className="
           pointer-events-none
           absolute
-          -right-24
+          -right-32
           bottom-10
-          h-80
-          w-80
+          h-96
+          w-96
           rounded-full
-          bg-[#d9a77d]/10
-          blur-3xl
+          bg-amber-600/10
+          blur-[100px]
         "
       />
+
 
       {/* ================================================================
           LOGIN CONTAINER
@@ -181,16 +194,20 @@ const UserLogin = () => {
           w-full
           max-w-5xl
           overflow-hidden
-          rounded-[28px]
+          rounded-3xl
           border
-          border-[#eadfd5]
-          bg-white
-          shadow-[0_25px_70px_rgba(88,55,40,0.10)]
-          lg:grid-cols-[0.9fr_1.1fr]
+          border-border/80
+          bg-card
+          shadow-2xl
+          shadow-black/5
+
+          lg:grid-cols-[1fr_1.15fr]
         "
       >
+
+
         {/* ================================================================
-            LEFT BRAND PANEL
+            LEFT BRAND SECTION
         ================================================================= */}
 
         <div
@@ -198,39 +215,30 @@ const UserLogin = () => {
             relative
             hidden
             overflow-hidden
-            bg-[#a94f27]
-            p-10
-            text-white
+            bg-primary
+            p-12
+            text-primary-foreground
+
             lg:flex
             lg:flex-col
             lg:justify-between
           "
         >
-          {/* Decorative circles */}
 
+          {/* Decorative Pattern / Subtle Overlay */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_50%)]" />
+
+          {/* Decorative Circles */}
           <div
             className="
               absolute
-              -right-24
-              -top-24
+              -right-20
+              -top-20
               h-72
               w-72
               rounded-full
               border
-              border-white/10
-            "
-          />
-
-          <div
-            className="
-              absolute
-              -right-10
-              top-10
-              h-48
-              w-48
-              rounded-full
-              border
-              border-white/10
+              border-primary-foreground/10
             "
           />
 
@@ -242,117 +250,167 @@ const UserLogin = () => {
               h-64
               w-64
               rounded-full
-              bg-white/5
+              bg-primary-foreground/5
             "
           />
 
-          {/* Logo */}
 
-          <div className="relative z-10">
+          {/* ================================================================
+              BRAND LOGO
+          ================================================================= */}
+
+          <div
+            className="
+              relative
+              z-10
+            "
+          >
+
             <Link
               to="/"
               className="
                 inline-flex
                 items-center
                 gap-3
+                group
               "
             >
+
               <div
                 className="
                   flex
-                  h-11
-                  w-11
+                  h-12
+                  w-12
                   items-center
                   justify-center
-                  rounded-full
-                  bg-[#fff8f2]
+                  rounded-2xl
+                  bg-primary-foreground
                   font-heading
                   text-sm
                   font-bold
-                  text-[#a94f27]
-                  shadow-sm
+                  text-primary
+                  shadow-md
+                  transition-transform
+                  duration-300
+                  group-hover:scale-105
                 "
               >
+
                 EE
+
               </div>
+
 
               <span
                 className="
                   font-heading
-                  text-xl
+                  text-2xl
                   font-bold
+                  tracking-wide
+                  text-primary-foreground
                 "
               >
+
                 Earthen Echoes
+
               </span>
+
             </Link>
+
           </div>
 
-          {/* Main content */}
+
+          {/* ================================================================
+              LEFT CONTENT
+          ================================================================= */}
 
           <div
             className="
               relative
               z-10
-              py-14
+              py-10
             "
           >
+
+
             <span
               className="
-                mb-5
+                mb-6
                 inline-flex
                 items-center
                 gap-2
                 rounded-full
                 border
-                border-white/20
-                bg-white/10
+                border-primary-foreground/20
+                bg-primary-foreground/10
                 px-4
-                py-2
-                text-[11px]
-                font-semibold
+                py-1.5
+                text-xs
+                font-medium
                 uppercase
-                tracking-[0.16em]
+                tracking-[0.2em]
+                text-primary-foreground
+                backdrop-blur-sm
               "
             >
-              <ShoppingBag size={14} />
 
-              Crafted with Tradition
+              <Sparkles
+                size={13}
+              />
+
+              Artisanal Heritage
+
             </span>
 
-            <h2
+
+            <hh1
               className="
-                max-w-sm
+                max-w-md
                 font-heading
                 text-4xl
                 font-bold
-                leading-[1.15]
+                leading-[1.2]
+                text-primary-foreground
+
                 xl:text-5xl
               "
             >
-              Welcome Back to
-              <span className="block">
-                Earthen Elegance.
+
+              Timeless pottery,
+
+              <span
+                className="
+                  block
+                  mt-1
+                  text-primary-foreground/90
+                "
+              >
+                crafted for your soul.
               </span>
-            </h2>
+
+            </hh1>
+
 
             <p
               className="
-                mt-5
+                mt-6
                 max-w-sm
                 text-sm
-                leading-7
-                text-white/75
+                leading-relaxed
+                text-primary-foreground/80
               "
             >
-              Sign in to discover handcrafted
-              terracotta creations, manage your
-              orders and continue your journey
-              through timeless Indian artistry.
+
+              Log in to access your saved wishlist, track handcrafted terracotta orders, and experience the warmth of sustainable Indian artistry.
+
             </p>
+
           </div>
 
-          {/* Bottom */}
+
+          {/* ================================================================
+              SECURITY TEXT
+          ================================================================= */}
 
           <div
             className="
@@ -360,19 +418,27 @@ const UserLogin = () => {
               z-10
               flex
               items-center
-              gap-2
+              gap-2.5
               text-xs
-              text-white/70
+              font-medium
+              text-primary-foreground/75
             "
           >
-            <ShieldCheck size={16} />
 
-            Secure & trusted shopping experience
+            <ShieldCheck
+              size={18}
+              className="text-primary-foreground"
+            />
+
+            100% Secure & Authentic Terracotta Store
+
           </div>
+
         </div>
 
+
         {/* ================================================================
-            RIGHT LOGIN FORM
+            RIGHT LOGIN SECTION
         ================================================================= */}
 
         <div
@@ -380,27 +446,37 @@ const UserLogin = () => {
             flex
             items-center
             justify-center
-            p-6
-            sm:p-10
-            lg:p-14
+            bg-card
+            p-8
+
+            sm:p-12
+
+            lg:p-16
           "
         >
+
           <div
             className="
               w-full
               max-w-md
             "
           >
-            {/* Mobile Logo */}
+
+
+            {/* ================================================================
+                MOBILE LOGO
+            ================================================================= */}
 
             <div
               className="
                 mb-8
                 flex
                 justify-center
+
                 lg:hidden
               "
             >
+
               <Link
                 to="/"
                 className="
@@ -409,90 +485,104 @@ const UserLogin = () => {
                   gap-2.5
                 "
               >
+
                 <div
                   className="
                     flex
-                    h-10
-                    w-10
+                    h-11
+                    w-11
                     items-center
                     justify-center
-                    rounded-full
-                    bg-[#ad542b]
+                    rounded-2xl
+                    bg-primary
                     font-heading
                     text-xs
                     font-bold
-                    text-white
+                    text-primary-foreground
                   "
                 >
+
                   EE
+
                 </div>
+
 
                 <span
                   className="
                     font-heading
                     text-xl
                     font-bold
-                    text-[#55392f]
+                    text-foreground
                   "
                 >
+
                   Earthen Echoes
+
                 </span>
+
               </Link>
+
             </div>
 
-            {/* Heading */}
 
-            <div className="mb-8">
-              <p
-                className="
-                  mb-2
-                  text-xs
-                  font-semibold
-                  uppercase
-                  tracking-[0.18em]
-                  text-[#b45a2b]
-                "
-              >
-                Welcome Back
-              </p>
+            {/* ================================================================
+                HEADING
+            ================================================================= */}
 
-              <h1
+            <div
+              className="
+                mb-8
+              "
+            >
+
+              <h2
                 className="
                   font-heading
                   text-3xl
                   font-bold
-                  text-[#51362e]
-                  sm:text-4xl
+                  tracking-tight
+                  text-foreground
                 "
               >
-                Sign in to your account
-              </h1>
+
+                Welcome Back
+
+              </h2>
+
 
               <p
                 className="
-                  mt-3
+                  mt-2
                   text-sm
-                  leading-6
-                  text-[#8b776d]
+                  text-muted-foreground
                 "
               >
-                Enter your details below to
-                continue shopping with Earthen
-                Echoes.
+
+                Please enter your credentials to access your account.
+
               </p>
+
             </div>
 
-            {/* ============================================================
+
+            {/* ================================================================
                 FORM
-            ============================================================= */}
+            ================================================================= */}
 
             <form
               onSubmit={handleSubmit}
-              className="space-y-5"
+              className="
+                space-y-5
+              "
             >
-              {/* Email */}
+
+
+              {/* ==============================================================
+                  EMAIL
+              =============================================================== */}
 
               <div>
+
                 <label
                   htmlFor="email"
                   className="
@@ -502,13 +592,21 @@ const UserLogin = () => {
                     font-semibold
                     uppercase
                     tracking-wider
-                    text-[#60483e]
+                    text-foreground/80
                   "
                 >
+
                   Email Address
+
                 </label>
 
-                <div className="relative">
+
+                <div
+                  className="
+                    relative
+                  "
+                >
+
                   <Mail
                     size={18}
                     className="
@@ -517,9 +615,10 @@ const UserLogin = () => {
                       left-4
                       top-1/2
                       -translate-y-1/2
-                      text-[#a68e82]
+                      text-muted-foreground
                     "
                   />
+
 
                   <input
                     id="email"
@@ -527,36 +626,51 @@ const UserLogin = () => {
                     type="email"
                     required
                     autoComplete="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="Enter your email"
+
+                    value={
+                      formData.email
+                    }
+
+                    onChange={
+                      handleChange
+                    }
+
+                    placeholder="name@example.com"
+
                     className="
-                      h-13
+                      h-12
                       w-full
                       rounded-xl
                       border
-                      border-[#e6dcd5]
-                      bg-[#fdfbf9]
+                      border-input
+                      bg-background
                       pl-12
                       pr-4
                       text-sm
-                      text-[#51362e]
+                      text-foreground
                       outline-none
                       transition-all
-                      placeholder:text-[#b8aaa2]
 
-                      focus:border-[#ad542b]
-                      focus:bg-white
-                      focus:ring-4
-                      focus:ring-[#ad542b]/10
+                      placeholder:text-muted-foreground/50
+
+                      focus:border-primary
+                      focus:bg-card
+                      focus:ring-2
+                      focus:ring-primary/20
                     "
                   />
+
                 </div>
+
               </div>
 
-              {/* Password */}
+
+              {/* ==============================================================
+                  PASSWORD
+              =============================================================== */}
 
               <div>
+
                 <div
                   className="
                     mb-2
@@ -566,6 +680,7 @@ const UserLogin = () => {
                     gap-3
                   "
                 >
+
                   <label
                     htmlFor="password"
                     className="
@@ -573,27 +688,40 @@ const UserLogin = () => {
                       font-semibold
                       uppercase
                       tracking-wider
-                      text-[#60483e]
+                      text-foreground/80
                     "
                   >
+
                     Password
+
                   </label>
+
 
                   <Link
                     to="/forgot-password"
                     className="
                       text-xs
-                      font-semibold
-                      text-[#ad542b]
+                      font-medium
+                      text-primary
                       transition
-                      hover:text-[#8f3f1e]
+
+                      hover:underline
                     "
                   >
+
                     Forgot password?
+
                   </Link>
+
                 </div>
 
-                <div className="relative">
+
+                <div
+                  className="
+                    relative
+                  "
+                >
+
                   <LockKeyhole
                     size={18}
                     className="
@@ -602,130 +730,184 @@ const UserLogin = () => {
                       left-4
                       top-1/2
                       -translate-y-1/2
-                      text-[#a68e82]
+                      text-muted-foreground
                     "
                   />
+
 
                   <input
                     id="password"
                     name="password"
+
                     type={
                       showPassword
                         ? "text"
                         : "password"
                     }
+
                     required
+
                     autoComplete="current-password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="Enter your password"
+
+                    value={
+                      formData.password
+                    }
+
+                    onChange={
+                      handleChange
+                    }
+
+                    placeholder="••••••••"
+
                     className="
-                      h-13
+                      h-12
                       w-full
                       rounded-xl
                       border
-                      border-[#e6dcd5]
-                      bg-[#fdfbf9]
+                      border-input
+                      bg-background
                       pl-12
                       pr-12
                       text-sm
-                      text-[#51362e]
+                      text-foreground
                       outline-none
                       transition-all
-                      placeholder:text-[#b8aaa2]
 
-                      focus:border-[#ad542b]
-                      focus:bg-white
-                      focus:ring-4
-                      focus:ring-[#ad542b]/10
+                      placeholder:text-muted-foreground/50
+
+                      focus:border-primary
+                      focus:bg-card
+                      focus:ring-2
+                      focus:ring-primary/20
                     "
                   />
 
+
                   <button
                     type="button"
+
                     onClick={() =>
                       setShowPassword(
                         (prev) => !prev
                       )
                     }
-                    className="
-                      absolute
-                      right-4
-                      top-1/2
-                      -translate-y-1/2
-                      text-[#a68e82]
-                      transition
-                      hover:text-[#ad542b]
-                    "
+
                     aria-label={
                       showPassword
                         ? "Hide password"
                         : "Show password"
                     }
+
+                    className="
+                      absolute
+                      right-4
+                      top-1/2
+                      -translate-y-1/2
+                      text-muted-foreground
+                      transition
+
+                      hover:text-foreground
+                    "
                   >
-                    {showPassword ? (
-                      <EyeOff size={18} />
-                    ) : (
-                      <Eye size={18} />
-                    )}
+
+                    {
+                      showPassword
+                        ? (
+                          <EyeOff
+                            size={18}
+                          />
+                        )
+                        : (
+                          <Eye
+                            size={18}
+                          />
+                        )
+                    }
+
                   </button>
+
                 </div>
+
               </div>
 
-              {/* Remember */}
 
-              <label
-                className="
-                  flex
-                  cursor-pointer
-                  items-center
-                  gap-2.5
-                  text-sm
-                  text-[#766159]
-                "
-              >
-                <input
-                  type="checkbox"
-                  name="rememberMe"
-                  checked={
-                    formData.rememberMe
-                  }
-                  onChange={handleChange}
+              {/* ==============================================================
+                  REMEMBER ME
+              =============================================================== */}
+
+              <div className="flex items-center justify-between">
+
+                <label
                   className="
-                    h-4
-                    w-4
+                    flex
                     cursor-pointer
-                    accent-[#ad542b]
+                    items-center
+                    gap-2.5
+                    text-sm
+                    text-muted-foreground
+                    select-none
                   "
-                />
+                >
 
-                Keep me signed in
-              </label>
+                  <input
+                    type="checkbox"
+                    name="rememberMe"
 
-              {/* Submit */}
+                    checked={
+                      formData.rememberMe
+                    }
+
+                    onChange={
+                      handleChange
+                    }
+
+                    className="
+                      h-4
+                      w-4
+                      rounded
+                      border-input
+                      cursor-pointer
+                      accent-primary
+                    "
+                  />
+
+                  Keep me signed in
+
+                </label>
+
+              </div>
+
+
+              {/* ==============================================================
+                  LOGIN BUTTON
+              =============================================================== */}
 
               <button
                 type="submit"
-                disabled={loading}
+
+                disabled={
+                  loading
+                }
+
                 className="
                   group
                   flex
-                  h-13
+                  h-12
                   w-full
                   items-center
                   justify-center
                   gap-2
                   rounded-xl
-                  bg-[#ad542b]
+                  bg-primary
                   px-5
                   text-sm
                   font-semibold
-                  text-white
-                  shadow-[0_8px_20px_rgba(173,84,43,0.20)]
+                  text-primary-foreground
+                  shadow-md
                   transition-all
 
-                  hover:bg-[#98451f]
-                  hover:shadow-[0_10px_25px_rgba(173,84,43,0.28)]
+                  hover:opacity-95
+                  hover:shadow-lg
 
                   active:scale-[0.99]
 
@@ -733,131 +915,158 @@ const UserLogin = () => {
                   disabled:opacity-60
                 "
               >
-                {loading
-                  ? "Signing In..."
-                  : "Sign In"}
 
-                {!loading && (
-                  <ArrowRight
-                    size={17}
-                    className="
-                      transition-transform
-                      group-hover:translate-x-1
-                    "
-                  />
-                )}
+                {
+                  loading
+                    ? "Signing In..."
+                    : "Sign In"
+                }
+
+
+                {
+                  !loading && (
+
+                    <ArrowRight
+                      size={17}
+                      className="
+                        transition-transform
+
+                        group-hover:translate-x-1
+                      "
+                    />
+
+                  )
+                }
+
               </button>
+
             </form>
 
-            {/* Divider */}
+
+            {/* ================================================================
+                DIVIDER
+            ================================================================= */}
 
             <div
               className="
-                my-7
+                my-6
                 flex
                 items-center
                 gap-4
               "
             >
+
               <div
                 className="
                   h-px
                   flex-1
-                  bg-[#eee5df]
+                  bg-border
                 "
               />
+
 
               <span
                 className="
                   text-xs
                   uppercase
                   tracking-wider
-                  text-[#aa9b92]
+                  text-muted-foreground
                 "
               >
-                New here?
+
+                New to Earthen Echoes?
+
               </span>
+
 
               <div
                 className="
                   h-px
                   flex-1
-                  bg-[#eee5df]
+                  bg-border
                 "
               />
+
             </div>
 
-            {/* Register */}
+
+            {/* ================================================================
+                REGISTER BUTTON
+            ================================================================= */}
 
             <Link
-              to="/register"
+              to="/user/register"
+
               className="
                 flex
-                h-13
+                h-12
                 w-full
                 items-center
                 justify-center
                 rounded-xl
                 border
-                border-[#d8c9c0]
-                bg-white
+                border-border
+                bg-background
                 text-sm
-                font-semibold
-                text-[#60483e]
+                font-medium
+                text-foreground
                 transition-all
 
-                hover:border-[#ad542b]
-                hover:bg-[#fff9f5]
-                hover:text-[#ad542b]
+                hover:border-primary/50
+                hover:bg-secondary/40
+                hover:text-primary
               "
             >
+
               Create an Account
+
             </Link>
 
-            {/* Security */}
+
+            {/* ================================================================
+                BACK HOME LINK
+            ================================================================= */}
 
             <div
               className="
-                mt-7
-                flex
-                items-center
-                justify-center
-                gap-2
+                mt-6
                 text-center
-                text-xs
-                text-[#9b8980]
               "
             >
-              <ShieldCheck
-                size={15}
-                className="text-[#ad542b]"
-              />
 
-              Your information is securely
-              protected
-            </div>
-
-            {/* Back Home */}
-
-            <div className="mt-5 text-center">
               <Link
                 to="/"
+
                 className="
+                  inline-flex
+                  items-center
+                  gap-1.5
                   text-xs
                   font-medium
-                  text-[#8a756b]
+                  text-muted-foreground
                   transition
-                  hover:text-[#ad542b]
+
+                  hover:text-primary
                 "
               >
-                ← Back to Earthen Echoes
+
+                ← Back to Home Catalogue
+
               </Link>
+
             </div>
+
           </div>
+
         </div>
+
       </div>
+
     </section>
+
   );
+
 };
+
 
 export default UserLogin;

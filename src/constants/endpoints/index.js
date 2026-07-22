@@ -1,6 +1,10 @@
 export {
-  AUTH_ENDPOINTS,
-} from "./authEndpoints";
+  ADMIN_AUTH_ENDPOINTS,
+} from "./adminAuthEndpoints";
+
+export {
+  USER_AUTH_ENDPOINTS,
+} from "./userAuthEndpoints";
 
 export {
   PRODUCT_ENDPOINTS,

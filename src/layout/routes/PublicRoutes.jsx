@@ -5,23 +5,43 @@ import About from "../../component/page/public/About";
 import Contact from "../../component/page/public/Contact";
 import Product from "../../component/page/public/Product";
 import ProductDetails from "../../component/page/public/ProductDetails";
-import UserLogin from "../../component/page/user/UserLogin";
+
 
 const publicRoutes = [
   {
     element: <MainLayout />,
 
     children: [
- 
+
+      /*
+      |--------------------------------------------------------------------------
+      | Home
+      |--------------------------------------------------------------------------
+      */
+
       {
         index: true,
         element: <Home />,
       },
 
+
+      /*
+      |--------------------------------------------------------------------------
+      | About
+      |--------------------------------------------------------------------------
+      */
+
       {
         path: "about",
         element: <About />,
       },
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | Contact
+      |--------------------------------------------------------------------------
+      */
 
       {
         path: "contact",
@@ -29,29 +49,44 @@ const publicRoutes = [
       },
 
 
+      /*
+      |--------------------------------------------------------------------------
+      | Products
+      |--------------------------------------------------------------------------
+      */
+
       {
         path: "products",
         element: <Product />,
       },
 
 
+      /*
+      |--------------------------------------------------------------------------
+      | Product Details
+      |--------------------------------------------------------------------------
+      */
+
       {
         path: "products/:id",
         element: <ProductDetails />,
       },
 
-      {
-        path: "user/login",
-        element: <UserLogin />,
-      },
 
+      /*
+      |--------------------------------------------------------------------------
+      | Cart
+      |--------------------------------------------------------------------------
+      */
 
       // {
       //   path: "cart",
       //   element: <CartPage />,
       // },
+
     ],
   },
 ];
+
 
 export default publicRoutes;

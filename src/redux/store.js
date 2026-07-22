@@ -2,27 +2,55 @@ import {
   configureStore,
 } from "@reduxjs/toolkit";
 
-import authReducer from "./slices/authSlice";
-import productReducer from "./slices/productSlice";
-import categoryReducer from "./slices/categorySlice";
-import cartReducer from "./slices/cartSlice";
+import adminAuthReducer
+  from "./slices/adminAuthSlice";
+
+import userAuthReducer
+  from "./slices/userAuthSlice";
+
+import productReducer
+  from "./slices/productSlice";
+
+import categoryReducer
+  from "./slices/categorySlice";
+
 
 export const store =
   configureStore({
+
     reducer: {
-      auth: authReducer,
+
+      /*
+      | Admin
+      */
+
+      adminAuth:
+        adminAuthReducer,
+
+
+      /*
+      | Customer / User
+      */
+
+      userAuth:
+        userAuthReducer,
+
+
+      /*
+      | Products
+      */
 
       products:
         productReducer,
 
+
+      /*
+      | Categories
+      */
+
       categories:
         categoryReducer,
 
-      cart: cartReducer,
     },
 
-    devTools:
-      import.meta.env.DEV,
   });
-
-export default store;
