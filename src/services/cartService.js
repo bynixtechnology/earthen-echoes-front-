@@ -50,6 +50,34 @@ export const CartService = {
 
   /*
   |--------------------------------------------------------------------------
+  | Update Cart Item Quantity
+  |--------------------------------------------------------------------------
+  */
+
+  updateCartItem: async ({
+    productId,
+    quantity,
+  }) => {
+    if (!productId) {
+      throw new Error(
+        "Product ID is required."
+      );
+    }
+
+    const response =
+      await axiosInstance.patch(
+        CART_ENDPOINTS.UPDATE,
+        {
+          productId,
+          quantity,
+        }
+      );
+
+    return response.data;
+  },
+
+  /*
+  |--------------------------------------------------------------------------
   | Remove Cart Item
   |--------------------------------------------------------------------------
   */
@@ -68,6 +96,21 @@ export const CartService = {
         CART_ENDPOINTS.REMOVE(
           productId
         )
+      );
+
+    return response.data;
+  },
+
+  /*
+  |--------------------------------------------------------------------------
+  | Clear Cart
+  |--------------------------------------------------------------------------
+  */
+
+  clearCart: async () => {
+    const response =
+      await axiosInstance.delete(
+        CART_ENDPOINTS.CLEAR
       );
 
     return response.data;

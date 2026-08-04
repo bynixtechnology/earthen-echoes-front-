@@ -1,47 +1,23 @@
+import React from "react";
 import {
   Navigate,
   Outlet,
 } from "react-router-dom";
 
 const GuestRoute = () => {
-  /*
-  |--------------------------------------------------------------------------
-  | User Authentication
-  |--------------------------------------------------------------------------
-  */
+  // Read correct localStorage keys
+  const token = localStorage.getItem("userToken");
+  const savedUser = localStorage.getItem("userData");
 
-  const token =
-    localStorage.getItem("token");
-
-  const savedUser =
-    localStorage.getItem("user");
-
-  /*
-  |--------------------------------------------------------------------------
-  | No Login → Allow Login/Register
-  |--------------------------------------------------------------------------
-  */
-
+  // Not logged in -> allow login/register pages
   if (!token || !savedUser) {
     return <Outlet />;
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Already Logged In
-  |--------------------------------------------------------------------------
-  */
-
   try {
-    const user =
-      JSON.parse(savedUser);
+    const user = JSON.parse(savedUser);
 
-    /*
-    |--------------------------------------------------------------------------
-    | Admin
-    |--------------------------------------------------------------------------
-    */
-
+    // Admin user
     if (user?.role === "admin") {
       return (
         <Navigate
@@ -51,31 +27,18 @@ const GuestRoute = () => {
       );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Normal User
-    |--------------------------------------------------------------------------
-    */
-
+    // Normal user
     return (
       <Navigate
-        to="/dashboard"
+        to="/user/profile"
         replace
       />
     );
   } catch (error) {
-    console.error(
-      "Invalid saved user:",
-      error
-    );
+    console.error("Invalid user data:", error);
 
-    localStorage.removeItem(
-      "token"
-    );
-
-    localStorage.removeItem(
-      "user"
-    );
+    localStorage.removeItem("userToken");
+    localStorage.removeItem("userData");
 
     return <Outlet />;
   }

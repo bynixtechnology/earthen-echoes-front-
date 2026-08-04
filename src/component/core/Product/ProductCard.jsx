@@ -1,3 +1,4 @@
+
 import React, {
   useEffect,
   useMemo,
@@ -27,39 +28,62 @@ import {
   useSelector,
 } from "react-redux";
 
-import {
-  useCart,
-} from "../../core/context/CartContext";
-
 
 
 import {
   selectProducts,
   selectProductsLoading,
   selectProductError,
+  selectProductsPagination,
 } from "../../../redux/slices/productSlice";
-import { fetchProducts } from "../../../redux/thunks/productThunk";
+
+import {
+  selectWishlistItems,
+} from "../../../redux/slices/wishlistSlice";
+
+import {
+  fetchProducts,
+} from "../../../redux/thunks/productThunk";
+
+import {
+  addProductToCart,
+} from "../../../redux/thunks/cartThunk";
+
+import {
+  getWishlist,
+  toggleWishlist,
+} from "../../../redux/thunks/wishlistThunk";
+
+import {
+  CategoryService,
+} from "../../../services/categoryService";
+
+
+import { showToast } from "../../../config/toast";
 
 
 const ProductCard = () => {
-  /*
-  |--------------------------------------------------------------------------
-  | Redux
-  |--------------------------------------------------------------------------
-  */
 
   const dispatch =
     useDispatch();
 
+  const wishlistItems =
+    useSelector(
+      selectWishlistItems
+    );
+
+
   const products =
     useSelector(
       selectProducts
-    );
+    ) || [];
+
 
   const loading =
     useSelector(
       selectProductsLoading
     );
+
 
   const error =
     useSelector(
@@ -67,26 +91,33 @@ const ProductCard = () => {
     );
 
 
-  /*
-  |--------------------------------------------------------------------------
-  | Cart
-  |--------------------------------------------------------------------------
-  */
+  const pagination =
+    useSelector(
+      selectProductsPagination
+    ) || {};
+
 
   const {
-    addToCart,
-  } = useCart();
+    totalProducts = 0,
+    totalPages = 0,
+    hasNextPage = false,
+    hasPreviousPage = false,
+  } = pagination;
+
+
 
 
   /*
   |--------------------------------------------------------------------------
-  | URL Query Parameters
+  | URL
   |--------------------------------------------------------------------------
   */
 
   const [
     searchParams,
+    setSearchParams,
   ] = useSearchParams();
+
 
   const categoryFromUrl =
     searchParams.get(
@@ -94,9 +125,24 @@ const ProductCard = () => {
     );
 
 
+  const currentPage =
+    Math.max(
+      1,
+      Number(
+        searchParams.get(
+          "page"
+        )
+      ) || 1
+    );
+
+
+  const productsPerPage =
+    12
+
+
   /*
   |--------------------------------------------------------------------------
-  | Filter State
+  | Filters
   |--------------------------------------------------------------------------
   */
 
@@ -105,25 +151,20 @@ const ProductCard = () => {
     setSearch,
   ] = useState("");
 
-  const [
-    selectedCategories,
-    setSelectedCategories,
-  ] = useState([]);
 
   const [
-    selectedMaterials,
-    setSelectedMaterials,
-  ] = useState([]);
+    selectedCategory,
+    setSelectedCategory,
+  ] = useState(
+    categoryFromUrl || ""
+  );
 
-  const [
-    selectedPlacements,
-    setSelectedPlacements,
-  ] = useState([]);
 
   const [
     availability,
     setAvailability,
   ] = useState("all");
+
 
   const [
     maxPrice,
@@ -133,548 +174,434 @@ const ProductCard = () => {
 
   /*
   |--------------------------------------------------------------------------
-  | Pagination
+  | All Categories
   |--------------------------------------------------------------------------
   */
 
   const [
-    currentPage,
-    setCurrentPage,
-  ] = useState(1);
+    categories,
+    setCategories,
+  ] = useState([]);
 
-  const productsPerPage = 9;
+
+  const [
+    categoriesLoading,
+    setCategoriesLoading,
+  ] = useState(false);
+
+
+  const [
+    categoryError,
+    setCategoryError,
+  ] = useState("");
 
 
   /*
   |--------------------------------------------------------------------------
-  | Fetch Products Using Redux
+  | Set Page In URL
   |--------------------------------------------------------------------------
   */
 
-  useEffect(() => {
-    dispatch(
-      fetchProducts()
+  const setCurrentPage = (
+    page
+  ) => {
+
+    const nextPage =
+      Math.max(
+        1,
+        Number(page) || 1
+      );
+
+
+    setSearchParams(
+      (
+        previousParams
+      ) => {
+
+        const params =
+          new URLSearchParams(
+            previousParams
+          );
+
+
+        if (
+          nextPage === 1
+        ) {
+
+          params.delete(
+            "page"
+          );
+
+        } else {
+
+          params.set(
+            "page",
+            String(
+              nextPage
+            )
+          );
+
+        }
+
+
+        return params;
+
+      }
     );
+
+  };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Load All Categories
+  |--------------------------------------------------------------------------
+  */
+
+  const loadCategories =
+    async () => {
+
+      try {
+
+        setCategoriesLoading(
+          true
+        );
+
+        setCategoryError("");
+
+
+        const response =
+          await CategoryService.getAll({
+
+            page: 1,
+
+            limit: 100,
+
+          });
+
+
+        const categoryData =
+          response?.data ||
+          response?.categories ||
+          [];
+
+
+        setCategories(
+          Array.isArray(
+            categoryData
+          )
+            ? categoryData
+            : []
+        );
+
+      } catch (
+      categoryApiError
+      ) {
+
+        console.error(
+          "CATEGORY API ERROR:",
+          categoryApiError
+        );
+
+
+        setCategoryError(
+          categoryApiError
+            ?.response
+            ?.data
+            ?.message ||
+          "Unable to load categories."
+        );
+
+      } finally {
+
+        setCategoriesLoading(
+          false
+        );
+
+      }
+
+    };
+
+
+  useEffect(() => {
+
+    loadCategories();
+
+    dispatch(
+      getWishlist()
+    );
+
   }, [dispatch]);
 
 
   /*
   |--------------------------------------------------------------------------
-  | Apply Category Filter From URL
+  | Sync URL Category
   |--------------------------------------------------------------------------
   */
 
   useEffect(() => {
-    if (categoryFromUrl) {
-      setSelectedCategories([
-        categoryFromUrl,
-      ]);
-    } else {
-      setSelectedCategories([]);
-    }
 
-    setCurrentPage(1);
-  }, [categoryFromUrl]);
+    setSelectedCategory(
+      categoryFromUrl || ""
+    );
 
-
-  /*
-  |--------------------------------------------------------------------------
-  | Dynamic Categories
-  |--------------------------------------------------------------------------
-  */
-
-  const categories =
-    useMemo(() => {
-      const categoryMap =
-        new Map();
-
-      products.forEach(
-        (product) => {
-          const category =
-            product?.category;
-
-          if (!category) {
-            return;
-          }
-
-          const id =
-            typeof category ===
-            "object"
-              ? category?._id
-              : category;
-
-          const name =
-            typeof category ===
-            "object"
-              ? category?.name
-              : "Category";
-
-          if (!id) {
-            return;
-          }
-
-          if (
-            categoryMap.has(id)
-          ) {
-            categoryMap.get(
-              id
-            ).count += 1;
-          } else {
-            categoryMap.set(
-              id,
-              {
-                _id: id,
-
-                name:
-                  name ||
-                  "Category",
-
-                count: 1,
-              }
-            );
-          }
-        }
-      );
-
-      return Array.from(
-        categoryMap.values()
-      );
-    }, [products]);
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | Dynamic Materials
-  |--------------------------------------------------------------------------
-  */
-
-  const materials =
-    useMemo(() => {
-      const values =
-        products
-          .map(
-            (product) =>
-              product
-                ?.specifications
-                ?.composition
-          )
-          .filter(Boolean);
-
-      return [
-        ...new Set(values),
-      ];
-    }, [products]);
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | Dynamic Placements
-  |--------------------------------------------------------------------------
-  */
-
-  const placements =
-    useMemo(() => {
-      const values =
-        products
-          .map(
-            (product) =>
-              product
-                ?.specifications
-                ?.placement
-          )
-          .filter(Boolean);
-
-      return [
-        ...new Set(values),
-      ];
-    }, [products]);
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | Maximum Product Price
-  |--------------------------------------------------------------------------
-  */
-
-  const highestPrice =
-    useMemo(() => {
-      if (
-        products.length === 0
-      ) {
-        return 10000;
-      }
-
-      const highest =
-        Math.max(
-          ...products.map(
-            (product) =>
-              Number(
-                product?.price
-              ) || 0
-          )
-        );
-
-      return (
-        Math.ceil(
-          highest / 500
-        ) * 500 || 10000
-      );
-    }, [products]);
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | Set Initial Maximum Price
-  |--------------------------------------------------------------------------
-  */
-
-  useEffect(() => {
-    if (
-      products.length > 0
-    ) {
-      setMaxPrice(
-        highestPrice
-      );
-    }
   }, [
-    products.length,
-    highestPrice,
+    categoryFromUrl,
   ]);
 
 
   /*
   |--------------------------------------------------------------------------
-  | Category Filter Change
+  | Fetch Products
+  |--------------------------------------------------------------------------
+  |
+  | IMPORTANT:
+  |
+  | Pagination + filters are sent to backend.
+  |
+  */
+
+  useEffect(() => {
+
+    const params = {
+
+      page:
+        currentPage,
+
+      limit:
+        productsPerPage,
+
+    };
+
+
+    if (
+      search.trim()
+    ) {
+
+      params.search =
+        search.trim();
+
+    }
+
+
+    if (
+      selectedCategory
+    ) {
+
+      params.category =
+        selectedCategory;
+
+    }
+
+
+    if (
+      Number(maxPrice) <
+      10000
+    ) {
+
+      params.maxPrice =
+        Number(
+          maxPrice
+        );
+
+    }
+
+
+    if (
+      availability ===
+      "inStock"
+    ) {
+
+      params.inStock =
+        true;
+
+    }
+
+
+    if (
+      availability ===
+      "outOfStock"
+    ) {
+
+      params.inStock =
+        false;
+
+    }
+
+
+    dispatch(
+      fetchProducts(
+        params
+      )
+    );
+
+  }, [
+
+    dispatch,
+
+    currentPage,
+
+    search,
+
+    selectedCategory,
+
+    maxPrice,
+
+    availability,
+
+  ]);
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Category Change
   |--------------------------------------------------------------------------
   */
 
   const handleCategoryChange =
-    (categoryId) => {
-      setSelectedCategories(
-        (previous) => {
-          if (
-            previous.includes(
-              categoryId
-            )
-          ) {
-            return previous.filter(
-              (id) =>
-                id !==
-                categoryId
-            );
-          }
+    (
+      categoryId
+    ) => {
 
-          return [
-            ...previous,
-            categoryId,
-          ];
-        }
+      const nextCategory =
+
+        selectedCategory ===
+          categoryId
+
+          ? ""
+
+          : categoryId;
+
+
+      setSelectedCategory(
+        nextCategory
       );
 
-      setCurrentPage(1);
-    };
 
+      setSearchParams(
+        (
+          previousParams
+        ) => {
 
-  /*
-  |--------------------------------------------------------------------------
-  | Material Filter Change
-  |--------------------------------------------------------------------------
-  */
-
-  const handleMaterialChange =
-    (material) => {
-      setSelectedMaterials(
-        (previous) => {
-          if (
-            previous.includes(
-              material
-            )
-          ) {
-            return previous.filter(
-              (item) =>
-                item !==
-                material
-            );
-          }
-
-          return [
-            ...previous,
-            material,
-          ];
-        }
-      );
-
-      setCurrentPage(1);
-    };
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | Placement Filter Change
-  |--------------------------------------------------------------------------
-  */
-
-  const handlePlacementChange =
-    (placement) => {
-      setSelectedPlacements(
-        (previous) => {
-          if (
-            previous.includes(
-              placement
-            )
-          ) {
-            return previous.filter(
-              (item) =>
-                item !==
-                placement
-            );
-          }
-
-          return [
-            ...previous,
-            placement,
-          ];
-        }
-      );
-
-      setCurrentPage(1);
-    };
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | Filter Products
-  |--------------------------------------------------------------------------
-  */
-
-  const filteredProducts =
-    useMemo(() => {
-      return products.filter(
-        (product) => {
-          /*
-          | Search
-          */
-
-          const searchValue =
-            search
-              .trim()
-              .toLowerCase();
-
-          const title =
-            String(
-              product?.title || ""
-            ).toLowerCase();
-
-          const sku =
-            String(
-              product?.sku || ""
-            ).toLowerCase();
-
-          const collectionName =
-            String(
-              product
-                ?.collectionName ||
-                ""
-            ).toLowerCase();
-
-          const matchesSearch =
-            !searchValue ||
-            title.includes(
-              searchValue
-            ) ||
-            sku.includes(
-              searchValue
-            ) ||
-            collectionName.includes(
-              searchValue
+          const params =
+            new URLSearchParams(
+              previousParams
             );
 
 
-          /*
-          | Category
-          */
-
-          const categoryId =
-            typeof product
-              ?.category ===
-            "object"
-              ? product
-                  ?.category
-                  ?._id
-              : product
-                  ?.category;
-
-          const matchesCategory =
-            selectedCategories
-              .length === 0 ||
-            selectedCategories.includes(
-              categoryId
-            );
-
-
-          /*
-          | Price
-          */
-
-          const productPrice =
-            Number(
-              product?.price
-            ) || 0;
-
-          const matchesPrice =
-            productPrice <=
-            Number(maxPrice);
-
-
-          /*
-          | Material
-          */
-
-          const composition =
-            product
-              ?.specifications
-              ?.composition;
-
-          const matchesMaterial =
-            selectedMaterials
-              .length === 0 ||
-            selectedMaterials.includes(
-              composition
-            );
-
-
-          /*
-          | Placement
-          */
-
-          const placement =
-            product
-              ?.specifications
-              ?.placement;
-
-          const matchesPlacement =
-            selectedPlacements
-              .length === 0 ||
-            selectedPlacements.includes(
-              placement
-            );
-
-
-          /*
-          | Availability
-          */
-
-          const stock =
-            Number(
-              product?.stock
-            ) || 0;
-
-          let matchesAvailability =
-            true;
-
-          if (
-            availability ===
-            "inStock"
-          ) {
-            matchesAvailability =
-              stock > 0;
-          }
-
-          if (
-            availability ===
-            "outOfStock"
-          ) {
-            matchesAvailability =
-              stock <= 0;
-          }
-
-
-          return (
-            matchesSearch &&
-            matchesCategory &&
-            matchesPrice &&
-            matchesMaterial &&
-            matchesPlacement &&
-            matchesAvailability
+          params.delete(
+            "page"
           );
+
+
+          if (
+            nextCategory
+          ) {
+
+            params.set(
+              "category",
+              nextCategory
+            );
+
+          } else {
+
+            params.delete(
+              "category"
+            );
+
+          }
+
+
+          return params;
+
         }
       );
-    }, [
-      products,
-      search,
-      selectedCategories,
-      maxPrice,
-      selectedMaterials,
-      selectedPlacements,
-      availability,
-    ]);
+
+    };
 
 
   /*
   |--------------------------------------------------------------------------
-  | Pagination
+  | Search Change
   |--------------------------------------------------------------------------
   */
 
-  const totalPages =
-    Math.max(
-      1,
+  const handleSearchChange =
+    (
+      event
+    ) => {
 
-      Math.ceil(
-        filteredProducts.length /
-          productsPerPage
-      )
-    );
-
-  const startIndex =
-    (currentPage - 1) *
-    productsPerPage;
-
-  const currentProducts =
-    filteredProducts.slice(
-      startIndex,
-
-      startIndex +
-        productsPerPage
-    );
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | Reset Page When Filters Change
-  |--------------------------------------------------------------------------
-  */
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    search,
-    maxPrice,
-    availability,
-    selectedMaterials,
-    selectedPlacements,
-  ]);
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | Prevent Invalid Current Page
-  |--------------------------------------------------------------------------
-  */
-
-  useEffect(() => {
-    if (
-      currentPage >
-      totalPages
-    ) {
-      setCurrentPage(
-        totalPages
+      setSearch(
+        event.target.value
       );
-    }
-  }, [
-    currentPage,
-    totalPages,
-  ]);
+
+
+      if (
+        currentPage !== 1
+      ) {
+
+        setCurrentPage(1);
+
+      }
+
+    };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Price Change
+  |--------------------------------------------------------------------------
+  */
+
+  const handlePriceChange =
+    (
+      event
+    ) => {
+
+      setMaxPrice(
+        Number(
+          event.target.value
+        )
+      );
+
+
+      if (
+        currentPage !== 1
+      ) {
+
+        setCurrentPage(1);
+
+      }
+
+    };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Availability Change
+  |--------------------------------------------------------------------------
+  */
+
+  const handleAvailabilityChange =
+    (
+      value
+    ) => {
+
+      setAvailability(
+        value
+      );
+
+
+      if (
+        currentPage !== 1
+      ) {
+
+        setCurrentPage(1);
+
+      }
+
+    };
 
 
   /*
@@ -683,71 +610,279 @@ const ProductCard = () => {
   |--------------------------------------------------------------------------
   */
 
-  const clearFilters = () => {
-    setSearch("");
+  const clearFilters =
+    () => {
 
-    setSelectedCategories([]);
+      setSearch("");
 
-    setSelectedMaterials([]);
+      setSelectedCategory("");
 
-    setSelectedPlacements([]);
+      setAvailability(
+        "all"
+      );
 
-    setAvailability("all");
+      setMaxPrice(
+        10000
+      );
 
-    setMaxPrice(
-      highestPrice
-    );
 
-    setCurrentPage(1);
-  };
+      setSearchParams(
+        {}
+      );
+
+    };
 
 
   /*
   |--------------------------------------------------------------------------
-  | Price Format
+  | Helpers
   |--------------------------------------------------------------------------
   */
 
   const formatPrice =
-    (price) => {
+    (
+      price
+    ) => {
+
       return Number(
         price || 0
       ).toLocaleString(
         "en-IN"
       );
+
     };
 
 
-  /*
-  |--------------------------------------------------------------------------
-  | Product Image Helper
-  |--------------------------------------------------------------------------
-  */
-
   const getProductImage =
-    (product) => {
+    (
+      product
+    ) => {
+
       const firstImage =
         product
           ?.images?.[0];
+
 
       if (
         typeof firstImage ===
         "string"
       ) {
+
         return firstImage;
+
       }
 
+
       return (
+
         firstImage?.url ||
-        firstImage?.secure_url ||
+
+        firstImage
+          ?.secure_url ||
+
         "/placeholder.png"
+
       );
+
+    };
+
+  const handleAddToCart = async (product) => {
+    try {
+      const response = await dispatch(
+        addProductToCart({
+          productId: product._id,
+          quantity: 1,
+        })
+      ).unwrap();
+
+      showToast.success(
+        response?.message || "Product added to cart."
+      );
+
+    } catch (error) {
+
+      showToast.error(
+        error?.message ||
+        error ||
+        "Unable to add product."
+      );
+
+    }
+  };
+
+
+  const handleWishlist = async (
+    event,
+    product
+  ) => {
+
+    event.preventDefault();
+
+    event.stopPropagation();
+
+    try {
+
+      const response =
+        await dispatch(
+          toggleWishlist(
+            product._id
+          )
+        ).unwrap();
+
+      showToast.success(
+        response.message
+      );
+
+    } catch (error) {
+
+      showToast.error(
+        error?.message ||
+        error
+      );
+
+    }
+
+  };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Page Change
+  |--------------------------------------------------------------------------
+  */
+
+  const handlePageChange =
+    (
+      page
+    ) => {
+
+      if (
+        loading ||
+        page < 1 ||
+        page > totalPages ||
+        page === currentPage
+      ) {
+
+        return;
+
+      }
+
+
+      setCurrentPage(
+        page
+      );
+
+
+      window.scrollTo({
+
+        top: 0,
+
+        behavior:
+          "smooth",
+
+      });
+
     };
 
 
   /*
   |--------------------------------------------------------------------------
-  | Loading UI
+  | Visible Pages
+  |--------------------------------------------------------------------------
+  */
+
+  const visiblePages =
+    useMemo(
+      () => {
+
+        if (
+          totalPages <= 0
+        ) {
+
+          return [];
+
+        }
+
+
+        if (
+          totalPages <= 5
+        ) {
+
+          return Array.from(
+
+            {
+              length:
+                totalPages,
+            },
+
+            (
+              _,
+              index
+            ) =>
+              index + 1
+
+          );
+
+        }
+
+
+        let start =
+          Math.max(
+            1,
+            currentPage - 2
+          );
+
+
+        let end =
+          Math.min(
+            totalPages,
+            start + 4
+          );
+
+
+        if (
+          end - start < 4
+        ) {
+
+          start =
+            Math.max(
+              1,
+              end - 4
+            );
+
+        }
+
+
+        return Array.from(
+
+          {
+            length:
+              end -
+              start +
+              1,
+          },
+
+          (
+            _,
+            index
+          ) =>
+            start + index
+
+        );
+
+      },
+
+      [
+        currentPage,
+        totalPages,
+      ]
+
+    );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Initial Loading
   |--------------------------------------------------------------------------
   */
 
@@ -755,7 +890,9 @@ const ProductCard = () => {
     loading &&
     products.length === 0
   ) {
+
     return (
+
       <div
         className="
           min-h-[500px]
@@ -766,6 +903,7 @@ const ProductCard = () => {
           gap-3
         "
       >
+
         <Loader2
           size={36}
           className="
@@ -782,14 +920,17 @@ const ProductCard = () => {
         >
           Loading products...
         </p>
+
       </div>
+
     );
+
   }
 
 
   /*
   |--------------------------------------------------------------------------
-  | API Error UI
+  | Error
   |--------------------------------------------------------------------------
   */
 
@@ -797,18 +938,20 @@ const ProductCard = () => {
     error &&
     products.length === 0
   ) {
+
     return (
+
       <div
         className="
           min-h-[500px]
           flex
-          flex-col
           items-center
           justify-center
           text-center
           px-4
         "
       >
+
         <div
           className="
             max-w-md
@@ -821,6 +964,7 @@ const ProductCard = () => {
             shadow-sm
           "
         >
+
           <h2
             className="
               text-xl
@@ -844,13 +988,21 @@ const ProductCard = () => {
 
           <button
             type="button"
+            onClick={() => {
 
-            onClick={() =>
               dispatch(
-                fetchProducts()
-              )
-            }
+                fetchProducts({
 
+                  page:
+                    currentPage,
+
+                  limit:
+                    productsPerPage,
+
+                })
+              );
+
+            }}
             className="
               inline-flex
               items-center
@@ -863,23 +1015,28 @@ const ProductCard = () => {
               text-primary-foreground
               text-sm
               font-semibold
-              hover:bg-primary/90
-              transition-colors
             "
           >
+
             <RefreshCw
               size={16}
             />
 
             Try Again
+
           </button>
+
         </div>
+
       </div>
+
     );
+
   }
 
 
   return (
+
     <section
       className="
         max-w-7xl
@@ -888,12 +1045,10 @@ const ProductCard = () => {
         sm:px-6
         lg:px-8
         py-12
-        flex-1
       "
     >
-      {/* ================================================================
-          HEADER + SEARCH
-      ================================================================= */}
+
+      {/* Header */}
 
       <div
         className="
@@ -906,7 +1061,9 @@ const ProductCard = () => {
           mb-8
         "
       >
+
         <div>
+
           <h2
             className="
               text-2xl
@@ -924,26 +1081,25 @@ const ProductCard = () => {
               mt-1
             "
           >
+
             Showing{" "}
-
-            <strong>
-              {
-                filteredProducts.length
-              }
-            </strong>
-
-            {" "}of{" "}
 
             <strong>
               {products.length}
             </strong>
 
+            {" "}of{" "}
+
+            <strong>
+              {totalProducts}
+            </strong>
+
             {" "}products
+
           </p>
+
         </div>
 
-
-        {/* Search */}
 
         <div
           className="
@@ -952,33 +1108,25 @@ const ProductCard = () => {
             sm:w-80
           "
         >
+
           <Search
             size={17}
-
             className="
               absolute
               left-3
               top-1/2
               -translate-y-1/2
               text-muted-foreground
-              pointer-events-none
             "
           />
 
           <input
             type="text"
-
             value={search}
-
-            onChange={(e) =>
-              setSearch(
-                e.target.value
-              )
+            onChange={
+              handleSearchChange
             }
-
-            placeholder=
-              "Search products or SKU..."
-
+            placeholder="Search products or SKU..."
             className="
               w-full
               border
@@ -992,10 +1140,11 @@ const ProductCard = () => {
               outline-none
               focus:ring-1
               focus:ring-primary
-              transition
             "
           />
+
         </div>
+
       </div>
 
 
@@ -1007,9 +1156,8 @@ const ProductCard = () => {
           gap-8
         "
       >
-        {/* ================================================================
-            FILTER SIDEBAR
-        ================================================================= */}
+
+        {/* Sidebar */}
 
         <aside
           className="
@@ -1027,7 +1175,6 @@ const ProductCard = () => {
             lg:top-24
           "
         >
-          {/* Filter Header */}
 
           <div
             className="
@@ -1039,6 +1186,7 @@ const ProductCard = () => {
               pb-4
             "
           >
+
             <h3
               className="
                 font-heading
@@ -1049,23 +1197,24 @@ const ProductCard = () => {
                 gap-2
               "
             >
+
               <Funnel
                 size={18}
-
-                className=
-                  "text-primary"
+                className="
+                  text-primary
+                "
               />
 
               Filters
+
             </h3>
+
 
             <button
               type="button"
-
               onClick={
                 clearFilters
               }
-
               className="
                 text-xs
                 text-primary
@@ -1075,115 +1224,167 @@ const ProductCard = () => {
             >
               Clear All
             </button>
+
           </div>
 
 
-          {/* ============================================================
-              CATEGORY
-          ============================================================= */}
+          {/* All Categories */}
 
-          <div
-            className=
-              "space-y-3"
-          >
+          <div className="space-y-3">
+
             <h4
               className="
-                font-heading
-                font-bold
-                text-xs
-                uppercase
-                tracking-wider
-              "
+      font-heading
+      font-bold
+      text-xs
+      uppercase
+      tracking-wider
+    "
             >
-              Category
+              All Categories
             </h4>
 
-            <div
-              className="
-                space-y-2
-                text-sm
-                text-muted-foreground
-              "
-            >
-              {categories.length ===
-              0 ? (
-                <p
-                  className=
-                    "text-xs"
-                >
-                  No categories
+            {categoriesLoading ? (
+
+              <div
+                className="
+        flex
+        items-center
+        gap-2
+        text-sm
+        text-muted-foreground
+      "
+              >
+                <Loader2
+                  size={15}
+                  className="animate-spin"
+                />
+
+                Loading categories...
+              </div>
+
+            ) : categoryError ? (
+
+              <div className="space-y-2">
+
+                <p className="text-xs text-red-500">
+                  {categoryError}
                 </p>
-              ) : (
-                categories.map(
+
+                <button
+                  type="button"
+                  onClick={loadCategories}
+                  className="
+          text-xs
+          text-primary
+          hover:underline
+        "
+                >
+                  Try again
+                </button>
+
+              </div>
+
+            ) : categories.length === 0 ? (
+
+              <p
+                className="
+        text-xs
+        text-muted-foreground
+      "
+              >
+                No categories found.
+              </p>
+
+            ) : (
+
+              <div className="space-y-3">
+
+                <label
+                  className="
+          flex
+          items-center
+          gap-3
+          cursor-pointer
+          text-sm
+        "
+                >
+
+                  <input
+                    type="radio"
+                    name="category"
+                    checked={!selectedCategory}
+                    onChange={() =>
+                      handleCategoryChange("")
+                    }
+                    className="
+            w-4
+            h-4
+            accent-primary
+            cursor-pointer
+          "
+                  />
+
+                  <span>
+                    All Categories
+                  </span>
+
+                </label>
+
+                {categories.map(
                   (category) => (
+
                     <label
-                      key={
-                        category._id
-                      }
-
+                      key={category._id}
                       className="
-                        flex
-                        items-center
-                        gap-2
-                        cursor-pointer
-                        hover:text-foreground
-                      "
+              flex
+              items-center
+              gap-3
+              cursor-pointer
+              text-sm
+              text-muted-foreground
+              hover:text-foreground
+              transition-colors
+            "
                     >
+
                       <input
-                        type="checkbox"
-
+                        type="radio"
+                        name="category"
                         checked={
-                          selectedCategories.includes(
-                            category._id
-                          )
+                          selectedCategory ===
+                          category._id
                         }
-
                         onChange={() =>
                           handleCategoryChange(
                             category._id
                           )
                         }
-
                         className="
-                          rounded
-                          accent-primary
-                        "
+                w-4
+                h-4
+                accent-primary
+                cursor-pointer
+              "
                       />
 
-                      <span
-                        className="
-                          flex-1
-                          truncate
-                        "
-                      >
-                        {
-                          category.name
-                        }
+                      <span>
+                        {category.name}
                       </span>
 
-                      <span
-                        className="
-                          text-xs
-                          text-muted-foreground
-                        "
-                      >
-                        (
-                        {
-                          category.count
-                        }
-                        )
-                      </span>
                     </label>
+
                   )
-                )
-              )}
-            </div>
+                )}
+
+              </div>
+
+            )}
+
           </div>
 
 
-          {/* ============================================================
-              PRICE
-          ============================================================= */}
+          {/* Price */}
 
           <div
             className="
@@ -1193,6 +1394,7 @@ const ProductCard = () => {
               pt-6
             "
           >
+
             <h4
               className="
                 font-heading
@@ -1205,76 +1407,51 @@ const ProductCard = () => {
               Price Range
             </h4>
 
+
             <div
-              className=
-                "space-y-4"
+              className="
+                flex
+                justify-between
+                text-xs
+                text-muted-foreground
+              "
             >
-              <div
-                className="
-                  flex
-                  items-center
-                  justify-between
-                  gap-3
-                  text-xs
-                  text-muted-foreground
-                "
-              >
-                <span>
-                  ₹0
-                </span>
 
-                <span>
-                  Up to ₹
-                  {
-                    formatPrice(
-                      maxPrice
-                    )
-                  }
-                </span>
-              </div>
+              <span>
+                ₹0
+              </span>
 
-              <input
-                type="range"
-
-                min={0}
-
-                max={
-                  highestPrice
-                }
-
-                step={100}
-
-                value={
+              <span>
+                Up to ₹
+                {formatPrice(
                   maxPrice
-                }
+                )}
+              </span>
 
-                onChange={(e) => {
-                  setMaxPrice(
-                    Number(
-                      e.target.value
-                    )
-                  );
-
-                  setCurrentPage(1);
-                }}
-
-                className="
-                  w-full
-                  h-1
-                  bg-muted
-                  rounded-lg
-                  appearance-none
-                  cursor-pointer
-                  accent-primary
-                "
-              />
             </div>
+
+
+            <input
+              type="range"
+              min={0}
+              max={10000}
+              step={100}
+              value={
+                maxPrice
+              }
+              onChange={
+                handlePriceChange
+              }
+              className="
+                w-full
+                accent-primary
+              "
+            />
+
           </div>
 
 
-          {/* ============================================================
-              AVAILABILITY
-          ============================================================= */}
+          {/* Availability */}
 
           <div
             className="
@@ -1284,6 +1461,7 @@ const ProductCard = () => {
               pt-6
             "
           >
+
             <h4
               className="
                 font-heading
@@ -1296,137 +1474,119 @@ const ProductCard = () => {
               Availability
             </h4>
 
-            <div
-              className=
-                "space-y-2"
-            >
-              <label
-                className="
-                  flex
-                  items-center
-                  gap-2
-                  text-sm
-                  cursor-pointer
-                "
-              >
-                <input
-                  type="radio"
 
-                  name="availability"
+            {[
+              {
+                value:
+                  "all",
 
-                  checked={
-                    availability ===
-                    "all"
+                label:
+                  "All Products",
+              },
+
+              {
+                value:
+                  "inStock",
+
+                label:
+                  "In Stock Only",
+              },
+
+              {
+                value:
+                  "outOfStock",
+
+                label:
+                  "Out of Stock",
+              },
+
+            ].map(
+              (
+                option
+              ) => (
+
+                <label
+                  key={
+                    option.value
                   }
+                  className="
+                    flex
+                    items-center
+                    gap-2
+                    text-sm
+                    cursor-pointer
+                  "
+                >
 
-                  onChange={() => {
-                    setAvailability(
-                      "all"
-                    );
+                  <input
+                    type="radio"
+                    name="availability"
+                    checked={
+                      availability ===
+                      option.value
+                    }
+                    onChange={() =>
+                      handleAvailabilityChange(
+                        option.value
+                      )
+                    }
+                    className="
+                      accent-primary
+                    "
+                  />
 
-                    setCurrentPage(1);
-                  }}
+                  {option.label}
 
-                  className=
-                    "accent-primary"
-                />
+                </label>
 
-                All Products
-              </label>
+              )
+            )}
 
-
-              <label
-                className="
-                  flex
-                  items-center
-                  gap-2
-                  text-sm
-                  cursor-pointer
-                "
-              >
-                <input
-                  type="radio"
-
-                  name="availability"
-
-                  checked={
-                    availability ===
-                    "inStock"
-                  }
-
-                  onChange={() => {
-                    setAvailability(
-                      "inStock"
-                    );
-
-                    setCurrentPage(1);
-                  }}
-
-                  className=
-                    "accent-primary"
-                />
-
-                In Stock Only
-              </label>
-
-
-              <label
-                className="
-                  flex
-                  items-center
-                  gap-2
-                  text-sm
-                  cursor-pointer
-                "
-              >
-                <input
-                  type="radio"
-
-                  name="availability"
-
-                  checked={
-                    availability ===
-                    "outOfStock"
-                  }
-
-                  onChange={() => {
-                    setAvailability(
-                      "outOfStock"
-                    );
-
-                    setCurrentPage(1);
-                  }}
-
-                  className=
-                    "accent-primary"
-                />
-
-                Out of Stock
-              </label>
-            </div>
           </div>
+
         </aside>
 
 
-        {/* ================================================================
-            PRODUCT AREA
-        ================================================================= */}
+        {/* Products */}
 
         <div
           className="
             flex-1
             min-w-0
-            flex
-            flex-col
           "
         >
-          {currentProducts.length ===
-          0 ? (
-            /*
-            |--------------------------------------------------------------------------
-            | Empty State
-            |--------------------------------------------------------------------------
-            */
+
+          {loading &&
+            products.length > 0 && (
+
+              <div
+                className="
+                  flex
+                  items-center
+                  justify-center
+                  gap-2
+                  mb-5
+                  text-sm
+                  text-muted-foreground
+                "
+              >
+
+                <Loader2
+                  size={17}
+                  className="
+                    animate-spin
+                  "
+                />
+
+                Loading page...
+
+              </div>
+
+            )}
+
+
+          {!loading &&
+            products.length === 0 ? (
 
             <div
               className="
@@ -1443,9 +1603,9 @@ const ProductCard = () => {
                 bg-card
               "
             >
+
               <Funnel
                 size={40}
-
                 className="
                   text-muted-foreground
                   mb-4
@@ -1466,22 +1626,17 @@ const ProductCard = () => {
                   text-sm
                   text-muted-foreground
                   mt-2
-                  max-w-sm
                 "
               >
-                No products match
-                the selected filters.
                 Try changing your
                 search or filters.
               </p>
 
               <button
                 type="button"
-
                 onClick={
                   clearFilters
                 }
-
                 className="
                   mt-5
                   px-5
@@ -1491,19 +1646,14 @@ const ProductCard = () => {
                   rounded-lg
                   text-sm
                   font-semibold
-                  hover:bg-primary/90
-                  transition-colors
                 "
               >
                 Clear Filters
               </button>
+
             </div>
+
           ) : (
-            /*
-            |--------------------------------------------------------------------------
-            | Product Grid
-            |--------------------------------------------------------------------------
-            */
 
             <div
               className="
@@ -1514,26 +1664,42 @@ const ProductCard = () => {
                 gap-8
               "
             >
-              {currentProducts.map(
-                (product) => {
+
+              {products.map(
+                (
+                  product
+                ) => {
+
                   const stock =
                     Number(
-                      product?.stock
-                    ) || 0;
+                      product
+                        ?.stock
+                    ) || 0; const isWishlisted =
+                      Array.isArray(
+                        wishlistItems
+                      ) &&
+                      wishlistItems.some(
+                        (item) =>
+                          item.productId?._id ===
+                          product._id
+                      );
+
+
+
 
                   const inStock =
                     stock > 0;
 
+
                   return (
+
                     <Link
                       key={
                         product._id
                       }
-
                       to={
                         `/products/${product._id}`
                       }
-
                       className="
                         group
                         bg-card
@@ -1550,7 +1716,6 @@ const ProductCard = () => {
                         border-border/40
                       "
                     >
-                      {/* Image */}
 
                       <div
                         className="
@@ -1560,26 +1725,29 @@ const ProductCard = () => {
                           bg-muted
                         "
                       >
+
                         <img
                           src={
                             getProductImage(
                               product
                             )
                           }
-
                           alt={
                             product
                               ?.title ||
                             "Product"
                           }
-
                           loading="lazy"
+                          onError={(
+                            event
+                          ) => {
 
-                          onError={(e) => {
-                            e.currentTarget.src =
+                            event
+                              .currentTarget
+                              .src =
                               "/placeholder.png";
-                          }}
 
+                          }}
                           className="
                             w-full
                             h-full
@@ -1590,8 +1758,6 @@ const ProductCard = () => {
                           "
                         />
 
-
-                        {/* Stock Badge */}
 
                         <span
                           className={`
@@ -1605,35 +1771,33 @@ const ProductCard = () => {
                             font-bold
                             z-10
 
-                            ${
-                              inStock
-                                ? "bg-green-100 text-green-700"
-                                : "bg-red-100 text-red-700"
+                            ${inStock
+
+                              ? "bg-green-100 text-green-700"
+
+                              : "bg-red-100 text-red-700"
                             }
                           `}
                         >
-                          {
-                            inStock
-                              ? "In Stock"
-                              : "Out of Stock"
-                          }
+
+                          {inStock
+
+                            ? "In Stock"
+
+                            : "Out of Stock"}
+
                         </span>
 
 
-                        {/* Wishlist */}
-
                         <button
                           type="button"
-
-                          aria-label=
-                            "Add to wishlist"
-
-                          onClick={(e) => {
-                            e.preventDefault();
-
-                            e.stopPropagation();
-                          }}
-
+                          aria-label="Add to wishlist"
+                          onClick={(event) =>
+                            handleWishlist(
+                              event,
+                              product
+                            )
+                          }
                           className="
                             absolute
                             top-3
@@ -1642,24 +1806,26 @@ const ProductCard = () => {
                             h-9
                             rounded-full
                             bg-background/90
-                            backdrop-blur-md
                             flex
                             items-center
                             justify-center
                             text-primary
                             shadow
                             z-20
-                            hover:scale-105
-                            transition-transform
                           "
                         >
-                          <Heart
-                            size={17}
-                          />
+
+                         <Heart
+  size={17}
+  className={
+    isWishlisted
+      ? "fill-red-500 text-red-500"
+      : ""
+  }
+/>
+
                         </button>
 
-
-                        {/* Quick View */}
 
                         <div
                           className="
@@ -1678,15 +1844,20 @@ const ProductCard = () => {
                             justify-center
                           "
                         >
+
                           <button
                             type="button"
+                            onClick={(
+                              event
+                            ) => {
 
-                            onClick={(e) => {
-                              e.preventDefault();
+                              event
+                                .preventDefault();
 
-                              e.stopPropagation();
+                              event
+                                .stopPropagation();
+
                             }}
-
                             className="
                               px-4
                               py-2
@@ -1698,20 +1869,21 @@ const ProductCard = () => {
                               flex
                               items-center
                               gap-1.5
-                              shadow-sm
                             "
                           >
+
                             <Eye
                               size={14}
                             />
 
                             Quick View
+
                           </button>
+
                         </div>
+
                       </div>
 
-
-                      {/* Product Details */}
 
                       <div
                         className="
@@ -1722,8 +1894,8 @@ const ProductCard = () => {
                           justify-between
                         "
                       >
+
                         <div>
-                          {/* Category */}
 
                           <p
                             className="
@@ -1735,20 +1907,20 @@ const ProductCard = () => {
                               mb-2
                             "
                           >
-                            {
-                              typeof product
-                                ?.category ===
+
+                            {typeof product
+                              ?.category ===
                               "object"
-                                ? product
-                                    ?.category
-                                    ?.name ||
-                                  "Uncategorized"
-                                : "Uncategorized"
-                            }
+
+                              ? product
+                                ?.category
+                                ?.name ||
+                              "Uncategorized"
+
+                              : "Uncategorized"}
+
                           </p>
 
-
-                          {/* Rating */}
 
                           <div
                             className="
@@ -1759,6 +1931,7 @@ const ProductCard = () => {
                               mb-2
                             "
                           >
+
                             {Array.from({
                               length: 5,
                             }).map(
@@ -1766,19 +1939,18 @@ const ProductCard = () => {
                                 _,
                                 index
                               ) => (
+
                                 <Star
                                   key={
                                     index
                                   }
-
                                   size={12}
-
-                                  fill=
-                                    "currentColor"
-
-                                  className=
-                                    "text-amber-500"
+                                  fill="currentColor"
+                                  className="
+                                    text-amber-500
+                                  "
                                 />
+
                               )
                             )}
 
@@ -1789,57 +1961,54 @@ const ProductCard = () => {
                               "
                             >
                               (
-                              {
-                                product
-                                  ?.rating ||
-                                0
-                              }
+                              {product
+                                ?.rating ||
+                                0}
                               )
                             </span>
+
                           </div>
 
-
-                          {/* Title */}
 
                           <h3
                             className="
                               font-heading
                               text-lg
                               font-bold
-                              text-foreground
                               group-hover:text-primary
                               transition-colors
                               mb-1
                               line-clamp-2
                             "
                           >
-                            {
-                              product
-                                ?.title ||
-                              "Untitled Product"
-                            }
+
+                            {product
+                              ?.title ||
+                              "Untitled Product"}
+
                           </h3>
 
 
-                          {/* SKU */}
+                          {product
+                            ?.sku && (
 
-                          {product?.sku && (
-                            <p
-                              className="
+                              <p
+                                className="
                                 text-[11px]
                                 text-muted-foreground
                                 mb-2
                               "
-                            >
-                              SKU:{" "}
-                              {
-                                product.sku
-                              }
-                            </p>
-                          )}
+                              >
 
+                                SKU:{" "}
+                                {
+                                  product.sku
+                                }
 
-                          {/* Description */}
+                              </p>
+
+                            )}
+
 
                           <p
                             className="
@@ -1849,12 +2018,13 @@ const ProductCard = () => {
                               mb-4
                             "
                           >
-                            {
-                              product
-                                ?.description ||
-                              "No description available."
-                            }
+
+                            {product
+                              ?.description ||
+                              "No description available."}
+
                           </p>
+
                         </div>
 
 
@@ -1865,7 +2035,6 @@ const ProductCard = () => {
                             pt-4
                           "
                         >
-                          {/* Price */}
 
                           <div
                             className="
@@ -1876,6 +2045,7 @@ const ProductCard = () => {
                               mb-4
                             "
                           >
+
                             <span
                               className="
                                 font-heading
@@ -1884,14 +2054,15 @@ const ProductCard = () => {
                                 text-primary
                               "
                             >
+
                               ₹
-                              {
-                                formatPrice(
-                                  product
-                                    ?.price
-                                )
-                              }
+                              {formatPrice(
+                                product
+                                  ?.price
+                              )}
+
                             </span>
+
 
                             {product
                               ?.originalPrice &&
@@ -1899,53 +2070,60 @@ const ProductCard = () => {
                                 product
                                   .originalPrice
                               ) >
-                                Number(
-                                  product
-                                    ?.price ||
-                                    0
-                                ) && (
+                              Number(
+                                product
+                                  ?.price ||
+                                0
+                              ) && (
+
                                 <span
                                   className="
-                                    text-xs
-                                    text-muted-foreground
-                                    line-through
-                                  "
+                                  text-xs
+                                  text-muted-foreground
+                                  line-through
+                                "
                                 >
+
                                   ₹
-                                  {
-                                    formatPrice(
-                                      product
-                                        .originalPrice
-                                    )
-                                  }
+                                  {formatPrice(
+                                    product
+                                      .originalPrice
+                                  )}
+
                                 </span>
+
                               )}
+
                           </div>
 
 
-                          {/* Add To Cart */}
-
                           <button
                             type="button"
-
                             disabled={
                               !inStock
                             }
+                            onClick={(
+                              event
+                            ) => {
 
-                            onClick={(e) => {
-                              e.preventDefault();
+                              event
+                                .preventDefault();
 
-                              e.stopPropagation();
+                              event
+                                .stopPropagation();
+
 
                               if (
                                 inStock
                               ) {
-                                addToCart(
+
+                                handleAddToCart(
                                   product
                                 );
-                              }
-                            }}
 
+                              }
+
+                            }}
                             className="
                               w-full
                               px-4
@@ -1956,7 +2134,6 @@ const ProductCard = () => {
                               text-xs
                               font-semibold
                               hover:bg-primary/90
-                              transition-colors
                               flex
                               items-center
                               justify-center
@@ -1965,221 +2142,278 @@ const ProductCard = () => {
                               disabled:cursor-not-allowed
                             "
                           >
+
                             <ShoppingCart
                               size={14}
                             />
 
-                            {
-                              inStock
-                                ? "Add to Cart"
-                                : "Out of Stock"
-                            }
+                            {inStock
+
+                              ? "Add to Cart"
+
+                              : "Out of Stock"}
+
                           </button>
+
                         </div>
+
                       </div>
+
                     </Link>
+
                   );
+
                 }
               )}
+
             </div>
+
           )}
 
 
-          {/* ================================================================
-              PAGINATION
-          ================================================================= */}
+          {/* Pagination */}
 
-          {filteredProducts.length >
-            0 &&
+          {totalProducts > 0 &&
             totalPages > 1 && (
+
               <div
                 className="
-                  border-t
-                  border-border/60
-                  mt-10
-                  pt-8
-                "
+                border-t
+                border-border/60
+                mt-10
+                pt-8
+              "
               >
+
                 <div
                   className="
-                    flex
-                    flex-wrap
-                    items-center
-                    justify-center
-                    gap-3
-                  "
+                  flex
+                  flex-wrap
+                  items-center
+                  justify-center
+                  gap-3
+                "
                 >
-                  {/* Previous */}
 
                   <button
                     type="button"
-
                     disabled={
+                      loading ||
+                      !hasPreviousPage ||
                       currentPage === 1
                     }
-
-                    onClick={() => {
-                      setCurrentPage(
-                        (previous) =>
-                          Math.max(
-                            1,
-
-                            previous -
-                              1
-                          )
-                      );
-
-                      window.scrollTo({
-                        top: 0,
-                        behavior:
-                          "smooth",
-                      });
-                    }}
-
+                    onClick={() =>
+                      handlePageChange(
+                        currentPage - 1
+                      )
+                    }
                     className="
-                      flex
-                      items-center
-                      gap-2
-                      px-4
-                      py-2.5
-                      rounded-lg
-                      border
-                      border-border
-                      text-sm
-                      font-medium
-                      hover:bg-muted
-                      transition-colors
-                      disabled:opacity-40
-                      disabled:cursor-not-allowed
-                    "
+                    flex
+                    items-center
+                    gap-2
+                    px-4
+                    py-2.5
+                    rounded-lg
+                    border
+                    border-border
+                    text-sm
+                    font-medium
+                    hover:bg-muted
+                    disabled:opacity-40
+                    disabled:cursor-not-allowed
+                  "
                   >
+
                     <ArrowLeft
                       size={16}
                     />
 
                     Previous
+
                   </button>
 
 
-                  {/* Page Numbers */}
+                  {visiblePages[0] >
+                    1 && (
+                      <>
 
-                  {Array.from({
-                    length:
-                      totalPages,
-                  }).map(
-                    (
-                      _,
-                      index
-                    ) => {
-                      const page =
-                        index + 1;
-
-                      return (
                         <button
-                          key={page}
-
                           type="button"
-
-                          onClick={() => {
-                            setCurrentPage(
-                              page
-                            );
-
-                            window.scrollTo({
-                              top: 0,
-
-                              behavior:
-                                "smooth",
-                            });
-                          }}
-
-                          className={`
-                            w-10
-                            h-10
-                            rounded-lg
-                            text-sm
-                            font-semibold
-                            transition-colors
-
-                            ${
-                              currentPage ===
-                              page
-                                ? "bg-primary text-primary-foreground"
-                                : "border border-border hover:bg-muted"
-                            }
-                          `}
+                          disabled={
+                            loading
+                          }
+                          onClick={() =>
+                            handlePageChange(
+                              1
+                            )
+                          }
+                          className="
+                        w-10
+                        h-10
+                        rounded-lg
+                        border
+                        border-border
+                        text-sm
+                        font-semibold
+                      "
                         >
-                          {page}
+                          1
                         </button>
-                      );
-                    }
+
+                        {visiblePages[0] >
+                          2 && (
+
+                            <span>
+                              ...
+                            </span>
+
+                          )}
+
+                      </>
+                    )}
+
+
+                  {visiblePages.map(
+                    (
+                      page
+                    ) => (
+
+                      <button
+                        key={
+                          page
+                        }
+                        type="button"
+                        disabled={
+                          loading
+                        }
+                        onClick={() =>
+                          handlePageChange(
+                            page
+                          )
+                        }
+                        className={`
+                        w-10
+                        h-10
+                        rounded-lg
+                        text-sm
+                        font-semibold
+                        transition-colors
+
+                        ${currentPage ===
+                            page
+
+                            ? "bg-primary text-primary-foreground"
+
+                            : "border border-border hover:bg-muted"
+                          }
+                      `}
+                      >
+
+                        {page}
+
+                      </button>
+
+                    )
                   )}
 
 
-                  {/* Next */}
+                  {visiblePages[
+                    visiblePages.length -
+                    1
+                  ] < totalPages && (
+                      <>
+
+                        {visiblePages[
+                          visiblePages.length -
+                          1
+                        ] <
+                          totalPages - 1 && (
+
+                            <span>
+                              ...
+                            </span>
+
+                          )}
+
+                        <button
+                          type="button"
+                          disabled={
+                            loading
+                          }
+                          onClick={() =>
+                            handlePageChange(
+                              totalPages
+                            )
+                          }
+                          className="
+                        w-10
+                        h-10
+                        rounded-lg
+                        border
+                        border-border
+                        text-sm
+                        font-semibold
+                      "
+                        >
+
+                          {totalPages}
+
+                        </button>
+
+                      </>
+                    )}
+
 
                   <button
                     type="button"
-
                     disabled={
+                      loading ||
+                      !hasNextPage ||
                       currentPage ===
                       totalPages
                     }
-
-                    onClick={() => {
-                      setCurrentPage(
-                        (previous) =>
-                          Math.min(
-                            totalPages,
-
-                            previous +
-                              1
-                          )
-                      );
-
-                      window.scrollTo({
-                        top: 0,
-                        behavior:
-                          "smooth",
-                      });
-                    }}
-
+                    onClick={() =>
+                      handlePageChange(
+                        currentPage + 1
+                      )
+                    }
                     className="
-                      flex
-                      items-center
-                      gap-2
-                      px-4
-                      py-2.5
-                      rounded-lg
-                      border
-                      border-border
-                      text-sm
-                      font-medium
-                      hover:bg-muted
-                      transition-colors
-                      disabled:opacity-40
-                      disabled:cursor-not-allowed
-                    "
+                    flex
+                    items-center
+                    gap-2
+                    px-4
+                    py-2.5
+                    rounded-lg
+                    border
+                    border-border
+                    text-sm
+                    font-medium
+                    hover:bg-muted
+                    disabled:opacity-40
+                    disabled:cursor-not-allowed
+                  "
                   >
+
                     Next
 
                     <ArrowRight
                       size={16}
                     />
+
                   </button>
+
                 </div>
 
 
-                {/* Page Info */}
-
                 <p
                   className="
-                    text-center
-                    text-xs
-                    text-muted-foreground
-                    mt-4
-                  "
+                  text-center
+                  text-xs
+                  text-muted-foreground
+                  mt-4
+                "
                 >
+
                   Page{" "}
 
                   <strong>
@@ -2191,13 +2425,30 @@ const ProductCard = () => {
                   <strong>
                     {totalPages}
                   </strong>
+
+                  {" "}•{" "}
+
+                  <strong>
+                    {totalProducts}
+                  </strong>
+
+                  {" "}total products
+
                 </p>
+
               </div>
+
             )}
+
         </div>
+
       </div>
+
     </section>
+
   );
+
 };
+
 
 export default ProductCard;

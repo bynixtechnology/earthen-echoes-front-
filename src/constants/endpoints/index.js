@@ -17,3 +17,7 @@ export {
 export {
   CART_ENDPOINTS,
 } from "./cartEndpoints";
+
+export {
+  WISHLIST_ENDPOINTS,
+} from "./wishlistEndpoints";

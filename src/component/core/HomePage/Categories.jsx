@@ -68,10 +68,7 @@ const Categories = () => {
           const response =
             await CategoryService.getAll();
 
-          console.log(
-            "CATEGORY RESPONSE:",
-            response
-          );
+         
 
 
           /*

@@ -1,97 +1,56 @@
+import React from "react";
 import {
   Navigate,
   Outlet,
+  useLocation,
 } from "react-router-dom";
 
 const AdminProtectedRoute = () => {
-  /*
-  |--------------------------------------------------------------------------
-  | Get Admin Auth Data
-  |--------------------------------------------------------------------------
-  */
+  const location = useLocation();
 
-  const adminToken =
-    localStorage.getItem(
-      "adminToken"
-    );
+  const adminToken = localStorage.getItem("adminToken");
+  const adminUser = localStorage.getItem("adminUser");
 
-  const savedAdmin =
-    localStorage.getItem(
-      "adminUser"
-    );
-
-  /*
-  |--------------------------------------------------------------------------
-  | Admin Not Logged In
-  |--------------------------------------------------------------------------
-  */
-
-  if (
-    !adminToken ||
-    !savedAdmin
-  ) {
+  // No admin session
+  if (!adminToken || !adminUser) {
     return (
       <Navigate
         to="/admin/login"
         replace
+        state={{ from: location }}
       />
     );
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Validate Admin
-  |--------------------------------------------------------------------------
-  */
-
   try {
-    const admin =
-      JSON.parse(savedAdmin);
+    const admin = JSON.parse(adminUser);
 
-    if (
-      admin?.role !== "admin"
-    ) {
-      localStorage.removeItem(
-        "adminToken"
-      );
-
-      localStorage.removeItem(
-        "adminUser"
-      );
+    // Invalid admin object
+    if (!admin || admin.role !== "admin") {
+      localStorage.removeItem("adminToken");
+      localStorage.removeItem("adminUser");
 
       return (
         <Navigate
           to="/admin/login"
           replace
+          state={{ from: location }}
         />
       );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Admin Authorized
-    |--------------------------------------------------------------------------
-    */
-
     return <Outlet />;
   } catch (error) {
-    console.error(
-      "Invalid saved admin:",
-      error
-    );
+    console.error("Invalid admin session:", error);
 
-    localStorage.removeItem(
-      "adminToken"
-    );
-
-    localStorage.removeItem(
-      "adminUser"
-    );
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminUser");
 
     return (
       <Navigate
         to="/admin/login"
         replace
+        state={{ from: location }}
       />
     );
   }

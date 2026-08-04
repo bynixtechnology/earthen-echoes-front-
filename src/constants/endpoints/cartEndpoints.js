@@ -1,13 +1,20 @@
 export const CART_ENDPOINTS = {
-  GET: "/users/cart",
+  // GET Logged In User Cart
+  GET: "/cart",
 
-  ADD: "/users/cart",
+  // Add Product
+  ADD: "/cart/add",
 
-  UPDATE: (productId) =>
-    `/users/cart/${productId}`,
+  // Update Product Quantity
+  UPDATE: "/cart/update",
 
+  // Remove Product
   REMOVE: (productId) =>
-    `/users/cart/${productId}`,
+    `/cart/remove/${productId}`,
 
-  CLEAR: "/users/cart",
+  // Clear Complete Cart
+  CLEAR: "/cart/clear",
+
+  // Merge Guest Cart
+  MERGE: "/cart/merge",
 };

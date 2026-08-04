@@ -22,10 +22,50 @@ import {
 
 import toast from "react-hot-toast";
 
+import {
+  useDispatch,
+  useSelector,
+} from "react-redux";
+
+import {
+  GoogleLogin,
+} from "@react-oauth/google";
+
+import {
+  registerUser,
+  googleLoginUser,
+} from "../../../redux/thunks/userAuthThunk";
+
+import {
+  selectUserAuthLoading,
+} from "../../../redux/slices/userAuthSlice";
+
 
 const UserRegister = () => {
 
-  const navigate = useNavigate();
+  /*
+  |--------------------------------------------------------------------------
+  | Hooks
+  |--------------------------------------------------------------------------
+  */
+
+  const navigate =
+    useNavigate();
+
+  const dispatch =
+    useDispatch();
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Redux State
+  |--------------------------------------------------------------------------
+  */
+
+  const reduxLoading =
+    useSelector(
+      selectUserAuthLoading
+    );
 
 
   /*
@@ -38,11 +78,17 @@ const UserRegister = () => {
     formData,
     setFormData,
   ] = useState({
+
     name: "",
+
     email: "",
+
     phone: "",
+
     password: "",
+
     confirmPassword: "",
+
   });
 
 
@@ -57,20 +103,18 @@ const UserRegister = () => {
     setShowPassword,
   ] = useState(false);
 
+
   const [
     showConfirmPassword,
     setShowConfirmPassword,
   ] = useState(false);
+
 
   const [
     agreeTerms,
     setAgreeTerms,
   ] = useState(false);
 
-  const [
-    isLoading,
-    setIsLoading,
-  ] = useState(false);
 
   const [
     isGoogleLoading,
@@ -80,25 +124,94 @@ const UserRegister = () => {
 
   /*
   |--------------------------------------------------------------------------
+  | Combined Loading
+  |--------------------------------------------------------------------------
+  */
+
+  const isLoading =
+    reduxLoading ||
+    isGoogleLoading;
+
+
+  /*
+  |--------------------------------------------------------------------------
   | Handle Input Change
   |--------------------------------------------------------------------------
   */
 
-  const handleChange = (e) => {
+  const handleChange = (
+    e
+  ) => {
 
     const {
       name,
       value,
     } = e.target;
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Phone - Numbers Only
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+      name === "phone"
+    ) {
+
+      const numericValue =
+        value
+          .replace(
+            /\D/g,
+            ""
+          )
+          .slice(
+            0,
+            10
+          );
+
+
+      setFormData(
+        (
+          prev
+        ) => ({
+
+          ...prev,
+
+          phone:
+            numericValue,
+
+        })
+      );
+
+
+      return;
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Other Inputs
+    |--------------------------------------------------------------------------
+    */
+
     setFormData(
-      (prev) => ({
+      (
+        prev
+      ) => ({
+
         ...prev,
 
         [name]:
+
           name === "email"
-            ? value.toLowerCase()
+
+            ? value
+                .toLowerCase()
+
             : value,
+
       })
     );
 
@@ -111,204 +224,227 @@ const UserRegister = () => {
   |--------------------------------------------------------------------------
   */
 
-  const validateForm = () => {
+  const validateForm =
+    () => {
 
-    const name =
-      formData.name.trim();
+      const name =
+        formData.name
+          .trim();
 
-    const email =
-      formData.email
-        .trim()
-        .toLowerCase();
 
-    const phone =
-      formData.phone.trim();
+      const email =
+        formData.email
+          .trim()
+          .toLowerCase();
 
-    const password =
-      formData.password;
 
-    const confirmPassword =
-      formData.confirmPassword;
+      const phone =
+        formData.phone
+          .trim();
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Name Validation
-    |--------------------------------------------------------------------------
-    */
+      const password =
+        formData.password;
 
-    if (!name) {
 
-      toast.error(
-        "Please enter your full name."
-      );
+      const confirmPassword =
+        formData
+          .confirmPassword;
 
-      return false;
 
-    }
+      /*
+      |--------------------------------------------------------------------------
+      | Name
+      |--------------------------------------------------------------------------
+      */
 
+      if (!name) {
 
-    if (name.length < 2) {
+        toast.error(
+          "Please enter your full name."
+        );
 
-      toast.error(
-        "Name must be at least 2 characters."
-      );
+        return false;
 
-      return false;
+      }
 
-    }
 
+      if (
+        name.length < 2
+      ) {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Email Validation
-    |--------------------------------------------------------------------------
-    */
+        toast.error(
+          "Name must be at least 2 characters."
+        );
 
-    if (!email) {
+        return false;
 
-      toast.error(
-        "Please enter your email address."
-      );
+      }
 
-      return false;
 
-    }
+      /*
+      |--------------------------------------------------------------------------
+      | Email
+      |--------------------------------------------------------------------------
+      */
 
+      if (!email) {
 
-    const emailRegex =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        toast.error(
+          "Please enter your email address."
+        );
 
+        return false;
 
-    if (
-      !emailRegex.test(email)
-    ) {
+      }
 
-      toast.error(
-        "Please enter a valid email address."
-      );
 
-      return false;
+      const emailRegex =
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    }
 
+      if (
+        !emailRegex.test(
+          email
+        )
+      ) {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Phone Validation
-    |--------------------------------------------------------------------------
-    */
+        toast.error(
+          "Please enter a valid email address."
+        );
 
-    if (!phone) {
+        return false;
 
-      toast.error(
-        "Please enter your phone number."
-      );
+      }
 
-      return false;
 
-    }
+      /*
+      |--------------------------------------------------------------------------
+      | Phone
+      |--------------------------------------------------------------------------
+      */
 
+      if (!phone) {
 
-    const phoneRegex =
-      /^[6-9]\d{9}$/;
+        toast.error(
+          "Please enter your phone number."
+        );
 
+        return false;
 
-    if (
-      !phoneRegex.test(phone)
-    ) {
+      }
 
-      toast.error(
-        "Please enter a valid 10 digit mobile number."
-      );
 
-      return false;
+      const phoneRegex =
+        /^[6-9]\d{9}$/;
 
-    }
 
+      if (
+        !phoneRegex.test(
+          phone
+        )
+      ) {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Password Validation
-    |--------------------------------------------------------------------------
-    */
+        toast.error(
+          "Please enter a valid 10 digit mobile number."
+        );
 
-    if (!password) {
+        return false;
 
-      toast.error(
-        "Please enter a password."
-      );
+      }
 
-      return false;
 
-    }
+      /*
+      |--------------------------------------------------------------------------
+      | Password
+      |--------------------------------------------------------------------------
+      */
 
+      if (!password) {
 
-    if (
-      password.length < 6
-    ) {
+        toast.error(
+          "Please enter a password."
+        );
 
-      toast.error(
-        "Password must be at least 6 characters."
-      );
+        return false;
 
-      return false;
+      }
 
-    }
 
+      if (
+        password.length < 6
+      ) {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Confirm Password
-    |--------------------------------------------------------------------------
-    */
+        toast.error(
+          "Password must be at least 6 characters."
+        );
 
-    if (
-      password !==
-      confirmPassword
-    ) {
+        return false;
 
-      toast.error(
-        "Passwords do not match."
-      );
+      }
 
-      return false;
 
-    }
+      /*
+      |--------------------------------------------------------------------------
+      | Confirm Password
+      |--------------------------------------------------------------------------
+      */
 
+      if (
+        password !==
+        confirmPassword
+      ) {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Terms
-    |--------------------------------------------------------------------------
-    */
+        toast.error(
+          "Passwords do not match."
+        );
 
-    if (!agreeTerms) {
+        return false;
 
-      toast.error(
-        "Please accept the Terms & Conditions."
-      );
+      }
 
-      return false;
 
-    }
+      /*
+      |--------------------------------------------------------------------------
+      | Terms
+      |--------------------------------------------------------------------------
+      */
 
+      if (!agreeTerms) {
 
-    return true;
+        toast.error(
+          "Please accept the Terms & Conditions."
+        );
 
-  };
+        return false;
+
+      }
+
+
+      return true;
+
+    };
 
 
   /*
   |--------------------------------------------------------------------------
-  | Handle Normal Register
+  | Normal Registration
   |--------------------------------------------------------------------------
   */
 
   const handleSubmit =
-    async (e) => {
+    async (
+      e
+    ) => {
 
       e.preventDefault();
+
+
+      if (isLoading) {
+
+        return;
+
+      }
 
 
       if (
@@ -320,86 +456,54 @@ const UserRegister = () => {
       }
 
 
+      const registerData = {
+
+        name:
+          formData.name
+            .trim(),
+
+        email:
+          formData.email
+            .trim()
+            .toLowerCase(),
+
+        phone:
+          formData.phone
+            .trim(),
+
+        password:
+          formData.password,
+
+      };
+
+
       try {
 
-        setIsLoading(true);
+        const result =
+          await dispatch(
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Prepare Register Data
-        |--------------------------------------------------------------------------
-        */
-
-        const registerData = {
-
-          name:
-            formData.name.trim(),
-
-          email:
-            formData.email
-              .trim()
-              .toLowerCase(),
-
-          phone:
-            formData.phone.trim(),
-
-          password:
-            formData.password,
-
-        };
-
-
-        console.log(
-          "REGISTER DATA:",
-          registerData
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | API / Redux Integration
-        |--------------------------------------------------------------------------
-        |
-        | Redux thunk ready hone ke baad:
-        |
-        | const result = await dispatch(
-        |   registerUser(registerData)
-        | ).unwrap();
-        |
-        */
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Temporary Demo Delay
-        |--------------------------------------------------------------------------
-        */
-
-        await new Promise(
-          (resolve) =>
-            setTimeout(
-              resolve,
-              1000
+            registerUser(
+              registerData
             )
-        );
+
+          ).unwrap();
 
 
         toast.success(
+
+          result?.message ||
+
           "Account created successfully."
+
         );
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Redirect Login
-        |--------------------------------------------------------------------------
-        */
 
         navigate(
-          "/user/login"
+          "/",
+          {
+            replace: true,
+          }
         );
-
 
       } catch (error) {
 
@@ -411,20 +515,16 @@ const UserRegister = () => {
 
         toast.error(
 
-          error?.response
-            ?.data
-            ?.message ||
+          typeof error ===
+            "string"
 
-          error?.message ||
+            ? error
 
-          "Unable to create account."
+            : error?.message ||
+
+              "Unable to create account."
 
         );
-
-
-      } finally {
-
-        setIsLoading(false);
 
       }
 
@@ -433,12 +533,14 @@ const UserRegister = () => {
 
   /*
   |--------------------------------------------------------------------------
-  | Continue With Google
+  | Google Authentication Success
   |--------------------------------------------------------------------------
   */
 
-  const handleGoogleRegister =
-    async () => {
+  const handleGoogleSuccess =
+    async (
+      credentialResponse
+    ) => {
 
       if (
         isGoogleLoading
@@ -458,57 +560,94 @@ const UserRegister = () => {
 
         /*
         |--------------------------------------------------------------------------
-        | Google OAuth
+        | Get Google Credential
         |--------------------------------------------------------------------------
-        |
-        | Actual Google authentication
-        | next step me yahan integrate hoga.
-        |
-        | Flow:
-        |
-        | Google Account
-        |       ↓
-        | Google Credential
-        |       ↓
-        | Backend /auth/google
-        |       ↓
-        | JWT Token + User
-        |       ↓
-        | Redux / localStorage
-        |       ↓
-        | User Dashboard
-        |
         */
 
+        const credential =
+          credentialResponse
+            ?.credential;
 
-        console.log(
-          "Continue with Google clicked"
+
+        if (!credential) {
+
+          throw new Error(
+            "Google credential was not received."
+          );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Call Google Login API
+        |--------------------------------------------------------------------------
+        */
+
+        const result =
+          await dispatch(
+
+            googleLoginUser(
+              credential
+            )
+
+          ).unwrap();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Success
+        |--------------------------------------------------------------------------
+        */
+
+        toast.success(
+
+          result?.message ||
+
+          (
+            result?.user?.name
+
+              ? `Welcome, ${result.user.name}.`
+
+              : "Google authentication successful."
+          )
+
         );
 
 
         /*
         |--------------------------------------------------------------------------
-        | Temporary Message
+        | Redirect
         |--------------------------------------------------------------------------
         */
 
-        toast(
-          "Google authentication will be connected here."
+        navigate(
+          "/",
+          {
+            replace: true,
+          }
         );
-
 
       } catch (error) {
 
         console.error(
-          "GOOGLE REGISTER ERROR:",
+          "GOOGLE AUTH ERROR:",
           error
         );
 
 
         toast.error(
-          "Unable to continue with Google."
-        );
 
+          typeof error ===
+            "string"
+
+            ? error
+
+            : error?.message ||
+
+              "Unable to continue with Google."
+
+        );
 
       } finally {
 
@@ -517,6 +656,27 @@ const UserRegister = () => {
         );
 
       }
+
+    };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Google Authentication Error
+  |--------------------------------------------------------------------------
+  */
+
+  const handleGoogleError =
+    () => {
+
+      setIsGoogleLoading(
+        false
+      );
+
+
+      toast.error(
+        "Google authentication failed. Please try again."
+      );
 
     };
 
@@ -592,12 +752,12 @@ const UserRegister = () => {
           "
         >
 
-
-          {/* Decorative Circle */}
+          {/* Decorative Circles */}
 
           <div
             className="
               absolute
+
               -top-24
               -right-24
 
@@ -614,6 +774,7 @@ const UserRegister = () => {
           <div
             className="
               absolute
+
               -bottom-32
               -left-24
 
@@ -646,7 +807,7 @@ const UserRegister = () => {
 
 
           {/* ================================================================
-              BRAND
+              BRAND + HERO
           ================================================================= */}
 
           <div
@@ -732,10 +893,6 @@ const UserRegister = () => {
 
             </Link>
 
-
-            {/* ================================================================
-                HERO CONTENT
-            ================================================================= */}
 
             <div
               className="
@@ -1181,8 +1338,7 @@ const UserRegister = () => {
                     autoComplete="name"
 
                     disabled={
-                      isLoading ||
-                      isGoogleLoading
+                      isLoading
                     }
 
                     className="
@@ -1235,7 +1391,6 @@ const UserRegister = () => {
                   gap-5
                 "
               >
-
 
                 {/* Email */}
 
@@ -1303,8 +1458,7 @@ const UserRegister = () => {
                       autoComplete="email"
 
                       disabled={
-                        isLoading ||
-                        isGoogleLoading
+                        isLoading
                       }
 
                       className="
@@ -1415,8 +1569,7 @@ const UserRegister = () => {
                       autoComplete="tel"
 
                       disabled={
-                        isLoading ||
-                        isGoogleLoading
+                        isLoading
                       }
 
                       className="
@@ -1460,7 +1613,7 @@ const UserRegister = () => {
 
 
               {/* ================================================================
-                  PASSWORD + CONFIRM PASSWORD
+                  PASSWORDS
               ================================================================= */}
 
               <div
@@ -1471,7 +1624,6 @@ const UserRegister = () => {
                   gap-5
                 "
               >
-
 
                 {/* Password */}
 
@@ -1543,8 +1695,7 @@ const UserRegister = () => {
                       autoComplete="new-password"
 
                       disabled={
-                        isLoading ||
-                        isGoogleLoading
+                        isLoading
                       }
 
                       className="
@@ -1586,9 +1737,15 @@ const UserRegister = () => {
 
                       onClick={() =>
                         setShowPassword(
-                          (prev) =>
+                          (
+                            prev
+                          ) =>
                             !prev
                         )
+                      }
+
+                      disabled={
+                        isLoading
                       }
 
                       className="
@@ -1705,8 +1862,7 @@ const UserRegister = () => {
                       autoComplete="new-password"
 
                       disabled={
-                        isLoading ||
-                        isGoogleLoading
+                        isLoading
                       }
 
                       className="
@@ -1748,9 +1904,15 @@ const UserRegister = () => {
 
                       onClick={() =>
                         setShowConfirmPassword(
-                          (prev) =>
+                          (
+                            prev
+                          ) =>
                             !prev
                         )
+                      }
+
+                      disabled={
+                        isLoading
                       }
 
                       className="
@@ -1799,7 +1961,7 @@ const UserRegister = () => {
 
 
               {/* ================================================================
-                  TERMS & CONDITIONS
+                  TERMS
               ================================================================= */}
 
               <label
@@ -1822,15 +1984,16 @@ const UserRegister = () => {
                     agreeTerms
                   }
 
-                  onChange={(e) =>
+                  onChange={(
+                    e
+                  ) =>
                     setAgreeTerms(
                       e.target.checked
                     )
                   }
 
                   disabled={
-                    isLoading ||
-                    isGoogleLoading
+                    isLoading
                   }
 
                   className="
@@ -1900,15 +2063,14 @@ const UserRegister = () => {
 
 
               {/* ================================================================
-                  CREATE ACCOUNT BUTTON
+                  CREATE ACCOUNT
               ================================================================= */}
 
               <button
                 type="submit"
 
                 disabled={
-                  isLoading ||
-                  isGoogleLoading
+                  isLoading
                 }
 
                 className="
@@ -1945,7 +2107,7 @@ const UserRegister = () => {
               >
 
                 {
-                  isLoading
+                  reduxLoading
                     ? (
                       <>
 
@@ -2010,6 +2172,7 @@ const UserRegister = () => {
                   "
                 />
 
+
                 <span
                   className="
                     text-xs
@@ -2028,6 +2191,7 @@ const UserRegister = () => {
 
                 </span>
 
+
                 <div
                   className="
                     flex-1
@@ -2042,71 +2206,56 @@ const UserRegister = () => {
 
 
               {/* ================================================================
-                  CONTINUE WITH GOOGLE
+                  GOOGLE LOGIN
               ================================================================= */}
 
-              <button
-                type="button"
-
-                onClick={
-                  handleGoogleRegister
-                }
-
-                disabled={
-                  isLoading ||
-                  isGoogleLoading
-                }
-
+              <div
                 className="
                   w-full
 
                   min-h-[52px]
 
-                  px-5
-
-                  rounded-xl
-
-                  border
-                  border-border
-
-                  bg-card
-
-                  text-foreground
-
                   flex
                   items-center
                   justify-center
-
-                  gap-3
-
-                  text-sm
-                  font-semibold
-
-                  shadow-sm
-
-                  transition-all
-                  duration-200
-
-                  hover:bg-secondary/40
-
-                  hover:border-primary/40
-
-                  hover:shadow-md
-
-                  hover:-translate-y-0.5
-
-                  active:translate-y-0
-
-                  disabled:opacity-60
-                  disabled:cursor-not-allowed
-                  disabled:translate-y-0
                 "
               >
 
                 {
                   isGoogleLoading
                     ? (
-                      <>
+
+                      <div
+                        className="
+                          w-full
+
+                          min-h-[52px]
+
+                          px-5
+
+                          rounded-xl
+
+                          border
+                          border-border
+
+                          bg-card
+
+                          text-foreground
+
+                          flex
+                          items-center
+                          justify-center
+
+                          gap-3
+
+                          text-sm
+                          font-semibold
+
+                          shadow-sm
+
+                          opacity-70
+                        "
+                      >
 
                         <span
                           className="
@@ -2118,7 +2267,6 @@ const UserRegister = () => {
                             border-2
 
                             border-muted
-
                             border-t-primary
 
                             animate-spin
@@ -2127,60 +2275,63 @@ const UserRegister = () => {
 
                         Connecting...
 
-                      </>
+                      </div>
+
                     )
                     : (
-                      <>
 
-                        {/* Google Logo */}
+                      <div
+                        className="
+                          w-full
 
-                        <svg
-                          width="20"
-                          height="20"
+                          flex
+                          items-center
+                          justify-center
 
-                          viewBox="0 0 24 24"
+                          overflow-hidden
 
-                          aria-hidden="true"
-                        >
+                          rounded-xl
+                        "
+                      >
 
-                          <path
-                            fill="#4285F4"
+                        <GoogleLogin
 
-                            d="M21.6 12.227c0-.709-.064-1.391-.182-2.045H12v3.868h5.382a4.6 4.6 0 0 1-1.996 3.018v2.509h3.232c1.891-1.741 2.982-4.305 2.982-7.35Z"
-                          />
+                          onSuccess={
+                            handleGoogleSuccess
+                          }
 
-                          <path
-                            fill="#34A853"
+                          onError={
+                            handleGoogleError
+                          }
 
-                            d="M12 22c2.7 0 4.964-.895 6.618-2.423l-3.232-2.509c-.895.6-2.041.955-3.386.955-2.605 0-4.809-1.759-5.596-4.123H3.064v2.591A9.996 9.996 0 0 0 12 22Z"
-                          />
+                          useOneTap={
+                            false
+                          }
 
-                          <path
-                            fill="#FBBC05"
+                          auto_select={
+                            false
+                          }
 
-                            d="M6.404 13.9A6.018 6.018 0 0 1 6.09 12c0-.659.114-1.3.314-1.9V7.509h-3.34A9.996 9.996 0 0 0 2 12c0 1.614.386 3.141 1.064 4.491L6.404 13.9Z"
-                          />
+                          theme="outline"
 
-                          <path
-                            fill="#EA4335"
+                          size="large"
 
-                            d="M12 5.977c1.468 0 2.786.505 3.823 1.496l2.868-2.868C16.959 2.991 14.695 2 12 2a9.996 9.996 0 0 0-8.936 5.509l3.34 2.591C7.191 7.736 9.395 5.977 12 5.977Z"
-                          />
+                          text="continue_with"
 
-                        </svg>
+                          shape="rectangular"
 
+                          logo_alignment="left"
 
-                        <span>
+                          width="500"
 
-                          Continue with Google
+                        />
 
-                        </span>
+                      </div>
 
-                      </>
                     )
                 }
 
-              </button>
+              </div>
 
             </form>
 
@@ -2234,7 +2385,7 @@ const UserRegister = () => {
 
 
             {/* ================================================================
-                SECURITY MESSAGE
+                SECURITY
             ================================================================= */}
 
             <div

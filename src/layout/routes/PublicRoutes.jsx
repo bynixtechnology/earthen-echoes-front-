@@ -5,7 +5,8 @@ import About from "../../component/page/public/About";
 import Contact from "../../component/page/public/Contact";
 import Product from "../../component/page/public/Product";
 import ProductDetails from "../../component/page/public/ProductDetails";
-
+import CartPage from "../../component/page/public/CartPage"
+import WishlistPage from "../../component/page/user/WishlistPage";
 
 const publicRoutes = [
   {
@@ -79,10 +80,15 @@ const publicRoutes = [
       |--------------------------------------------------------------------------
       */
 
-      // {
-      //   path: "cart",
-      //   element: <CartPage />,
-      // },
+      {
+        path: "cart",
+        element: <CartPage />,
+      },
+
+       {
+        path: "wishlist",
+        element: <WishlistPage />,
+      },
 
     ],
   },

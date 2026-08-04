@@ -35,12 +35,7 @@ export const fetchCart =
         const response =
           await CartService.getCart();
 
-        return (
-          response?.data?.cart ||
-          response?.cart ||
-          response?.data ||
-          []
-        );
+        return response;
       } catch (error) {
         return rejectWithValue(
           getErrorMessage(
@@ -80,12 +75,7 @@ export const addProductToCart =
             }
           );
 
-        return (
-          response?.data?.cart ||
-          response?.cart ||
-          response?.data ||
-          []
-        );
+       return response;
       } catch (error) {
         return rejectWithValue(
           getErrorMessage(
@@ -136,6 +126,48 @@ export const removeProductFromCart =
             "Unable to remove product from cart."
           )
         );
+      }
+    }
+  );
+
+  /*
+|--------------------------------------------------------------------------
+| Update Cart Item Quantity
+|--------------------------------------------------------------------------
+*/
+
+export const updateCartItem =
+  createAsyncThunk(
+    "cart/updateCartItem",
+
+    async (
+      {
+        productId,
+        quantity,
+      },
+      {
+        rejectWithValue,
+      }
+    ) => {
+      try {
+
+        const response =
+          await CartService.updateCartItem({
+            productId,
+            quantity,
+          });
+
+       return response;
+
+      } catch (error) {
+
+        return rejectWithValue(
+          getErrorMessage(
+            error,
+            "Unable to update cart item."
+          )
+        );
+
       }
     }
   );

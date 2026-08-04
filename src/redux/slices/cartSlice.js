@@ -5,6 +5,7 @@ import {
 import {
   fetchCart,
   addProductToCart,
+  updateCartItem,
   removeProductFromCart,
 } from "../thunks/cartThunk";
 
@@ -23,8 +24,17 @@ const initialState = {
 const normalizeCart = (
   payload
 ) => {
+
   if (Array.isArray(payload)) {
     return payload;
+  }
+
+  if (
+    Array.isArray(
+      payload?.cart
+    )
+  ) {
+    return payload.cart;
   }
 
   if (
@@ -36,6 +46,7 @@ const normalizeCart = (
   }
 
   return [];
+
 };
 
 const cartSlice =
@@ -84,25 +95,32 @@ const cartSlice =
             state,
             action
           ) => {
+
+           
+
             state.loading = false;
 
             state.cartItems =
               normalizeCart(
                 action.payload
               );
+
+           
+
           }
         )
 
         .addCase(
           fetchCart.rejected,
-          (
-            state,
-            action
-          ) => {
-            state.loading = false;
+          (state, action) => {
 
-            state.error =
-              action.payload;
+            console.log(
+              "Fetch Cart Rejected:",
+              action
+            );
+
+            state.loading = false;
+            state.error = action.payload;
           }
         )
 
@@ -149,6 +167,52 @@ const cartSlice =
         )
 
         /*
+|--------------------------------------------------------------------------
+| Update Cart
+|--------------------------------------------------------------------------
+*/
+
+        .addCase(
+          updateCartItem.pending,
+          (state) => {
+            state.loading = true;
+            state.error = null;
+          }
+        )
+
+        .addCase(
+          updateCartItem.fulfilled,
+          (
+            state,
+            action
+          ) => {
+
+            state.loading = false;
+
+            state.cartItems =
+              normalizeCart(
+                action.payload
+              );
+
+          }
+        )
+
+        .addCase(
+          updateCartItem.rejected,
+          (
+            state,
+            action
+          ) => {
+
+            state.loading = false;
+
+            state.error =
+              action.payload;
+
+          }
+        )
+
+        /*
         |--------------------------------------------------------------------------
         | Remove Cart
         |--------------------------------------------------------------------------
@@ -164,41 +228,18 @@ const cartSlice =
 
         .addCase(
           removeProductFromCart.fulfilled,
-          (
-            state,
-            action
-          ) => {
+          (state, action) => {
             state.removing = false;
 
-            if (
-              action.payload
-                ?.cart
-            ) {
-              state.cartItems =
-                normalizeCart(
-                  action.payload
-                    .cart
-                );
-
+            if (action.payload?.cart) {
+              state.cartItems = normalizeCart(action.payload.cart);
               return;
             }
 
-            state.cartItems =
-              state.cartItems.filter(
-                (item) => {
-                  const id =
-                    item?.product
-                      ?._id ||
-                    item?.productId ||
-                    item?._id;
-
-                  return (
-                    id !==
-                    action.payload
-                      ?.productId
-                  );
-                }
-              );
+            state.cartItems = state.cartItems.filter(
+              (item) =>
+                item.productId?._id !== action.payload.productId
+            );
           }
         )
 
@@ -258,5 +299,15 @@ export const selectCartCount = (
 
     0
   );
+
+export const selectCartLoading =
+  (state) =>
+    state.cart?.loading ||
+    false;
+
+export const selectCartRemoving =
+  (state) =>
+    state.cart?.removing ||
+    false;
 
 export default cartSlice.reducer;

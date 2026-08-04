@@ -22,8 +22,32 @@ import {
 } from "../../../services/productService";
 
 import {
-  useCart,
-} from "../../core/context/CartContext";
+  useDispatch,
+  useSelector,
+} from "react-redux";
+
+import {
+  addProductToCart,
+} from "../../../redux/thunks/cartThunk";
+
+import {
+  getWishlist,
+  toggleWishlist,
+} from "../../../redux/thunks/wishlistThunk";
+
+
+
+
+
+import {
+  selectCartAdding,
+} from "../../../redux/slices/cartSlice";
+
+import {
+  selectWishlistItems,
+} from "../../../redux/slices/wishlistSlice";
+
+import { showToast } from "../../../config/toast";
 
 
 const BestSeller = () => {
@@ -56,12 +80,21 @@ const BestSeller = () => {
   |--------------------------------------------------------------------------
   */
 
-  const {
-    addToCart,
-  } = useCart();
-
   const navigate =
     useNavigate();
+
+  const dispatch =
+    useDispatch();
+
+  const adding =
+    useSelector(
+      selectCartAdding
+    );
+
+  const wishlistItems =
+    useSelector(
+      selectWishlistItems
+    );
 
 
   /*
@@ -71,136 +104,74 @@ const BestSeller = () => {
   */
 
   useEffect(() => {
-
     let isMounted = true;
 
+    const fetchBestSellers = async () => {
+      try {
+        setIsLoading(true);
+        setError("");
 
-    const fetchBestSellers =
-      async () => {
+        const response =
+          await ProductService.getAll({
+            page: 1,
+            limit: 4,
+            isActive: true,
+            isFeatured: true,
+          });
 
-        try {
+       
 
-          setIsLoading(true);
-
-          setError("");
-
-
-          /*
-          |--------------------------------------------------------------------------
-          | Product Service
-          |--------------------------------------------------------------------------
-          */
-
-          const response =
-            await ProductService.getAll();
-
-
-          console.log(
-            "BEST SELLER RESPONSE:",
-            response
-          );
-
-
-          /*
-          |--------------------------------------------------------------------------
-          | Normalize Response
-          |--------------------------------------------------------------------------
-          */
-
-          const fetchedData =
-            response?.data ??
-            response ??
-            [];
-
-
-          const productList =
-            Array.isArray(
-              fetchedData
+        const productList =
+          Array.isArray(
+            response?.products
+          )
+            ? response.products
+            : Array.isArray(
+              response?.data
             )
-              ? fetchedData
+              ? response.data
               : [];
 
-
-          /*
-          |--------------------------------------------------------------------------
-          | Active Products Only
-          |--------------------------------------------------------------------------
-          */
-
-          const filteredProducts =
-            productList.filter(
-              (product) =>
-                product?.isActive ===
-                true
-            );
-
-
-          /*
-          |--------------------------------------------------------------------------
-          | Only First 4 Products
-          |--------------------------------------------------------------------------
-          */
-
-          if (isMounted) {
-
-            setProducts(
-              filteredProducts.slice(
-                0,
-                4
-              )
-            );
-
-          }
-
-        } catch (error) {
-
-          console.error(
-            "FETCH BEST SELLERS ERROR:",
-            error
+        if (isMounted) {
+          setProducts(
+            productList.slice(
+              0,
+              4
+            )
           );
-
-
-          if (isMounted) {
-
-            setProducts([]);
-
-            setError(
-              error?.response?.data
-                ?.message ||
-                error?.message ||
-                "Unable to load products."
-            );
-
-          }
-
-        } finally {
-
-          if (isMounted) {
-
-            setIsLoading(false);
-
-          }
-
         }
+      } catch (error) {
+        console.error(
+          "FETCH BEST SELLERS ERROR:",
+          error
+        );
 
-      };
+        if (isMounted) {
+          setProducts([]);
 
+          setError(
+            error?.response?.data
+              ?.message ||
+            error?.message ||
+            "Unable to load products."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    dispatch(
+  getWishlist()
+);
 
     fetchBestSellers();
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Cleanup
-    |--------------------------------------------------------------------------
-    */
-
     return () => {
-
       isMounted = false;
-
     };
-
   }, []);
 
 
@@ -230,39 +201,38 @@ const BestSeller = () => {
   | Add To Cart
   |--------------------------------------------------------------------------
   */
-
-  const handleAddToCart = (
+  const handleAddToCart = async (
     event,
-    product,
-    productId,
-    productTitle,
-    productPrice,
-    imageUrl
+    productId
   ) => {
-
-    /*
-    |--------------------------------------------------------------------------
-    | Prevent Card Navigation
-    |--------------------------------------------------------------------------
-    */
 
     event.stopPropagation();
 
+    if (!productId) return;
 
-    addToCart({
-      ...product,
+    try {
 
-      _id: productId,
+      const response = await dispatch(
+        addProductToCart({
+          productId,
+          quantity: 1,
+        })
+      ).unwrap();
 
-      name: productTitle,
+      showToast.success(
+        response?.message ||
+        "Product added to cart."
+      );
 
-      price: productPrice,
+    } catch (error) {
 
-      images:
-        product?.images?.length
-          ? product.images
-          : [imageUrl],
-    });
+      showToast.error(
+        error?.message ||
+        error ||
+        "Unable to add product."
+      );
+
+    }
 
   };
 
@@ -273,19 +243,36 @@ const BestSeller = () => {
   |--------------------------------------------------------------------------
   */
 
-  const handleWishlist = (
-    event
+  const handleWishlist = async (
+    event,
+    productId
   ) => {
 
     event.stopPropagation();
 
-    /*
-      Wishlist logic
-      yaha add kar sakte ho
-    */
+    if (!productId) return;
+
+    try {
+
+      const response =
+        await dispatch(
+          toggleWishlist(productId)
+        ).unwrap();
+
+      showToast.success(
+        response.message
+      );
+
+    } catch (error) {
+
+      showToast.error(
+        error?.message ||
+        error
+      );
+
+    }
 
   };
-
 
   /*
   |--------------------------------------------------------------------------
@@ -322,7 +309,7 @@ const BestSeller = () => {
     <section
       className="
         py-20
-        bg-muted/30
+        bg-muted
       "
     >
 
@@ -356,11 +343,10 @@ const BestSeller = () => {
 
             <h2
               className="
-                text-3xl
-                sm:text-4xl
-                font-heading
-                font-bold
+                text-accent  
+               
                 mb-2
+                
               "
             >
               Our Best Sellers
@@ -369,7 +355,7 @@ const BestSeller = () => {
 
             <p
               className="
-                text-muted-foreground
+                text-accent
               "
             >
               Most-loved handcrafted
@@ -509,11 +495,21 @@ const BestSeller = () => {
                   product?._id ||
                   product?.id;
 
+                const isWishlisted =
+                  wishlistItems.some(
+                    (item) =>
+                      item.productId?._id ===
+                      productId
+                  );
+
 
                 const imageUrl =
-                  product?.images?.[0] ||
-                  product?.image ||
-                  "/placeholder.png";
+                  typeof product?.images?.[0] === "string"
+                    ? product.images[0]
+                    : product?.images?.[0]?.url ||
+                    product?.image?.url ||
+                    product?.image ||
+                    "/placeholder.png";
 
 
                 const productTitle =
@@ -582,38 +578,22 @@ const BestSeller = () => {
                     >
 
                       <img
-
-                        src={
-                          imageUrl
-                        }
-
-                        alt={
-                          productTitle
-                        }
-
+                        src={imageUrl}
+                        alt={productTitle}
                         loading="lazy"
-
-                        onError={(
-                          event
-                        ) => {
-
-                          event.currentTarget
-                            .onerror = null;
-
-                          event.currentTarget
-                            .src =
-                            "/placeholder.png";
-
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = "/placeholder.png";
                         }}
-
                         className="
-                          w-full
-                          h-full
-                          object-cover
-                          group-hover:scale-105
-                          transition-transform
-                          duration-500
-                        "
+        w-full
+        h-full
+        object-cover
+        group-hover:scale-105
+        transition-transform
+        duration-500
+    "
                       />
 
 
@@ -645,8 +625,11 @@ const BestSeller = () => {
 
                         type="button"
 
-                        onClick={
-                          handleWishlist
+                        onClick={(event) =>
+                          handleWishlist(
+                            event,
+                            productId
+                          )
                         }
 
                         aria-label="Add to wishlist"
@@ -670,9 +653,14 @@ const BestSeller = () => {
                         "
                       >
 
-                        <Heart
-                          size={16}
-                        />
+                       <Heart
+  size={16}
+  className={
+    isWishlisted
+      ? "fill-red-500 text-red-500"
+      : ""
+  }
+/>
 
                       </button>
 
@@ -877,41 +865,51 @@ const BestSeller = () => {
                         <button
 
                           type="button"
+                          disabled={adding}
 
-                          onClick={(
-                            event
-                          ) =>
+                          onClick={(event) =>
                             handleAddToCart(
                               event,
-                              product,
-                              productId,
-                              productTitle,
-                              productPrice,
-                              imageUrl
+                              productId
                             )
                           }
 
                           className="
-                            px-4
-                            py-2
-                            bg-primary
-                            text-primary-foreground
-                            rounded-lg
-                            text-xs
-                            font-semibold
-                            hover:bg-primary/90
-                            transition-colors
-                            flex
-                            items-center
-                            gap-1.5
-                          "
+px-4
+py-2
+bg-primary
+text-primary-foreground
+rounded-lg
+text-xs
+font-semibold
+hover:bg-primary/90
+transition-colors
+flex
+items-center
+gap-1.5
+disabled:opacity-60
+disabled:cursor-not-allowed
+"
                         >
 
-                          <ShoppingCart
-                            size={14}
-                          />
+                          {
+                            adding ? (
+                              <Loader2
+                                size={14}
+                                className="animate-spin"
+                              />
+                            ) : (
+                              <ShoppingCart
+                                size={14}
+                              />
+                            )
+                          }
 
-                          Add
+                          {
+                            adding
+                              ? "Adding..."
+                              : "Add"
+                          }
 
                         </button>
 

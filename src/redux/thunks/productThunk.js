@@ -7,21 +7,13 @@ import {
 } from "../../services/productService";
 
 
-/*
-|--------------------------------------------------------------------------
-| Error Helper
-|--------------------------------------------------------------------------
-*/
-
 const getErrorMessage = (
   error,
   fallback
 ) => {
   return (
-    error?.response?.data
-      ?.message ||
-    error?.response?.data
-      ?.error ||
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
     error?.data?.message ||
     error?.message ||
     fallback
@@ -29,131 +21,212 @@ const getErrorMessage = (
 };
 
 
-/*
-|--------------------------------------------------------------------------
-| Normalize Products Response
-|--------------------------------------------------------------------------
-|
-| Supported:
-|
-| []
-|
-| { products: [] }
-|
-| { data: [] }
-|
-| { data: { products: [] } }
-|
-| Axios:
-| {
-|   data: {
-|     data: []
-|   }
-| }
-|
-| Axios:
-| {
-|   data: {
-|     data: {
-|       products: []
-|     }
-|   }
-| }
-|
-*/
-
 const normalizeProducts = (
   response
 ) => {
-  if (
-    Array.isArray(response)
-  ) {
-    return response;
-  }
+  const products =
+    response?.data?.data?.products ||
+    response?.data?.products ||
+    response?.data?.data ||
+    response?.products ||
+    response?.data ||
+    response ||
+    [];
 
-  if (
-    Array.isArray(
-      response?.products
-    )
-  ) {
-    return response.products;
-  }
-
-  if (
-    Array.isArray(
-      response?.data
-    )
-  ) {
-    return response.data;
-  }
-
-  if (
-    Array.isArray(
-      response?.data
-        ?.products
-    )
-  ) {
-    return response.data
-      .products;
-  }
-
-  if (
-    Array.isArray(
-      response?.data?.data
-    )
-  ) {
-    return response.data
-      .data;
-  }
-
-  if (
-    Array.isArray(
-      response?.data?.data
-        ?.products
-    )
-  ) {
-    return response.data
-      .data.products;
-  }
-
-  return [];
+  return Array.isArray(products)
+    ? products
+    : [];
 };
 
-
-/*
-|--------------------------------------------------------------------------
-| Normalize Single Product Response
-|--------------------------------------------------------------------------
-*/
 
 const normalizeProduct = (
   response
 ) => {
-  return (
-    response?.data?.data
-      ?.product ||
-
-    response?.data
-      ?.product ||
-
+  const product =
+    response?.data?.data?.product ||
+    response?.data?.product ||
     response?.data?.data ||
-
     response?.product ||
-
     response?.data ||
-
     response ||
+    null;
 
-    null
+  if (
+    !product ||
+    typeof product !== "object" ||
+    Array.isArray(product)
+  ) {
+    return null;
+  }
+
+  return product;
+};
+
+
+const getPaginationObject = (
+  response
+) => {
+  return (
+    response?.pagination ||
+    response?.data?.pagination ||
+    response?.data?.data?.pagination ||
+    {}
   );
 };
 
 
-/*
-|--------------------------------------------------------------------------
-| Fetch All Products
-|--------------------------------------------------------------------------
-*/
+const normalizeProductsPayload = (
+  response,
+  params = {}
+) => {
+  const products =
+    normalizeProducts(
+      response
+    );
+
+  const pagination =
+    getPaginationObject(
+      response
+    );
+
+  const page =
+    Number(
+      pagination?.page ??
+      response?.page ??
+      response?.data?.page ??
+      response?.data?.data?.page ??
+      params?.page ??
+      1
+    ) || 1;
+
+  const limit =
+    Number(
+      pagination?.limit ??
+      response?.limit ??
+      response?.data?.limit ??
+      response?.data?.data?.limit ??
+      params?.limit ??
+      10
+    ) || 10;
+
+  const total =
+    Number(
+      pagination?.totalProducts ??
+      pagination?.total ??
+      response?.totalProducts ??
+      response?.total ??
+      response?.data?.totalProducts ??
+      response?.data?.total ??
+      response?.data?.data?.totalProducts ??
+      response?.data?.data?.total ??
+      0
+    );
+
+  const safeTotal =
+    Number.isFinite(total) &&
+    total >= 0
+      ? total
+      : products.length;
+
+  const totalPages =
+    Number(
+      pagination?.totalPages ??
+      pagination?.pages ??
+      response?.totalPages ??
+      response?.pages ??
+      response?.data?.totalPages ??
+      response?.data?.pages ??
+      response?.data?.data?.totalPages ??
+      response?.data?.data?.pages ??
+      0
+    );
+
+  const safeTotalPages =
+    Number.isFinite(totalPages) &&
+    totalPages > 0
+      ? totalPages
+      : Math.max(
+          1,
+          Math.ceil(
+            safeTotal /
+              Math.max(
+                limit,
+                1
+              )
+          )
+        );
+
+  const hasNextPage =
+    typeof pagination
+      ?.hasNextPage ===
+    "boolean"
+      ? pagination.hasNextPage
+      : page < safeTotalPages;
+
+  const hasPreviousPage =
+    typeof pagination
+      ?.hasPreviousPage ===
+    "boolean"
+      ? pagination.hasPreviousPage
+      : page > 1;
+
+  const results =
+    Number(
+      response?.results ??
+      response?.data?.results ??
+      response?.data?.data?.results ??
+      products.length
+    );
+
+  return {
+    products,
+
+    results:
+      Number.isFinite(results)
+        ? results
+        : products.length,
+
+    total:
+      safeTotal,
+
+    totalProducts:
+      safeTotal,
+
+    page,
+
+    limit,
+
+    pages:
+      safeTotalPages,
+
+    totalPages:
+      safeTotalPages,
+
+    hasNextPage,
+
+    hasPreviousPage,
+
+    pagination: {
+      page,
+
+      limit,
+
+      total:
+        safeTotal,
+
+      totalProducts:
+        safeTotal,
+
+      totalPages:
+        safeTotalPages,
+
+      hasNextPage,
+
+      hasPreviousPage,
+    },
+  };
+};
+
 
 export const fetchProducts =
   createAsyncThunk(
@@ -166,17 +239,29 @@ export const fetchProducts =
       }
     ) => {
       try {
+        const requestParams = {
+          page:
+            Number(
+              params?.page
+            ) || 1,
+
+          limit:
+            Number(
+              params?.limit
+            ) || 10,
+
+          ...params,
+        };
+
         const response =
           await ProductService.getAll(
-            params
+            requestParams
           );
 
-        const products =
-          normalizeProducts(
-            response
-          );
-
-        return products;
+        return normalizeProductsPayload(
+          response,
+          requestParams
+        );
       } catch (error) {
         console.error(
           "FETCH PRODUCTS ERROR:",
@@ -194,11 +279,56 @@ export const fetchProducts =
   );
 
 
-/*
-|--------------------------------------------------------------------------
-| Fetch Product By ID
-|--------------------------------------------------------------------------
-*/
+export const fetchPublicProducts =
+  createAsyncThunk(
+    "products/fetchPublicProducts",
+
+    async (
+      params = {},
+      {
+        rejectWithValue,
+      }
+    ) => {
+      try {
+        const requestParams = {
+          page:
+            Number(
+              params?.page
+            ) || 1,
+
+          limit:
+            Number(
+              params?.limit
+            ) || 10,
+
+          ...params,
+        };
+
+        const response =
+          await ProductService.getPublic(
+            requestParams
+          );
+
+        return normalizeProductsPayload(
+          response,
+          requestParams
+        );
+      } catch (error) {
+        console.error(
+          "FETCH PUBLIC PRODUCTS ERROR:",
+          error
+        );
+
+        return rejectWithValue(
+          getErrorMessage(
+            error,
+            "Unable to fetch products."
+          )
+        );
+      }
+    }
+  );
+
 
 export const fetchProductById =
   createAsyncThunk(
@@ -227,12 +357,7 @@ export const fetchProductById =
             response
           );
 
-        if (
-          !product ||
-          typeof product !==
-            "object" ||
-          Array.isArray(product)
-        ) {
+        if (!product) {
           return rejectWithValue(
             "Product not found."
           );
@@ -256,84 +381,29 @@ export const fetchProductById =
   );
 
 
-/*
-|--------------------------------------------------------------------------
-| Fetch Products By Category
-|--------------------------------------------------------------------------
-*/
-
-export const fetchProductsByCategory =
+export const fetchProductBySlug =
   createAsyncThunk(
-    "products/fetchProductsByCategory",
+    "products/fetchProductBySlug",
 
     async (
-      categoryId,
+      slug,
       {
         rejectWithValue,
       }
     ) => {
       try {
-        if (!categoryId) {
+        const cleanSlug =
+          slug?.trim();
+
+        if (!cleanSlug) {
           return rejectWithValue(
-            "Category ID is required."
+            "Product slug is required."
           );
         }
 
         const response =
-          await ProductService
-            .getByCategory(
-              categoryId
-            );
-
-        const products =
-          normalizeProducts(
-            response
-          );
-
-        return products;
-      } catch (error) {
-        console.error(
-          "FETCH PRODUCTS BY CATEGORY ERROR:",
-          error
-        );
-
-        return rejectWithValue(
-          getErrorMessage(
-            error,
-            "Unable to fetch category products."
-          )
-        );
-      }
-    }
-  );
-
-
-/*
-|--------------------------------------------------------------------------
-| Create Product
-|--------------------------------------------------------------------------
-*/
-
-export const createProduct =
-  createAsyncThunk(
-    "products/createProduct",
-
-    async (
-      formData,
-      {
-        rejectWithValue,
-      }
-    ) => {
-      try {
-        if (!formData) {
-          return rejectWithValue(
-            "Product data is required."
-          );
-        }
-
-        const response =
-          await ProductService.create(
-            formData
+          await ProductService.getBySlug(
+            cleanSlug
           );
 
         const product =
@@ -341,28 +411,332 @@ export const createProduct =
             response
           );
 
-        /*
-        |--------------------------------------------------------------------------
-        | Return actual created product
-        |--------------------------------------------------------------------------
-        |
-        | Slice ko complete API response nahi,
-        | actual product object milega.
-        |
-        */
+        if (!product) {
+          return rejectWithValue(
+            "Product not found."
+          );
+        }
 
+        return product;
+      } catch (error) {
+        console.error(
+          "FETCH PRODUCT BY SLUG ERROR:",
+          error
+        );
+
+        return rejectWithValue(
+          getErrorMessage(
+            error,
+            "Unable to fetch product."
+          )
+        );
+      }
+    }
+  );
+
+
+export const fetchProductsByCategory = createAsyncThunk(
+  "products/fetchProductsByCategory",
+
+  async (
+    {
+      categoryId,
+      params = {},
+    },
+    {
+      rejectWithValue,
+    }
+  ) => {
+    try {
+      console.log("======================================");
+      console.log("fetchProductsByCategory THUNK");
+      console.log("Received categoryId =>", categoryId);
+      console.log("Received params =>", params);
+
+      if (!categoryId) {
+        console.error("Category ID is missing.");
+
+        return rejectWithValue(
+          "Category ID is required."
+        );
+      }
+
+      const requestParams = {
+        page:
+          Number(params?.page) || 1,
+
+        limit:
+          Number(params?.limit) || 10,
+
+        ...params,
+      };
+
+      console.log(
+        "Final Request Params =>",
+        requestParams
+      );
+
+      console.log(
+        "Calling ProductService.getByCategory..."
+      );
+
+      const response =
+        await ProductService.getByCategory(
+          categoryId,
+          requestParams
+        );
+
+      console.log("API Response =>", response);
+
+      return {
+        categoryId,
+
+        ...normalizeProductsPayload(
+          response,
+          requestParams
+        ),
+      };
+    } catch (error) {
+      console.error(
+        "FETCH PRODUCTS BY CATEGORY ERROR:",
+        error
+      );
+
+      return rejectWithValue(
+        getErrorMessage(
+          error,
+          "Unable to fetch category products."
+        )
+      );
+    }
+  }
+);
+
+
+export const searchProducts =
+  createAsyncThunk(
+    "products/searchProducts",
+
+    async (
+      {
+        search,
+        params = {},
+      },
+      {
+        rejectWithValue,
+      }
+    ) => {
+      try {
+        const cleanSearch =
+          search?.trim();
+
+        if (!cleanSearch) {
+          return rejectWithValue(
+            "Search keyword is required."
+          );
+        }
+
+        const requestParams = {
+          page:
+            Number(
+              params?.page
+            ) || 1,
+
+          limit:
+            Number(
+              params?.limit
+            ) || 10,
+
+          ...params,
+        };
+
+        const response =
+          await ProductService.search(
+            cleanSearch,
+            requestParams
+          );
+
+        return {
+          search:
+            cleanSearch,
+
+          ...normalizeProductsPayload(
+            response,
+            requestParams
+          ),
+        };
+      } catch (error) {
+        console.error(
+          "SEARCH PRODUCTS ERROR:",
+          error
+        );
+
+        return rejectWithValue(
+          getErrorMessage(
+            error,
+            "Unable to search products."
+          )
+        );
+      }
+    }
+  );
+
+
+export const fetchFeaturedProducts =
+  createAsyncThunk(
+    "products/fetchFeaturedProducts",
+
+    async (
+      params = {},
+      {
+        rejectWithValue,
+      }
+    ) => {
+      try {
+        const requestParams = {
+          page:
+            Number(
+              params?.page
+            ) || 1,
+
+          limit:
+            Number(
+              params?.limit
+            ) || 10,
+
+          ...params,
+        };
+
+        const response =
+          await ProductService
+            .getFeatured(
+              requestParams
+            );
+
+        return normalizeProductsPayload(
+          response,
+          requestParams
+        );
+      } catch (error) {
+        console.error(
+          "FETCH FEATURED PRODUCTS ERROR:",
+          error
+        );
+
+        return rejectWithValue(
+          getErrorMessage(
+            error,
+            "Unable to fetch featured products."
+          )
+        );
+      }
+    }
+  );
+
+
+export const fetchPublicFeaturedProducts =
+  createAsyncThunk(
+    "products/fetchPublicFeaturedProducts",
+
+    async (
+      params = {},
+      {
+        rejectWithValue,
+      }
+    ) => {
+      try {
+        const requestParams = {
+          page:
+            Number(
+              params?.page
+            ) || 1,
+
+          limit:
+            Number(
+              params?.limit
+            ) || 10,
+
+          ...params,
+        };
+
+        const response =
+          await ProductService
+            .getPublicFeatured(
+              requestParams
+            );
+
+        return normalizeProductsPayload(
+          response,
+          requestParams
+        );
+      } catch (error) {
+        console.error(
+          "FETCH PUBLIC FEATURED PRODUCTS ERROR:",
+          error
+        );
+
+        return rejectWithValue(
+          getErrorMessage(
+            error,
+            "Unable to fetch featured products."
+          )
+        );
+      }
+    }
+  );
+
+
+export const createProduct =
+  createAsyncThunk(
+    "products/createProduct",
+
+    async (
+      {
+        formData,
+        onProgress,
+      },
+      {
+        rejectWithValue,
+      }
+    ) => {
+      try {
         if (
-          !product ||
-          typeof product !==
-            "object" ||
-          Array.isArray(product)
+          !formData ||
+          !(
+            formData instanceof
+            FormData
+          )
         ) {
+          return rejectWithValue(
+            "Valid product form data is required."
+          );
+        }
+
+        const response =
+          await ProductService.create(
+            formData,
+            onProgress
+          );
+
+        const product =
+          normalizeProduct(
+            response
+          );
+
+        if (!product) {
           return rejectWithValue(
             "Invalid product response."
           );
         }
 
-        return product;
+        return {
+          product,
+
+          message:
+            response?.message ||
+            response?.data?.message ||
+            "Product created successfully.",
+        };
       } catch (error) {
         console.error(
           "CREATE PRODUCT ERROR:",
@@ -379,12 +753,66 @@ export const createProduct =
     }
   );
 
+  export const importProductsExcel =
+  createAsyncThunk(
+    "products/importProductsExcel",
 
-/*
-|--------------------------------------------------------------------------
-| Update Product
-|--------------------------------------------------------------------------
-*/
+    async (
+      {
+        formData,
+        onProgress,
+      },
+      {
+        rejectWithValue,
+      }
+    ) => {
+
+      try {
+
+        if (
+          !formData ||
+          !(
+            formData instanceof
+            FormData
+          )
+        ) {
+
+          return rejectWithValue(
+            "Excel file is required."
+          );
+
+        }
+
+        const response =
+          await ProductService.importExcel(
+            formData,
+            onProgress
+          );
+
+        return {
+          message:
+            response?.message ||
+            "Products imported successfully.",
+
+          data:
+            response?.data ||
+            response,
+        };
+
+      } catch (error) {
+
+        return rejectWithValue(
+          getErrorMessage(
+            error,
+            "Unable to import products."
+          )
+        );
+
+      }
+
+    }
+  );
+
 
 export const updateProduct =
   createAsyncThunk(
@@ -394,6 +822,7 @@ export const updateProduct =
       {
         id,
         data,
+        onProgress,
       },
       {
         rejectWithValue,
@@ -415,7 +844,8 @@ export const updateProduct =
         const response =
           await ProductService.update(
             id,
-            data
+            data,
+            onProgress
           );
 
         const product =
@@ -423,29 +853,27 @@ export const updateProduct =
             response
           );
 
-        if (
-          !product ||
-          typeof product !==
-            "object" ||
-          Array.isArray(product)
-        ) {
+        if (!product) {
           return rejectWithValue(
             "Invalid updated product response."
           );
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Ensure ID Available
-        |--------------------------------------------------------------------------
-        */
-
         return {
-          ...product,
+          id,
 
-          _id:
-            product?._id ||
-            id,
+          product: {
+            ...product,
+
+            _id:
+              product?._id ||
+              id,
+          },
+
+          message:
+            response?.message ||
+            response?.data?.message ||
+            "Product updated successfully.",
         };
       } catch (error) {
         console.error(
@@ -464,11 +892,268 @@ export const updateProduct =
   );
 
 
-/*
-|--------------------------------------------------------------------------
-| Delete Product
-|--------------------------------------------------------------------------
-*/
+export const updateProductStatus =
+  createAsyncThunk(
+    "products/updateProductStatus",
+
+    async (
+      {
+        id,
+        isActive,
+      },
+      {
+        rejectWithValue,
+      }
+    ) => {
+      try {
+        if (!id) {
+          return rejectWithValue(
+            "Product ID is required."
+          );
+        }
+
+        if (
+          typeof isActive !==
+          "boolean"
+        ) {
+          return rejectWithValue(
+            "Product status must be true or false."
+          );
+        }
+
+        const response =
+          await ProductService
+            .updateStatus(
+              id,
+              isActive
+            );
+
+        const product =
+          normalizeProduct(
+            response
+          );
+
+        return {
+          id,
+
+          isActive:
+            product?.isActive ??
+            isActive,
+
+          product,
+
+          message:
+            response?.message ||
+            response?.data?.message ||
+            (
+              isActive
+                ? "Product activated successfully."
+                : "Product deactivated successfully."
+            ),
+        };
+      } catch (error) {
+        console.error(
+          "UPDATE PRODUCT STATUS ERROR:",
+          error
+        );
+
+        return rejectWithValue(
+          getErrorMessage(
+            error,
+            "Unable to update product status."
+          )
+        );
+      }
+    }
+  );
+
+
+export const updateProductFeatured =
+  createAsyncThunk(
+    "products/updateProductFeatured",
+
+    async (
+      {
+        id,
+        isFeatured,
+      },
+      {
+        rejectWithValue,
+      }
+    ) => {
+      try {
+        if (!id) {
+          return rejectWithValue(
+            "Product ID is required."
+          );
+        }
+
+        if (
+          typeof isFeatured !==
+          "boolean"
+        ) {
+          return rejectWithValue(
+            "Featured status must be true or false."
+          );
+        }
+
+        const response =
+          await ProductService
+            .updateFeatured(
+              id,
+              isFeatured
+            );
+
+        const product =
+          normalizeProduct(
+            response
+          );
+
+        return {
+          id,
+
+          isFeatured:
+            product?.isFeatured ??
+            isFeatured,
+
+          product,
+
+          message:
+            response?.message ||
+            response?.data?.message ||
+            (
+              isFeatured
+                ? "Product marked as featured."
+                : "Product removed from featured."
+            ),
+        };
+      } catch (error) {
+        console.error(
+          "UPDATE PRODUCT FEATURED ERROR:",
+          error
+        );
+
+        return rejectWithValue(
+          getErrorMessage(
+            error,
+            "Unable to update featured status."
+          )
+        );
+      }
+    }
+  );
+
+
+export const updateProductStock =
+  createAsyncThunk(
+    "products/updateProductStock",
+
+    async (
+      {
+        id,
+        stock,
+      },
+      {
+        rejectWithValue,
+      }
+    ) => {
+      try {
+        if (!id) {
+          return rejectWithValue(
+            "Product ID is required."
+          );
+        }
+
+        const parsedStock =
+          Number(stock);
+
+        if (
+          !Number.isFinite(
+            parsedStock
+          ) ||
+          parsedStock < 0
+        ) {
+          return rejectWithValue(
+            "Stock must be a valid non-negative number."
+          );
+        }
+
+        const response =
+          await ProductService
+            .updateStock(
+              id,
+              parsedStock
+            );
+
+        const product =
+          normalizeProduct(
+            response
+          );
+
+        return {
+          id,
+
+          stock:
+            product?.stock ??
+            parsedStock,
+
+          product,
+
+          message:
+            response?.message ||
+            response?.data?.message ||
+            "Product stock updated successfully.",
+        };
+      } catch (error) {
+        console.error(
+          "UPDATE PRODUCT STOCK ERROR:",
+          error
+        );
+
+        return rejectWithValue(
+          getErrorMessage(
+            error,
+            "Unable to update product stock."
+          )
+        );
+      }
+    }
+  );
+
+
+  export const exportProductsExcel =
+  createAsyncThunk(
+    "products/exportProductsExcel",
+
+    async (
+      params = {},
+      {
+        rejectWithValue,
+      }
+    ) => {
+
+      try {
+
+        const file =
+          await ProductService.exportExcel(
+            params
+          );
+
+        return file;
+
+      } catch (error) {
+
+        return rejectWithValue(
+          getErrorMessage(
+            error,
+            "Unable to export products."
+          )
+        );
+
+      }
+
+    }
+  );
 
 export const deleteProduct =
   createAsyncThunk(
@@ -487,24 +1172,19 @@ export const deleteProduct =
           );
         }
 
-        await ProductService.delete(
-          id
-        );
+        const response =
+          await ProductService.delete(
+            id
+          );
 
-        /*
-        |--------------------------------------------------------------------------
-        | Return Deleted Product ID
-        |--------------------------------------------------------------------------
-        |
-        | Slice:
-        |
-        | state.products = state.products.filter(
-        |   product => product._id !== action.payload
-        | )
-        |
-        */
+        return {
+          id,
 
-        return id;
+          message:
+            response?.message ||
+            response?.data?.message ||
+            "Product deleted successfully.",
+        };
       } catch (error) {
         console.error(
           "DELETE PRODUCT ERROR:",

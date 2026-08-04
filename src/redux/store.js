@@ -14,6 +14,11 @@ import productReducer
 import categoryReducer
   from "./slices/categorySlice";
 
+import cartReducer
+  from "./slices/cartSlice";
+
+import wishlistReducer
+  from "./slices/wishlistSlice";
 
 export const store =
   configureStore({
@@ -27,14 +32,12 @@ export const store =
       adminAuth:
         adminAuthReducer,
 
-
       /*
       | Customer / User
       */
 
       userAuth:
         userAuthReducer,
-
 
       /*
       | Products
@@ -43,13 +46,26 @@ export const store =
       products:
         productReducer,
 
-
       /*
       | Categories
       */
 
       categories:
         categoryReducer,
+
+      /*
+      | Cart
+      */
+
+      cart:
+        cartReducer,
+
+      /*
+      | Wishlist
+      */
+
+      wishlist:
+        wishlistReducer,
 
     },
 

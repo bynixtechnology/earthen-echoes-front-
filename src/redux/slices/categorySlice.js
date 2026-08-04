@@ -5,316 +5,394 @@ import {
 import {
   fetchCategories,
   fetchCategoryById,
+  fetchCategoryBySlug,
+  fetchCategoryProducts,
   createCategory,
   updateCategory,
+  updateCategoryStatus,
+  exportCategoriesExcel,
+  importCategoriesExcel,
   deleteCategory,
 } from "../thunks/categoryThunk";
 
 
-/*
-|--------------------------------------------------------------------------
-| Initial State
-|--------------------------------------------------------------------------
-*/
-
 const initialState = {
-
-  // All categories
   categories: [],
 
-  // Single selected category
   selectedCategory: null,
 
-  // GET all loading
+  categoryProducts: [],
+
+  pagination: {
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalCategories: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  },
+
+  productsPagination: {
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalProducts: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  },
+
   loading: false,
 
-  // GET single loading
   detailsLoading: false,
 
-  // Create / Update / Delete loading
+  productsLoading: false,
+
   actionLoading: false,
 
-  // Error
   error: null,
 
-  // Success message
   successMessage: null,
 
+  excelLoading: false,
+
+importSummary: null,
+
+importErrors: [],
+
+importSkipped: [],
 };
 
 
-/*
-|--------------------------------------------------------------------------
-| Category Slice
-|--------------------------------------------------------------------------
-*/
-
 const categorySlice =
   createSlice({
-
-    name: "categories",
+    name:
+      "categories",
 
     initialState,
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Reducers
-    |--------------------------------------------------------------------------
-    */
-
     reducers: {
-
-      /*
-      |--------------------------------------------------------------------------
-      | Clear Error
-      |--------------------------------------------------------------------------
-      */
-
       clearCategoryError: (
         state
       ) => {
-
-        state.error = null;
-
+        state.error =
+          null;
       },
 
-
-      /*
-      |--------------------------------------------------------------------------
-      | Clear Success Message
-      |--------------------------------------------------------------------------
-      */
 
       clearCategorySuccess: (
         state
       ) => {
-
         state.successMessage =
           null;
-
       },
 
-
-      /*
-      |--------------------------------------------------------------------------
-      | Clear Selected Category
-      |--------------------------------------------------------------------------
-      */
 
       clearSelectedCategory: (
         state
       ) => {
-
         state.selectedCategory =
           null;
 
         state.detailsLoading =
           false;
 
-        state.error = null;
-
+        state.error =
+          null;
       },
 
 
-      /*
-      |--------------------------------------------------------------------------
-      | Reset Categories
-      |--------------------------------------------------------------------------
-      */
+      clearCategoryProducts: (
+        state
+      ) => {
+        state.categoryProducts =
+          [];
+
+        state.productsPagination =
+          {
+            page: 1,
+
+            limit: 10,
+
+            total: 0,
+
+            totalProducts: 0,
+
+            totalPages: 1,
+
+            hasNextPage:
+              false,
+
+            hasPreviousPage:
+              false,
+          };
+
+        state.productsLoading =
+          false;
+      },
+
 
       resetCategories: (
         state
       ) => {
-
-        state.categories = [];
+        state.categories =
+          [];
 
         state.selectedCategory =
           null;
 
-        state.loading = false;
+        state.categoryProducts =
+          [];
+
+        state.pagination =
+          {
+            page: 1,
+
+            limit: 10,
+
+            total: 0,
+
+            totalCategories: 0,
+
+            totalPages: 1,
+
+            hasNextPage:
+              false,
+
+            hasPreviousPage:
+              false,
+          };
+
+        state.productsPagination =
+          {
+            page: 1,
+
+            limit: 10,
+
+            total: 0,
+
+            totalProducts: 0,
+
+            totalPages: 1,
+
+            hasNextPage:
+              false,
+
+            hasPreviousPage:
+              false,
+          };
+
+        state.loading =
+          false;
 
         state.detailsLoading =
+          false;
+
+        state.productsLoading =
           false;
 
         state.actionLoading =
           false;
 
-        state.error = null;
+        state.error =
+          null;
 
         state.successMessage =
           null;
-
       },
-
     },
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Extra Reducers
-    |--------------------------------------------------------------------------
-    */
 
     extraReducers: (
       builder
     ) => {
-
       builder
-
 
         /*
         |--------------------------------------------------------------------------
-        | FETCH ALL CATEGORIES - PENDING
+        | Fetch Categories
         |--------------------------------------------------------------------------
         */
 
         .addCase(
-
           fetchCategories.pending,
 
           (state) => {
+            state.loading =
+              true;
 
-            state.loading = true;
-
-            state.error = null;
-
+            state.error =
+              null;
           }
-
         )
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | FETCH ALL CATEGORIES - FULFILLED
-        |--------------------------------------------------------------------------
-        */
-
         .addCase(
-
           fetchCategories.fulfilled,
 
           (
             state,
             action
           ) => {
-
-            state.loading = false;
+            state.loading =
+              false;
 
             state.categories =
               Array.isArray(
                 action.payload
+                  ?.categories
               )
                 ? action.payload
+                    .categories
                 : [];
 
-            state.error = null;
+            const pagination =
+              action.payload
+                ?.pagination ||
+              {};
 
+            const page =
+              Number(
+                pagination
+                  ?.page ??
+                action.payload
+                  ?.page
+              ) || 1;
+
+            const limit =
+              Number(
+                pagination
+                  ?.limit ??
+                action.payload
+                  ?.limit
+              ) || 10;
+
+            const total =
+              Number(
+                pagination
+                  ?.total ??
+                pagination
+                  ?.totalCategories ??
+                action.payload
+                  ?.total ??
+                action.payload
+                  ?.totalCategories
+              ) || 0;
+
+            const totalPages =
+              Number(
+                pagination
+                  ?.totalPages ??
+                action.payload
+                  ?.totalPages ??
+                action.payload
+                  ?.pages
+              ) || 1;
+
+            state.pagination =
+              {
+                page,
+
+                limit,
+
+                total,
+
+                totalCategories:
+                  total,
+
+                totalPages,
+
+                hasNextPage:
+                  typeof pagination
+                    ?.hasNextPage ===
+                  "boolean"
+                    ? pagination
+                        .hasNextPage
+                    : page <
+                      totalPages,
+
+                hasPreviousPage:
+                  typeof pagination
+                    ?.hasPreviousPage ===
+                  "boolean"
+                    ? pagination
+                        .hasPreviousPage
+                    : page > 1,
+              };
+
+            state.error =
+              null;
           }
-
         )
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | FETCH ALL CATEGORIES - REJECTED
-        |--------------------------------------------------------------------------
-        */
-
         .addCase(
-
           fetchCategories.rejected,
 
           (
             state,
             action
           ) => {
-
-            state.loading = false;
-
-            /*
-            | IMPORTANT:
-            | Existing categories ko error par
-            | unnecessarily clear nahi kar rahe.
-            */
+            state.loading =
+              false;
 
             state.error =
               action.payload ||
               "Unable to fetch categories.";
-
           }
-
         )
 
 
         /*
         |--------------------------------------------------------------------------
-        | FETCH CATEGORY BY ID - PENDING
+        | Fetch Category By ID
         |--------------------------------------------------------------------------
         */
 
         .addCase(
-
           fetchCategoryById.pending,
 
           (state) => {
-
             state.detailsLoading =
               true;
 
             state.selectedCategory =
               null;
 
-            state.error = null;
-
+            state.error =
+              null;
           }
-
         )
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | FETCH CATEGORY BY ID - FULFILLED
-        |--------------------------------------------------------------------------
-        */
-
         .addCase(
-
           fetchCategoryById.fulfilled,
 
           (
             state,
             action
           ) => {
-
             state.detailsLoading =
               false;
 
             state.selectedCategory =
-              action.payload || null;
+              action.payload ||
+              null;
 
-            state.error = null;
-
+            state.error =
+              null;
           }
-
         )
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | FETCH CATEGORY BY ID - REJECTED
-        |--------------------------------------------------------------------------
-        */
-
         .addCase(
-
           fetchCategoryById.rejected,
 
           (
             state,
             action
           ) => {
-
             state.detailsLoading =
               false;
 
@@ -324,135 +402,344 @@ const categorySlice =
             state.error =
               action.payload ||
               "Unable to fetch category.";
-
           }
-
         )
 
 
         /*
         |--------------------------------------------------------------------------
-        | CREATE CATEGORY - PENDING
+        | Fetch Category By Slug
         |--------------------------------------------------------------------------
         */
 
         .addCase(
+          fetchCategoryBySlug.pending,
 
+          (state) => {
+            state.detailsLoading =
+              true;
+
+            state.selectedCategory =
+              null;
+
+            state.error =
+              null;
+          }
+        )
+
+
+        .addCase(
+          fetchCategoryBySlug.fulfilled,
+
+          (
+            state,
+            action
+          ) => {
+            state.detailsLoading =
+              false;
+
+            state.selectedCategory =
+              action.payload ||
+              null;
+
+            state.error =
+              null;
+          }
+        )
+
+
+        .addCase(
+          fetchCategoryBySlug.rejected,
+
+          (
+            state,
+            action
+          ) => {
+            state.detailsLoading =
+              false;
+
+            state.selectedCategory =
+              null;
+
+            state.error =
+              action.payload ||
+              "Unable to fetch category.";
+          }
+        )
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Fetch Category Products
+        |--------------------------------------------------------------------------
+        */
+
+        .addCase(
+          fetchCategoryProducts.pending,
+
+          (state) => {
+            state.productsLoading =
+              true;
+
+            state.error =
+              null;
+          }
+        )
+
+
+        .addCase(
+          fetchCategoryProducts.fulfilled,
+
+          (
+            state,
+            action
+          ) => {
+            state.productsLoading =
+              false;
+
+            state.categoryProducts =
+              Array.isArray(
+                action.payload
+                  ?.products
+              )
+                ? action.payload
+                    .products
+                : [];
+
+            const pagination =
+              action.payload
+                ?.pagination ||
+              {};
+
+            const page =
+              Number(
+                pagination
+                  ?.page ??
+                action.payload
+                  ?.page
+              ) || 1;
+
+            const limit =
+              Number(
+                pagination
+                  ?.limit ??
+                action.payload
+                  ?.limit
+              ) || 10;
+
+            const total =
+              Number(
+                pagination
+                  ?.total ??
+                pagination
+                  ?.totalProducts ??
+                action.payload
+                  ?.total ??
+                action.payload
+                  ?.totalProducts
+              ) || 0;
+
+            const totalPages =
+              Number(
+                pagination
+                  ?.totalPages ??
+                action.payload
+                  ?.totalPages ??
+                action.payload
+                  ?.pages
+              ) || 1;
+
+            state.productsPagination =
+              {
+                page,
+
+                limit,
+
+                total,
+
+                totalProducts:
+                  total,
+
+                totalPages,
+
+                hasNextPage:
+                  typeof pagination
+                    ?.hasNextPage ===
+                  "boolean"
+                    ? pagination
+                        .hasNextPage
+                    : page <
+                      totalPages,
+
+                hasPreviousPage:
+                  typeof pagination
+                    ?.hasPreviousPage ===
+                  "boolean"
+                    ? pagination
+                        .hasPreviousPage
+                    : page > 1,
+              };
+
+            state.error =
+              null;
+          }
+        )
+
+
+        .addCase(
+          fetchCategoryProducts.rejected,
+
+          (
+            state,
+            action
+          ) => {
+            state.productsLoading =
+              false;
+
+            state.error =
+              action.payload ||
+              "Unable to fetch category products.";
+          }
+        )
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Create Category
+        |--------------------------------------------------------------------------
+        */
+
+        .addCase(
           createCategory.pending,
 
           (state) => {
-
             state.actionLoading =
               true;
 
-            state.error = null;
+            state.error =
+              null;
 
             state.successMessage =
               null;
-
           }
-
         )
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE CATEGORY - FULFILLED
-        |--------------------------------------------------------------------------
-        */
-
         .addCase(
-
           createCategory.fulfilled,
 
           (
             state,
             action
           ) => {
-
             state.actionLoading =
               false;
-
-            /*
-            |--------------------------------------------------------------------------
-            | categoryThunk returns:
-            |
-            | {
-            |   category,
-            |   message
-            | }
-            |--------------------------------------------------------------------------
-            */
 
             const newCategory =
               action.payload
                 ?.category;
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | Add Category To Redux State
-            |--------------------------------------------------------------------------
-            */
 
             if (
               newCategory &&
               typeof newCategory ===
                 "object"
             ) {
-
-              /*
-              | Prevent duplicate category
-              */
-
               const alreadyExists =
                 state.categories.some(
-                  (category) =>
+                  (
+                    category
+                  ) =>
                     category?._id ===
                     newCategory?._id
                 );
 
-
               if (
                 !alreadyExists
               ) {
+                /*
+                |--------------------------------------------------------------------------
+                | Only add locally when first page is loaded.
+                |--------------------------------------------------------------------------
+                */
 
-                state.categories.unshift(
-                  newCategory
-                );
+                if (
+                  state.pagination
+                    .page === 1
+                ) {
+                  state.categories.unshift(
+                    newCategory
+                  );
 
+                  /*
+                  |--------------------------------------------------------------------------
+                  | Keep current page limited
+                  |--------------------------------------------------------------------------
+                  */
+
+                  if (
+                    state.categories
+                      .length >
+                    state.pagination
+                      .limit
+                  ) {
+                    state.categories.pop();
+                  }
+                }
+
+                const newTotal =
+                  state.pagination
+                    .total + 1;
+
+                state.pagination
+                  .total =
+                  newTotal;
+
+                state.pagination
+                  .totalCategories =
+                  newTotal;
+
+                state.pagination
+                  .totalPages =
+                  Math.max(
+                    1,
+
+                    Math.ceil(
+                      newTotal /
+                        Math.max(
+                          state.pagination
+                            .limit,
+                          1
+                        )
+                    )
+                  );
+
+                state.pagination
+                  .hasNextPage =
+                  state.pagination
+                    .page <
+                  state.pagination
+                    .totalPages;
               }
-
             }
-
 
             state.successMessage =
               action.payload
                 ?.message ||
               "Category created successfully.";
 
-            state.error = null;
-
+            state.error =
+              null;
           }
-
         )
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE CATEGORY - REJECTED
-        |--------------------------------------------------------------------------
-        */
-
         .addCase(
-
           createCategory.rejected,
 
           (
             state,
             action
           ) => {
-
             state.actionLoading =
               false;
 
@@ -462,55 +749,41 @@ const categorySlice =
             state.error =
               action.payload ||
               "Unable to create category.";
-
           }
-
         )
 
 
         /*
         |--------------------------------------------------------------------------
-        | UPDATE CATEGORY - PENDING
+        | Update Category
         |--------------------------------------------------------------------------
         */
 
         .addCase(
-
           updateCategory.pending,
 
           (state) => {
-
             state.actionLoading =
               true;
 
-            state.error = null;
+            state.error =
+              null;
 
             state.successMessage =
               null;
-
           }
-
         )
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | UPDATE CATEGORY - FULFILLED
-        |--------------------------------------------------------------------------
-        */
-
         .addCase(
-
           updateCategory.fulfilled,
 
           (
             state,
             action
           ) => {
-
             state.actionLoading =
               false;
-
 
             const updatedCategory =
               action.payload
@@ -520,52 +793,36 @@ const categorySlice =
               updatedCategory?._id ||
               action.payload?.id;
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | Update Category In Array
-            |--------------------------------------------------------------------------
-            */
-
             if (
               categoryId &&
               updatedCategory
             ) {
-
               const index =
-                state.categories.findIndex(
-                  (category) =>
-                    category?._id ===
-                    categoryId
-                );
-
+                state.categories
+                  .findIndex(
+                    (
+                      category
+                    ) =>
+                      category
+                        ?._id ===
+                      categoryId
+                  );
 
               if (
                 index !== -1
               ) {
-
                 state.categories[
                   index
                 ] = {
-
-                  ...state.categories[
-                    index
-                  ],
+                  ...state
+                    .categories[
+                      index
+                    ],
 
                   ...updatedCategory,
-
                 };
-
               }
-
             }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | Update Selected Category
-            |--------------------------------------------------------------------------
-            */
 
             if (
               state
@@ -574,45 +831,33 @@ const categorySlice =
                 categoryId &&
               updatedCategory
             ) {
+              state.selectedCategory =
+                {
+                  ...state
+                    .selectedCategory,
 
-              state.selectedCategory = {
-
-                ...state.selectedCategory,
-
-                ...updatedCategory,
-
-              };
-
+                  ...updatedCategory,
+                };
             }
-
 
             state.successMessage =
               action.payload
                 ?.message ||
               "Category updated successfully.";
 
-            state.error = null;
-
+            state.error =
+              null;
           }
-
         )
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | UPDATE CATEGORY - REJECTED
-        |--------------------------------------------------------------------------
-        */
-
         .addCase(
-
           updateCategory.rejected,
 
           (
             state,
             action
           ) => {
-
             state.actionLoading =
               false;
 
@@ -622,137 +867,137 @@ const categorySlice =
             state.error =
               action.payload ||
               "Unable to update category.";
-
           }
-
         )
 
 
         /*
         |--------------------------------------------------------------------------
-        | DELETE CATEGORY - PENDING
+        | Update Category Status
         |--------------------------------------------------------------------------
         */
 
         .addCase(
-
-          deleteCategory.pending,
+          updateCategoryStatus.pending,
 
           (state) => {
-
             state.actionLoading =
               true;
 
-            state.error = null;
+            state.error =
+              null;
 
             state.successMessage =
               null;
-
           }
-
         )
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | DELETE CATEGORY - FULFILLED
-        |--------------------------------------------------------------------------
-        */
-
         .addCase(
-
-          deleteCategory.fulfilled,
+          updateCategoryStatus.fulfilled,
 
           (
             state,
             action
           ) => {
-
             state.actionLoading =
               false;
 
+            const {
+              id,
+              isActive,
+              category,
+              message,
+            } =
+              action.payload ||
+              {};
 
-            /*
-            |--------------------------------------------------------------------------
-            | categoryThunk returns:
-            |
-            | {
-            |   id,
-            |   message
-            | }
-            |--------------------------------------------------------------------------
-            */
+            const categoryId =
+              category?._id ||
+              id;
 
-            const deletedId =
-              action.payload?.id;
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | Remove From Categories
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-              deletedId
-            ) {
-
-              state.categories =
-                state.categories.filter(
-                  (category) =>
-                    category?._id !==
-                    deletedId
+            const index =
+              state.categories
+                .findIndex(
+                  (
+                    item
+                  ) =>
+                    item?._id ===
+                    categoryId
                 );
 
+            if (
+              index !== -1
+            ) {
+              if (
+                category &&
+                typeof category ===
+                  "object"
+              ) {
+                state.categories[
+                  index
+                ] = {
+                  ...state
+                    .categories[
+                      index
+                    ],
+
+                  ...category,
+                };
+              } else {
+                state.categories[
+                  index
+                ].isActive =
+                  isActive;
+              }
             }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | Clear Selected Category If Deleted
-            |--------------------------------------------------------------------------
-            */
 
             if (
               state
                 .selectedCategory
                 ?._id ===
-              deletedId
+              categoryId
             ) {
+              if (
+                category &&
+                typeof category ===
+                  "object"
+              ) {
+                state.selectedCategory =
+                  {
+                    ...state
+                      .selectedCategory,
 
-              state.selectedCategory =
-                null;
-
+                    ...category,
+                  };
+              } else {
+                state.selectedCategory
+                  .isActive =
+                  isActive;
+              }
             }
 
-
             state.successMessage =
-              action.payload
-                ?.message ||
-              "Category deleted successfully.";
+              message ||
+              (
+                isActive
+                  ? "Category activated successfully."
+                  : "Category deactivated successfully."
+              );
 
-            state.error = null;
-
+            state.error =
+              null;
           }
-
         )
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | DELETE CATEGORY - REJECTED
-        |--------------------------------------------------------------------------
-        */
-
         .addCase(
-
-          deleteCategory.rejected,
+          updateCategoryStatus.rejected,
 
           (
             state,
             action
           ) => {
-
             state.actionLoading =
               false;
 
@@ -761,176 +1006,503 @@ const categorySlice =
 
             state.error =
               action.payload ||
-              "Unable to delete category.";
-
+              "Unable to update category status.";
           }
+        )
 
+
+      /*
+|--------------------------------------------------------------------------
+| Delete Category
+|--------------------------------------------------------------------------
+*/
+
+.addCase(
+  deleteCategory.pending,
+
+  (state) => {
+
+    state.actionLoading = true;
+
+    state.error = null;
+
+    state.successMessage = null;
+
+  }
+)
+
+.addCase(
+  deleteCategory.fulfilled,
+
+  (
+    state,
+    action
+  ) => {
+
+    state.actionLoading = false;
+
+    const deletedId =
+      action.payload?.id;
+
+    if (deletedId) {
+
+      const existed =
+        state.categories.some(
+          (category) =>
+            category?._id === deletedId
         );
 
-    },
+      state.categories =
+        state.categories.filter(
+          (category) =>
+            category?._id !== deletedId
+        );
 
+      if (
+        existed ||
+        state.pagination.total > 0
+      ) {
+
+        const newTotal =
+          Math.max(
+            0,
+            state.pagination.total - 1
+          );
+
+        state.pagination.total =
+          newTotal;
+
+        state.pagination.totalCategories =
+          newTotal;
+
+        state.pagination.totalPages =
+          Math.max(
+            1,
+            Math.ceil(
+              newTotal /
+              Math.max(
+                state.pagination.limit,
+                1
+              )
+            )
+          );
+
+        if (
+          state.pagination.page >
+          state.pagination.totalPages
+        ) {
+
+          state.pagination.page =
+            state.pagination.totalPages;
+
+        }
+
+        state.pagination.hasNextPage =
+          state.pagination.page <
+          state.pagination.totalPages;
+
+        state.pagination.hasPreviousPage =
+          state.pagination.page > 1;
+
+      }
+
+    }
+
+    if (
+      state.selectedCategory?._id ===
+      deletedId
+    ) {
+
+      state.selectedCategory = null;
+
+    }
+
+    state.successMessage =
+      action.payload?.message ||
+      "Category deleted successfully.";
+
+    state.error = null;
+
+  }
+)
+
+.addCase(
+  deleteCategory.rejected,
+
+  (
+    state,
+    action
+  ) => {
+
+    state.actionLoading = false;
+
+    state.successMessage = null;
+
+    state.error =
+      action.payload ||
+      "Unable to delete category.";
+
+  }
+)
+
+/*
+|--------------------------------------------------------------------------
+| Export Categories Excel
+|--------------------------------------------------------------------------
+*/
+
+.addCase(
+  exportCategoriesExcel.pending,
+
+  (state) => {
+
+    state.excelLoading = true;
+
+    state.error = null;
+
+    state.successMessage = null;
+
+  }
+)
+
+.addCase(
+  exportCategoriesExcel.fulfilled,
+
+  (state) => {
+
+    state.excelLoading = false;
+
+    state.successMessage =
+      "Categories exported successfully.";
+
+  }
+)
+
+.addCase(
+  exportCategoriesExcel.rejected,
+
+  (
+    state,
+    action
+  ) => {
+
+    state.excelLoading = false;
+
+    state.error =
+      action.payload ||
+      "Unable to export categories.";
+
+  }
+)
+
+/*
+|--------------------------------------------------------------------------
+| Import Categories Excel
+|--------------------------------------------------------------------------
+*/
+
+.addCase(
+  importCategoriesExcel.pending,
+
+  (state) => {
+
+    state.excelLoading = true;
+
+    state.error = null;
+
+    state.successMessage = null;
+
+    state.importSummary = null;
+
+    state.importErrors = [];
+
+    state.importSkipped = [];
+
+  }
+)
+
+.addCase(
+  importCategoriesExcel.fulfilled,
+
+  (
+    state,
+    action
+  ) => {
+
+    state.excelLoading = false;
+
+    state.successMessage =
+      action.payload?.message ||
+      "Categories imported successfully.";
+
+    state.importSummary =
+      action.payload?.summary || null;
+
+    state.importErrors =
+      action.payload?.errors || [];
+
+    state.importSkipped =
+      action.payload?.skipped || [];
+
+  }
+)
+
+.addCase(
+  importCategoriesExcel.rejected,
+
+  (
+    state,
+    action
+  ) => {
+
+    state.excelLoading = false;
+
+    state.error =
+      action.payload ||
+      "Unable to import categories.";
+
+  }
+);
+      
+
+        
+    },
   });
 
 
-/*
-|--------------------------------------------------------------------------
-| Actions
-|--------------------------------------------------------------------------
-*/
-
 export const {
-
   clearCategoryError,
-
   clearCategorySuccess,
-
   clearSelectedCategory,
-
+  clearCategoryProducts,
   resetCategories,
-
-} = categorySlice.actions;
-
-
-/*
-|--------------------------------------------------------------------------
-| Selectors
-|--------------------------------------------------------------------------
-*/
+} =
+  categorySlice.actions;
 
 
 /*
 |--------------------------------------------------------------------------
-| Select All Categories
+| Categories Selectors
 |--------------------------------------------------------------------------
 */
 
 export const selectCategories = (
   state
-) => {
+) =>
+  state.categories
+    ?.categories ||
+  [];
 
-  return (
-    state.categories
-      ?.categories ||
-    []
-  );
-
-};
-
-
-/*
-|--------------------------------------------------------------------------
-| Select Selected Category
-|--------------------------------------------------------------------------
-*/
 
 export const selectSelectedCategory = (
   state
-) => {
+) =>
+  state.categories
+    ?.selectedCategory ||
+  null;
 
-  return (
-    state.categories
-      ?.selectedCategory ||
-    null
-  );
 
-};
+export const selectCategoryProducts = (
+  state
+) =>
+  state.categories
+    ?.categoryProducts ||
+  [];
 
 
 /*
 |--------------------------------------------------------------------------
-| Select Categories Loading
+| Loading Selectors
 |--------------------------------------------------------------------------
 */
 
 export const selectCategoriesLoading = (
   state
-) => {
-
-  return Boolean(
+) =>
+  Boolean(
     state.categories
       ?.loading
   );
 
-};
-
-
-/*
-|--------------------------------------------------------------------------
-| Select Category Details Loading
-|--------------------------------------------------------------------------
-*/
 
 export const selectCategoryDetailsLoading = (
   state
-) => {
-
-  return Boolean(
+) =>
+  Boolean(
     state.categories
       ?.detailsLoading
   );
 
-};
 
+export const selectCategoryProductsLoading = (
+  state
+) =>
+  Boolean(
+    state.categories
+      ?.productsLoading
+  );
 
-/*
-|--------------------------------------------------------------------------
-| Select Category Action Loading
-|--------------------------------------------------------------------------
-*/
 
 export const selectCategoryActionLoading = (
   state
-) => {
-
-  return Boolean(
+) =>
+  Boolean(
     state.categories
       ?.actionLoading
   );
 
-};
-
 
 /*
 |--------------------------------------------------------------------------
-| Select Category Error
+| Message Selectors
 |--------------------------------------------------------------------------
 */
 
 export const selectCategoryError = (
   state
-) => {
+) =>
+  state.categories
+    ?.error ||
+  null;
 
-  return (
-    state.categories
-      ?.error ||
-    null
-  );
-
-};
-
-
-/*
-|--------------------------------------------------------------------------
-| Select Category Success Message
-|--------------------------------------------------------------------------
-*/
 
 export const selectCategorySuccessMessage = (
   state
+) =>
+  state.categories
+    ?.successMessage ||
+  null;
+
+
+/*
+|--------------------------------------------------------------------------
+| Category Pagination
+|--------------------------------------------------------------------------
+*/
+
+export const selectCategoryPagination = (
+  state
 ) => {
-
-  return (
+  const pagination =
     state.categories
-      ?.successMessage ||
-    null
-  );
+      ?.pagination;
 
+  return {
+    page:
+      pagination?.page ||
+      1,
+
+    limit:
+      pagination?.limit ||
+      10,
+
+    total:
+      pagination?.total ||
+      0,
+
+    totalCategories:
+      pagination
+        ?.totalCategories ||
+      pagination?.total ||
+      0,
+
+    totalPages:
+      pagination
+        ?.totalPages ||
+      1,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Backward compatibility
+    |--------------------------------------------------------------------------
+    */
+
+    pages:
+      pagination
+        ?.totalPages ||
+      1,
+
+    hasNextPage:
+      Boolean(
+        pagination
+          ?.hasNextPage
+      ),
+
+    hasPreviousPage:
+      Boolean(
+        pagination
+          ?.hasPreviousPage
+      ),
+  };
 };
 
 
 /*
 |--------------------------------------------------------------------------
-| Select Category By ID From Existing Redux State
+| Category Products Pagination
+|--------------------------------------------------------------------------
+*/
+
+export const selectCategoryProductsPagination = (
+  state
+) => {
+  const pagination =
+    state.categories
+      ?.productsPagination;
+
+  return {
+    page:
+      pagination?.page ||
+      1,
+
+    limit:
+      pagination?.limit ||
+      10,
+
+    total:
+      pagination?.total ||
+      0,
+
+    totalProducts:
+      pagination
+        ?.totalProducts ||
+      pagination?.total ||
+      0,
+
+    totalPages:
+      pagination
+        ?.totalPages ||
+      1,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Backward compatibility
+    |--------------------------------------------------------------------------
+    */
+
+    pages:
+      pagination
+        ?.totalPages ||
+      1,
+
+    hasNextPage:
+      Boolean(
+        pagination
+          ?.hasNextPage
+      ),
+
+    hasPreviousPage:
+      Boolean(
+        pagination
+          ?.hasPreviousPage
+      ),
+  };
+};
+
+
+/*
+|--------------------------------------------------------------------------
+| Find Category By ID
 |--------------------------------------------------------------------------
 */
 
@@ -939,53 +1511,124 @@ export const selectCategoryById =
     state,
     categoryId
   ) => {
-
     if (
       !categoryId
     ) {
-
       return null;
-
     }
-
 
     return (
       state.categories
-        ?.categories?.find(
-          (category) =>
+        ?.categories
+        ?.find(
+          (
+            category
+          ) =>
             category?._id ===
             categoryId
         ) ||
       null
     );
-
   };
 
 
 /*
 |--------------------------------------------------------------------------
-| Select Total Categories
+| Find Category By Slug
+|--------------------------------------------------------------------------
+*/
+
+export const selectCategoryBySlug =
+  (
+    state,
+    slug
+  ) => {
+    if (
+      !slug
+    ) {
+      return null;
+    }
+
+    return (
+      state.categories
+        ?.categories
+        ?.find(
+          (
+            category
+          ) =>
+            category?.slug ===
+            slug
+        ) ||
+      null
+    );
+  };
+
+
+/*
+|--------------------------------------------------------------------------
+| Total Categories
 |--------------------------------------------------------------------------
 */
 
 export const selectTotalCategories = (
   state
-) => {
-
-  return (
-    state.categories
-      ?.categories
-      ?.length ||
-    0
-  );
-
-};
+) =>
+  state.categories
+    ?.pagination
+    ?.totalCategories ??
+  state.categories
+    ?.pagination
+    ?.total ??
+  state.categories
+    ?.categories
+    ?.length ??
+  0;
 
 
 /*
 |--------------------------------------------------------------------------
-| Reducer
+| Active Categories
 |--------------------------------------------------------------------------
 */
+
+export const selectActiveCategories = (
+  state
+) =>
+  (
+    state.categories
+      ?.categories ||
+    []
+  ).filter(
+    (
+      category
+    ) =>
+      category?.isActive ===
+      true
+  );
+
+export const selectCategoryExcelLoading = (
+  state
+) =>
+  Boolean(
+    state.categories?.excelLoading
+  );
+  export const selectCategoryImportSummary = (
+  state
+) =>
+  state.categories?.importSummary ||
+  null;
+
+  export const selectCategoryImportErrors = (
+  state
+) =>
+  state.categories?.importErrors ||
+  [];
+
+  export const selectCategoryImportSkipped = (
+  state
+) =>
+  state.categories?.importSkipped ||
+  [];
+
 
 export default categorySlice.reducer;

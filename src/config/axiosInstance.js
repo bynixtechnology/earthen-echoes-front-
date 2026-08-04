@@ -9,11 +9,7 @@ import { showToast } from "./toast";
 
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -23,7 +19,6 @@ const axiosInstance = axios.create({
 
 let isHandlingUnauthorized = false;
 
-
 /*
 |--------------------------------------------------------------------------
 | Request Interceptor
@@ -32,36 +27,36 @@ let isHandlingUnauthorized = false;
 
 axiosInstance.interceptors.request.use(
   (config) => {
+    const isAdminRequest =
+      config.url?.startsWith("/admin") ||
+      window.location.pathname.startsWith("/admin");
+
+    const token = isAdminRequest
+      ? localStorage.getItem("adminToken")
+      : localStorage.getItem("userToken");
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
 
     /*
     |--------------------------------------------------------------------------
-    | IMPORTANT:
-    | Login ke time token nahi hota.
-    | Baaki protected APIs ke liye adminToken attach hoga.
+    | FormData Support
     |--------------------------------------------------------------------------
     */
 
-    const token =
-      localStorage.getItem("adminToken");
-
-    if (token) {
-
-      config.headers.Authorization =
-        `Bearer ${token}`;
-
+    if (config.data instanceof FormData) {
+      // Axios browser me boundary automatically set karta hai
+      delete config.headers["Content-Type"];
+    } else {
+      config.headers["Content-Type"] =
+        "application/json";
     }
 
     return config;
-
   },
-
-  (error) => {
-
-    return Promise.reject(error);
-
-  }
+  (error) => Promise.reject(error)
 );
-
 
 /*
 |--------------------------------------------------------------------------
@@ -70,137 +65,66 @@ axiosInstance.interceptors.request.use(
 */
 
 axiosInstance.interceptors.response.use(
-
-  /*
-  |--------------------------------------------------------------------------
-  | Success Response
-  |--------------------------------------------------------------------------
-  */
-
   (response) => response,
 
-
-  /*
-  |--------------------------------------------------------------------------
-  | Error Response
-  |--------------------------------------------------------------------------
-  */
-
   (error) => {
-
-    const status =
-      error?.response?.status;
-
-    const requestUrl =
-      error?.config?.url || "";
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Check Login Request
-    |--------------------------------------------------------------------------
-    |
-    | Login API agar 401 de to "session expired" nahi dikhana.
-    | Login component actual invalid credential message handle karega.
-    |
-    */
+    const status = error?.response?.status;
+    const requestUrl = error?.config?.url || "";
 
     const isLoginRequest =
-      requestUrl.includes("/auth/login");
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Handle Unauthorized
-    |--------------------------------------------------------------------------
-    */
+      requestUrl.includes("/login");
 
     if (
       status === 401 &&
-      !isLoginRequest
+      !isLoginRequest &&
+      !isHandlingUnauthorized
     ) {
+      isHandlingUnauthorized = true;
 
-      /*
-      |--------------------------------------------------------------------------
-      | Only Handle Once
-      |--------------------------------------------------------------------------
-      */
+      const isAdminPage =
+        window.location.pathname.startsWith("/admin");
 
-      if (!isHandlingUnauthorized) {
+      if (isAdminPage) {
+        localStorage.removeItem("adminToken");
+        localStorage.removeItem("adminUser");
+      } else {
+        localStorage.removeItem("userToken");
+        localStorage.removeItem("userData");
+      }
 
-        isHandlingUnauthorized = true;
+      showToast.error(
+        "Session expired. Please login again."
+      );
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Clear Authentication
-        |--------------------------------------------------------------------------
-        */
-
-        localStorage.removeItem(
-          "adminToken"
-        );
-
-        localStorage.removeItem(
-          "adminUser"
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Show Only One Toast
-        |--------------------------------------------------------------------------
-        */
-
-        showToast.error(
-          "Session expired or invalid. Please login again."
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Redirect
-        |--------------------------------------------------------------------------
-        */
-
-        setTimeout(() => {
-
+      setTimeout(() => {
+        if (isAdminPage) {
           if (
             window.location.pathname !==
             "/admin/login"
           ) {
-
             window.location.replace(
               "/admin/login"
             );
-
           }
+        } else {
+          if (
+            window.location.pathname !==
+            "/user/login"
+          ) {
+            window.location.replace(
+              "/user/login"
+            );
+          }
+        }
 
-          /*
-          |--------------------------------------------------------------------------
-          | Reset Guard
-          |--------------------------------------------------------------------------
-          */
-
-          setTimeout(() => {
-
-            isHandlingUnauthorized =
-              false;
-
-          }, 1000);
-
-        }, 300);
-
-      }
-
+        setTimeout(() => {
+          isHandlingUnauthorized = false;
+        }, 1000);
+      }, 300);
     }
 
-
     return Promise.reject(error);
-
   }
-
 );
-
 
 export default axiosInstance;

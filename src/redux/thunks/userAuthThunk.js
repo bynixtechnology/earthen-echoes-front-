@@ -7,6 +7,12 @@ import {
 } from "../../services/userAuthService";
 
 
+/*
+|--------------------------------------------------------------------------
+| Get Error Message
+|--------------------------------------------------------------------------
+*/
+
 const getErrorMessage = (
   error,
   fallback
@@ -24,7 +30,7 @@ const getErrorMessage = (
 
 /*
 |--------------------------------------------------------------------------
-| Normalize User Response
+| Normalize Authentication Response
 |--------------------------------------------------------------------------
 */
 
@@ -34,25 +40,29 @@ const normalizeAuthResponse = (
 
   const data =
     response?.data &&
-    typeof response.data ===
-      "object"
+      typeof response.data === "object"
 
       ? response.data
+
       : response;
 
 
   const token =
     data?.token ||
-    response?.token;
+    response?.token ||
+    null;
 
 
   /*
   |--------------------------------------------------------------------------
-  | Supports Both:
+  | Supports:
   |
-  | { token, user: {...} }
+  | {
+  |   token,
+  |   user: {...}
+  | }
   |
-  | AND
+  | OR
   |
   | {
   |   _id,
@@ -64,27 +74,29 @@ const normalizeAuthResponse = (
   |--------------------------------------------------------------------------
   */
 
-  const user =
+  let user =
     data?.user ||
     response?.user ||
-    {
+    null;
 
-      _id:
-        data?._id,
 
-      name:
-        data?.name,
+  /*
+  |--------------------------------------------------------------------------
+  | Flat Backend Response
+  |--------------------------------------------------------------------------
+  */
 
-      email:
-        data?.email,
+  if (!user && data) {
 
-      role:
-        data?.role || "user",
+    user = {
 
-      avatar:
-        data?.avatar,
+      ...data,
+
+      role: data?.role || "user",
 
     };
+
+  }
 
 
   return {
@@ -129,7 +141,28 @@ export const registerUser =
 
       try {
 
-        if (!name?.trim()) {
+        /*
+        |--------------------------------------------------------------------------
+        | Normalize
+        |--------------------------------------------------------------------------
+        */
+
+        const cleanName =
+          name?.trim();
+
+        const cleanEmail =
+          email
+            ?.trim()
+            .toLowerCase();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Validation
+        |--------------------------------------------------------------------------
+        */
+
+        if (!cleanName) {
 
           return rejectWithValue(
             "Name is required."
@@ -138,7 +171,7 @@ export const registerUser =
         }
 
 
-        if (!email?.trim()) {
+        if (!cleanEmail) {
 
           return rejectWithValue(
             "Email is required."
@@ -147,9 +180,26 @@ export const registerUser =
         }
 
 
+        const emailRegex =
+          /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+
+        if (
+          !emailRegex.test(
+            cleanEmail
+          )
+        ) {
+
+          return rejectWithValue(
+            "Please enter a valid email address."
+          );
+
+        }
+
+
         if (
           !password ||
-          password.length < 6
+          password.trim().length < 6
         ) {
 
           return rejectWithValue(
@@ -159,22 +209,26 @@ export const registerUser =
         }
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | Register API
+        |--------------------------------------------------------------------------
+        */
+
         const response =
           await UserAuthService.register({
 
             name:
-              name.trim(),
+              cleanName,
 
             email:
-              email
-                .trim()
-                .toLowerCase(),
+              cleanEmail,
 
             password,
 
             /*
             |--------------------------------------------------------------------------
-            | Never accept admin role from registration form
+            | Force Customer Role
             |--------------------------------------------------------------------------
             */
 
@@ -184,21 +238,55 @@ export const registerUser =
           });
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | Normalize Response
+        |--------------------------------------------------------------------------
+        */
+
         const auth =
           normalizeAuthResponse(
             response
           );
 
 
-        if (!auth.token) {
+        if (!auth.token?.trim()) {
 
           return rejectWithValue(
+
             auth.message ||
-            "Token not received."
+
+            "Registration successful but authentication token was not received."
+
           );
 
         }
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | Security Check
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+          auth.user?.role
+            ?.toLowerCase() ===
+          "admin"
+        ) {
+
+          return rejectWithValue(
+            "Invalid customer account."
+          );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Return
+        |--------------------------------------------------------------------------
+        */
 
         return {
 
@@ -209,6 +297,7 @@ export const registerUser =
             ...auth.user,
 
             role:
+              auth.user?.role ||
               "user",
 
           },
@@ -220,8 +309,11 @@ export const registerUser =
         return rejectWithValue(
 
           getErrorMessage(
+
             error,
+
             "Unable to create account."
+
           )
 
         );
@@ -258,29 +350,37 @@ export const loginUser =
 
       try {
 
-        const response =
-          await UserAuthService.login({
+        /*
+        |--------------------------------------------------------------------------
+        | Normalize
+        |--------------------------------------------------------------------------
+        */
 
-            email:
-              email
-                ?.trim()
-                .toLowerCase(),
-
-            password,
-
-          });
-
-
-        const auth =
-          normalizeAuthResponse(
-            response
-          );
+        const cleanEmail =
+          email
+            ?.trim()
+            .toLowerCase();
 
 
-        if (!auth.token) {
+        /*
+        |--------------------------------------------------------------------------
+        | Validation
+        |--------------------------------------------------------------------------
+        */
+
+        if (!cleanEmail) {
 
           return rejectWithValue(
-            "Authentication token not received."
+            "Email is required."
+          );
+
+        }
+
+
+        if (!password) {
+
+          return rejectWithValue(
+            "Password is required."
           );
 
         }
@@ -288,12 +388,55 @@ export const loginUser =
 
         /*
         |--------------------------------------------------------------------------
-        | Admin cannot enter from customer login
+        | Login API
+        |--------------------------------------------------------------------------
+        */
+
+        const response =
+          await UserAuthService.login({
+
+            email:
+              cleanEmail,
+
+            password,
+
+          });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Normalize
+        |--------------------------------------------------------------------------
+        */
+
+        const auth =
+          normalizeAuthResponse(
+            response
+          );
+
+
+        if (!auth.token?.trim()) {
+
+          return rejectWithValue(
+
+            auth.message ||
+
+            "Authentication token not received."
+
+          );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Admin Cannot Login From Customer Portal
         |--------------------------------------------------------------------------
         */
 
         if (
-          auth.user?.role ===
+          auth.user?.role
+            ?.toLowerCase() ===
           "admin"
         ) {
 
@@ -311,8 +454,11 @@ export const loginUser =
         return rejectWithValue(
 
           getErrorMessage(
+
             error,
+
             "Unable to login."
+
           )
 
         );
@@ -328,6 +474,24 @@ export const loginUser =
 |--------------------------------------------------------------------------
 | Google Login / Registration
 |--------------------------------------------------------------------------
+|
+| Google flow:
+|
+| GoogleLogin component
+|       ↓
+| credentialResponse.credential
+|       ↓
+| googleLoginUser(credential)
+|       ↓
+| POST /auth/google
+|       ↓
+| Backend verifies Google token
+|       ↓
+| Existing User -> Login
+| New User      -> Create + Login
+|       ↓
+| JWT returned
+|
 */
 
 export const googleLoginUser =
@@ -346,6 +510,12 @@ export const googleLoginUser =
 
       try {
 
+        /*
+        |--------------------------------------------------------------------------
+        | Validate Credential
+        |--------------------------------------------------------------------------
+        */
+
         if (!credential) {
 
           return rejectWithValue(
@@ -355,11 +525,23 @@ export const googleLoginUser =
         }
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | Google Authentication API
+        |--------------------------------------------------------------------------
+        */
+
         const response =
           await UserAuthService.googleLogin(
             credential
           );
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | Normalize
+        |--------------------------------------------------------------------------
+        */
 
         const auth =
           normalizeAuthResponse(
@@ -367,17 +549,28 @@ export const googleLoginUser =
           );
 
 
-        if (!auth.token) {
+        if (!auth.token?.trim()) {
 
           return rejectWithValue(
+
+            auth.message ||
+
             "Google authentication failed."
+
           );
 
         }
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | Prevent Admin Login
+        |--------------------------------------------------------------------------
+        */
+
         if (
-          auth.user?.role ===
+          auth.user?.role
+            ?.toLowerCase() ===
           "admin"
         ) {
 
@@ -388,7 +581,71 @@ export const googleLoginUser =
         }
 
 
-        return auth;
+        /*
+        |--------------------------------------------------------------------------
+        | Return Authentication
+        |--------------------------------------------------------------------------
+        */
+
+        return {
+
+          ...auth,
+
+          user: {
+
+            ...auth.user,
+
+            role:
+              auth.user?.role ||
+              "user",
+
+          },
+
+        };
+
+      } catch (error) {
+
+        return rejectWithValue(
+
+          getErrorMessage(
+
+            error,
+
+            "Unable to continue with Google."
+
+          )
+
+        );
+
+      }
+
+    }
+
+  );
+
+
+/*
+|--------------------------------------------------------------------------
+| Get User Profile
+|--------------------------------------------------------------------------
+*/
+
+export const getUserProfile =
+  createAsyncThunk(
+
+    "userAuth/getProfile",
+
+    async (_, { rejectWithValue }) => {
+
+      try {
+
+        const response =
+          await UserAuthService.getProfile();
+
+        const data =
+          response?.data || response;
+
+        return data.user;
 
       } catch (error) {
 
@@ -396,7 +653,108 @@ export const googleLoginUser =
 
           getErrorMessage(
             error,
-            "Unable to continue with Google."
+            "Unable to fetch profile."
+          )
+
+        );
+
+      }
+
+    }
+
+  );
+
+
+/*
+|--------------------------------------------------------------------------
+| Update Profile
+|--------------------------------------------------------------------------
+*/
+
+export const updateUserProfile =
+  createAsyncThunk(
+
+    "userAuth/updateProfile",
+
+    async (
+
+      data,
+
+      { rejectWithValue }
+
+    ) => {
+
+      try {
+
+        const response =
+          await UserAuthService.updateProfile(
+            data
+          );
+
+        const result =
+          response?.data || response;
+
+        return result.user;
+
+      } catch (error) {
+
+        return rejectWithValue(
+
+          getErrorMessage(
+
+            error,
+
+            "Unable to update profile."
+
+          )
+
+        );
+
+      }
+
+    }
+
+  );
+
+
+/*
+|--------------------------------------------------------------------------
+| Change Password
+|--------------------------------------------------------------------------
+*/
+
+export const changePassword =
+  createAsyncThunk(
+
+    "userAuth/changePassword",
+
+    async (
+
+      data,
+
+      { rejectWithValue }
+
+    ) => {
+
+      try {
+
+        const response =
+          await UserAuthService.changePassword(
+            data
+          );
+
+        return response?.data || response;
+
+      } catch (error) {
+
+        return rejectWithValue(
+
+          getErrorMessage(
+
+            error,
+
+            "Unable to change password."
+
           )
 
         );

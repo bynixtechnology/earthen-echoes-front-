@@ -1,27 +1,83 @@
-import React from 'react';
-import { useCart } from '../core/context/CartContext';
-import { 
-  Trash2, 
-  Plus, 
-  Minus, 
-  ShoppingBag, 
-  ArrowRight, 
+import { React, useEffect } from 'react';
+import {
+  Trash2,
+  Plus,
+  Minus,
+  ShoppingBag,
+  ArrowRight,
   ShieldCheck,
   ArrowLeft
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useDispatch, useSelector } from "react-redux";
+
+import {
+  fetchCart,
+  updateCartItem,
+  removeProductFromCart,
+} from "../../../redux/thunks/cartThunk";
+
+import {
+  selectCartItems,
+} from "../../../redux/slices/cartSlice";
 
 export default function CartPage() {
-  const { cartItems, removeFromCart, updateQuantity } = useCart();
+  const dispatch = useDispatch();
+
+  const cartItems =
+    useSelector(
+      selectCartItems
+    );
+  console.log(cartItems);
+
+  useEffect(() => {
+
+    dispatch(
+      fetchCart()
+    );
+
+  }, [
+    dispatch,
+  ]);
+
+ const removeFromCart = async (productId) => {
+  await dispatch(removeProductFromCart(productId));
+
+  dispatch(fetchCart());
+};
+
+ const updateQuantity = async (productId, quantity) => {
+  if (quantity < 1) return;
+
+  await dispatch(
+    updateCartItem({
+      productId,
+      quantity,
+    })
+  );
+
+  dispatch(fetchCart());
+};
 
   // Derived State Calculations
-  const subtotal = cartItems.reduce((acc, item) => acc + ((item.price || 0) * (item.quantity || 1)), 0);
+  const subtotal =
+    (cartItems || []).reduce(
+      (acc, item) =>
+        acc +
+        (
+          (item.price || 0) *
+          (item.quantity || 1)
+        ),
+      0
+    );
   const tax = subtotal * 0.18; // 18% GST example
   const shipping = subtotal > 2000 ? 0 : 150; // Free shipping above ₹2000
   const grandTotal = subtotal + tax + shipping;
 
   // Render Empty State
-  if (!cartItems || cartItems.length === 0) {
+  if (
+    !cartItems?.length
+  ) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center px-4">
         <div className="w-40 h-40 bg-orange-50 rounded-full flex items-center justify-center mb-6">
@@ -31,8 +87,8 @@ export default function CartPage() {
         <p className="text-gray-500 mb-8 text-center max-w-md">
           Looks like you haven't added any products to your cart yet. Let's get you started!
         </p>
-        <Link 
-          to="/products" 
+        <Link
+          to="/products"
           className="bg-[#8B4513] hover:bg-[#6b3410] text-white px-8 py-3 rounded-lg font-semibold flex items-center gap-2 transition-colors"
         >
           <ArrowLeft size={18} /> Continue Shopping
@@ -42,7 +98,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ">
+    <div className="max-w-7xl mx-auto p-5   ">
       <div className="flex items-center gap-3 mt-8 mb-8">
         <ShoppingBag className="w-8 h-8 text-[#8B4513]" />
         <h1 className="text-3xl font-bold text-gray-900">Shopping Cart</h1>
@@ -64,19 +120,26 @@ export default function CartPage() {
 
             <div className="divide-y divide-gray-200">
               {cartItems.map((item) => (
-                <div key={item._id} className="grid grid-cols-1 sm:grid-cols-12 gap-4 p-4 sm:p-6 items-center">
-                  
+                <div  key={item.productId?._id} className="grid grid-cols-1 sm:grid-cols-12 gap-4 p-4 sm:p-6 items-center">
+
                   {/* Product Info */}
                   <div className="col-span-1 sm:col-span-6 flex gap-4">
                     <div className="w-24 h-24 sm:w-20 sm:h-20 flex-shrink-0 rounded-lg overflow-hidden border border-gray-100 bg-gray-50">
-                      <img 
-                        src={item?.images?.[0]?.url || item?.images?.[0] || "/placeholder.png"} 
-                        alt={item.name} 
+                      <Link to={`/products/${item.productId?._id}`}>
+                      <img
+                        src={
+                          item?.productId?.images?.[0]?.url ||
+                          "/placeholder.png"
+                        }
+                        alt={
+                          item?.productId?.title
+                        }
                         className="w-full h-full object-cover"
                       />
+                      </Link>
                     </div>
                     <div className="flex flex-col justify-center">
-                      <h3 className="font-bold text-gray-900 text-base sm:text-lg line-clamp-2">{item.name}</h3>
+                      <h3 className="font-bold text-gray-900 text-base sm:text-lg line-clamp-2">{item.productId?.title}</h3>
                       <p className="text-sm text-gray-500 mt-1">Price: ₹{item.price}</p>
                     </div>
                   </div>
@@ -84,8 +147,13 @@ export default function CartPage() {
                   {/* Quantity Controller */}
                   <div className="col-span-1 sm:col-span-3 flex items-center justify-start sm:justify-center">
                     <div className="flex items-center border border-gray-300 rounded-lg bg-white overflow-hidden shadow-sm">
-                      <button 
-                        onClick={() => updateQuantity(item._id, item.quantity - 1)}
+                      <button
+                       onClick={() =>
+  updateQuantity(
+    item.productId._id,
+    item.quantity - 1
+  )
+}
                         className="px-3 py-1.5 hover:bg-gray-100 text-gray-600 transition-colors disabled:opacity-50"
                         disabled={item.quantity <= 1}
                       >
@@ -94,8 +162,13 @@ export default function CartPage() {
                       <span className="w-10 text-center text-sm font-semibold text-gray-900">
                         {item.quantity}
                       </span>
-                      <button 
-                        onClick={() => updateQuantity(item._id, item.quantity + 1)}
+                      <button
+                       onClick={() =>
+  updateQuantity(
+    item.productId._id,
+    item.quantity + 1
+  )
+}
                         className="px-3 py-1.5 hover:bg-gray-100 text-gray-600 transition-colors"
                       >
                         <Plus size={16} />
@@ -110,8 +183,12 @@ export default function CartPage() {
 
                   {/* Remove Button (Desktop) */}
                   <div className="hidden sm:flex col-span-1 justify-center">
-                    <button 
-                      onClick={() => removeFromCart(item._id)}
+                    <button
+                     onClick={() =>
+  removeFromCart(
+    item.productId._id
+  )
+}
                       className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                       title="Remove Item"
                     >
@@ -122,8 +199,12 @@ export default function CartPage() {
                   {/* Mobile View Summary */}
                   <div className="sm:hidden flex justify-between items-center w-full mt-2 border-t border-gray-100 pt-3">
                     <span className="font-bold text-lg text-gray-900">₹{(item.price * item.quantity).toFixed(2)}</span>
-                    <button 
-                      onClick={() => removeFromCart(item._id)}
+                    <button
+                     onClick={() =>
+  removeFromCart(
+    item.productId._id
+  )
+}
                       className="text-sm text-red-500 font-medium flex items-center gap-1 bg-red-50 px-3 py-1.5 rounded-lg"
                     >
                       <Trash2 size={16} /> Remove
@@ -140,7 +221,7 @@ export default function CartPage() {
         <div className="lg:w-1/3">
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 sticky top-24">
             <h2 className="text-xl font-bold text-gray-900 mb-6 border-b pb-4">Order Summary</h2>
-            
+
             <div className="space-y-4 mb-6 text-sm">
               <div className="flex justify-between text-gray-600">
                 <span>Subtotal</span>
@@ -170,7 +251,7 @@ export default function CartPage() {
             <button className="w-full bg-[#8B4513] hover:bg-[#6b3410] text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl">
               Proceed to Checkout <ArrowRight size={20} />
             </button>
-            
+
             <div className="mt-6 flex items-center justify-center gap-2 text-sm text-gray-500">
               <ShieldCheck size={18} className="text-green-600" />
               <span>Secure & Encrypted Checkout</span>

@@ -1,3 +1,4 @@
+import React from "react";
 import {
   Navigate,
   Outlet,
@@ -7,52 +8,25 @@ import {
 const UserProtectedRoute = () => {
   const location = useLocation();
 
-  /*
-  |--------------------------------------------------------------------------
-  | Get User Auth Data
-  |--------------------------------------------------------------------------
-  */
+  // LocalStorage keys
+  const token = localStorage.getItem("userToken");
+  const savedUser = localStorage.getItem("userData");
 
-  const token =
-    localStorage.getItem("token");
-
-  const savedUser =
-    localStorage.getItem("user");
-
-  /*
-  |--------------------------------------------------------------------------
-  | User Not Logged In
-  |--------------------------------------------------------------------------
-  */
-
+  // User not logged in
   if (!token || !savedUser) {
     return (
       <Navigate
-        to="/login"
+        to="/user/login"
         replace
-        state={{
-          from: location.pathname,
-        }}
+        state={{ from: location }}
       />
     );
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Validate Saved User
-  |--------------------------------------------------------------------------
-  */
-
   try {
-    const user =
-      JSON.parse(savedUser);
+    const user = JSON.parse(savedUser);
 
-    /*
-    |--------------------------------------------------------------------------
-    | Admin Cannot Use User Protected Area
-    |--------------------------------------------------------------------------
-    */
-
+    // Admin should not access user routes
     if (user?.role === "admin") {
       return (
         <Navigate
@@ -62,30 +36,17 @@ const UserProtectedRoute = () => {
       );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Allow Normal User
-    |--------------------------------------------------------------------------
-    */
-
+    // Logged in user
     return <Outlet />;
   } catch (error) {
-    console.error(
-      "Invalid saved user:",
-      error
-    );
+    console.error("Invalid user data:", error);
 
-    localStorage.removeItem(
-      "token"
-    );
-
-    localStorage.removeItem(
-      "user"
-    );
+    localStorage.removeItem("userToken");
+    localStorage.removeItem("userData");
 
     return (
       <Navigate
-        to="/login"
+        to="/user/login"
         replace
       />
     );

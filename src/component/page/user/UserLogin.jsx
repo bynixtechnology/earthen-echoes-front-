@@ -1,11 +1,17 @@
-
 import {
+  useEffect,
   useState,
 } from "react";
 
 import {
   Link,
+  useNavigate,
 } from "react-router-dom";
+
+import {
+  useDispatch,
+  useSelector,
+} from "react-redux";
 
 import {
   Mail,
@@ -14,16 +20,74 @@ import {
   EyeOff,
   ArrowRight,
   ShieldCheck,
-  ShoppingBag,
   Sparkles,
 } from "lucide-react";
+
+import {
+  GoogleLogin,
+} from "@react-oauth/google";
+
+import toast from "react-hot-toast";
+
+import {
+  loginUser,
+  googleLoginUser,
+} from "../../../redux/thunks/userAuthThunk";
+
+import {
+  clearUserAuthError,
+  selectUser,
+  selectUserAuthenticated,
+  selectUserAuthLoading,
+  selectGoogleAuthLoading,
+} from "../../../redux/slices/userAuthSlice";
 
 
 const UserLogin = () => {
 
   /*
   |--------------------------------------------------------------------------
-  | State
+  | Hooks
+  |--------------------------------------------------------------------------
+  */
+
+  const dispatch =
+    useDispatch();
+
+  const navigate =
+    useNavigate();
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Redux State
+  |--------------------------------------------------------------------------
+  */
+
+  const user =
+    useSelector(
+      selectUser
+    );
+
+  const isAuthenticated =
+    useSelector(
+      selectUserAuthenticated
+    );
+
+  const loading =
+    useSelector(
+      selectUserAuthLoading
+    );
+
+  const googleLoading =
+    useSelector(
+      selectGoogleAuthLoading
+    );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Form State
   |--------------------------------------------------------------------------
   */
 
@@ -31,9 +95,21 @@ const UserLogin = () => {
     formData,
     setFormData,
   ] = useState({
-    email: "",
+
+    email:
+      localStorage.getItem(
+        "rememberUserEmail"
+      ) || "",
+
     password: "",
-    rememberMe: false,
+
+    rememberMe:
+      Boolean(
+        localStorage.getItem(
+          "rememberUserEmail"
+        )
+      ),
+
   });
 
 
@@ -43,19 +119,59 @@ const UserLogin = () => {
   ] = useState(false);
 
 
-  const [
-    loading,
-    setLoading,
-  ] = useState(false);
+  /*
+  |--------------------------------------------------------------------------
+  | Redirect Logged-In User
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(() => {
+
+    if (
+      isAuthenticated &&
+      user
+    ) {
+
+      navigate(
+        "/",
+        {
+          replace: true,
+        }
+      );
+
+    }
+
+  }, [
+    isAuthenticated,
+    user,
+    navigate,
+  ]);
 
 
   /*
   |--------------------------------------------------------------------------
-  | Handle Change
+  | Clear Old Authentication Error
   |--------------------------------------------------------------------------
   */
 
-  const handleChange = (e) => {
+  useEffect(() => {
+
+    dispatch(
+      clearUserAuthError()
+    );
+
+  }, [dispatch]);
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Handle Input Change
+  |--------------------------------------------------------------------------
+  */
+
+  const handleChange = (
+    e
+  ) => {
 
     const {
       name,
@@ -65,66 +181,452 @@ const UserLogin = () => {
     } = e.target;
 
 
-    setFormData((prev) => ({
-      ...prev,
+    setFormData(
+      (prev) => ({
 
-      [name]:
-        type === "checkbox"
-          ? checked
-          : value,
-    }));
+        ...prev,
+
+        [name]:
+          type === "checkbox"
+            ? checked
+            : value,
+
+      })
+    );
 
   };
 
 
   /*
   |--------------------------------------------------------------------------
-  | Handle Login
+  | Email / Password Login
   |--------------------------------------------------------------------------
   */
 
-  const handleSubmit = async (e) => {
+  const handleSubmit =
+    async (
+      e
+    ) => {
 
-    e.preventDefault();
-
-
-    if (loading) return;
-
-
-    try {
-
-      setLoading(true);
+      e.preventDefault();
 
 
-      console.log(
-        "USER LOGIN DATA:",
-        formData
+      /*
+      |--------------------------------------------------------------------------
+      | Prevent Duplicate Request
+      |--------------------------------------------------------------------------
+      */
+
+      if (
+        loading ||
+        googleLoading
+      ) {
+
+        return;
+
+      }
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | Normalize Values
+      |--------------------------------------------------------------------------
+      */
+
+      const email =
+        formData.email
+          .trim()
+          .toLowerCase();
+
+      const password =
+        formData.password;
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | Validation
+      |--------------------------------------------------------------------------
+      */
+
+      if (!email) {
+
+        toast.error(
+          "Please enter your email address."
+        );
+
+        return;
+
+      }
+
+
+      const emailRegex =
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+
+      if (
+        !emailRegex.test(
+          email
+        )
+      ) {
+
+        toast.error(
+          "Please enter a valid email address."
+        );
+
+        return;
+
+      }
+
+
+      if (!password) {
+
+        toast.error(
+          "Please enter your password."
+        );
+
+        return;
+
+      }
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | Clear Previous Error
+      |--------------------------------------------------------------------------
+      */
+
+      dispatch(
+        clearUserAuthError()
       );
 
 
-      await new Promise(
-        (resolve) =>
-          setTimeout(
-            resolve,
-            800
+      try {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Redux Login
+        |--------------------------------------------------------------------------
+        |
+        | Flow:
+        |
+        | UserLogin
+        |     ↓
+        | loginUser thunk
+        |     ↓
+        | UserAuthService.login()
+        |     ↓
+        | POST /auth/login
+        |     ↓
+        | userAuthSlice
+        |     ↓
+        | Redux + LocalStorage
+        |
+        */
+
+        const result =
+          await dispatch(
+
+            loginUser({
+
+              email,
+
+              password,
+
+            })
+
+          ).unwrap();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Remember Email
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+          formData.rememberMe
+        ) {
+
+          localStorage.setItem(
+            "rememberUserEmail",
+            email
+          );
+
+        } else {
+
+          localStorage.removeItem(
+            "rememberUserEmail"
+          );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Notify Components
+        |--------------------------------------------------------------------------
+        */
+
+        window.dispatchEvent(
+
+          new Event(
+            "userAuthChanged"
           )
+
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Success Toast
+        |--------------------------------------------------------------------------
+        */
+
+        toast.success(
+
+          result?.message ||
+
+          `Welcome back${
+            result?.user?.name
+              ? `, ${result.user.name}`
+              : ""
+          }!`
+
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Redirect
+        |--------------------------------------------------------------------------
+        */
+
+        navigate(
+          "/",
+          {
+            replace: true,
+          }
+        );
+
+      } catch (error) {
+
+        console.error(
+          "USER LOGIN ERROR:",
+          error
+        );
+
+
+        toast.error(
+
+          typeof error ===
+            "string"
+
+            ? error
+
+            : error?.message ||
+              "Unable to login. Please try again."
+
+        );
+
+      }
+
+    };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Google Login Success
+  |--------------------------------------------------------------------------
+  */
+
+  const handleGoogleSuccess =
+    async (
+      credentialResponse
+    ) => {
+
+      /*
+      |--------------------------------------------------------------------------
+      | Prevent Duplicate Request
+      |--------------------------------------------------------------------------
+      */
+
+      if (
+        googleLoading ||
+        loading
+      ) {
+
+        return;
+
+      }
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | Google ID Token
+      |--------------------------------------------------------------------------
+      */
+
+      const credential =
+        credentialResponse
+          ?.credential;
+
+
+      if (!credential) {
+
+        toast.error(
+          "Google credential was not received."
+        );
+
+        return;
+
+      }
+
+
+      dispatch(
+        clearUserAuthError()
       );
 
-    } catch (error) {
 
-      console.error(
-        "USER LOGIN ERROR:",
-        error
+      try {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Redux Google Authentication
+        |--------------------------------------------------------------------------
+        |
+        | GoogleLogin
+        |     ↓
+        | credential
+        |     ↓
+        | googleLoginUser(credential)
+        |     ↓
+        | UserAuthService.googleLogin()
+        |     ↓
+        | POST /auth/google
+        |     ↓
+        | Backend verifies Google token
+        |     ↓
+        | JWT + User
+        |     ↓
+        | userAuthSlice saves session
+        |
+        */
+
+        const result =
+          await dispatch(
+
+            googleLoginUser(
+              credential
+            )
+
+          ).unwrap();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Close Google Signup Prompt Permanently
+        |--------------------------------------------------------------------------
+        */
+
+        localStorage.setItem(
+          "googleSignupPromptClosed",
+          "true"
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Notify Header / Other Components
+        |--------------------------------------------------------------------------
+        */
+
+        window.dispatchEvent(
+
+          new Event(
+            "userAuthChanged"
+          )
+
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Success Toast
+        |--------------------------------------------------------------------------
+        */
+
+        toast.success(
+
+          result?.message ||
+
+          `Welcome${
+            result?.user?.name
+              ? `, ${result.user.name}`
+              : ""
+          }!`
+
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Redirect Home
+        |--------------------------------------------------------------------------
+        */
+
+        navigate(
+          "/",
+          {
+            replace: true,
+          }
+        );
+
+      } catch (error) {
+
+        console.error(
+          "GOOGLE LOGIN ERROR:",
+          error
+        );
+
+
+        toast.error(
+
+          typeof error ===
+            "string"
+
+            ? error
+
+            : error?.message ||
+              "Unable to continue with Google."
+
+        );
+
+      }
+
+    };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Google Login Error
+  |--------------------------------------------------------------------------
+  */
+
+  const handleGoogleError =
+    () => {
+
+      toast.error(
+        "Google sign-in failed. Please try again."
       );
 
-    } finally {
+    };
 
-      setLoading(false);
 
-    }
-
-  };
-
+  /*
+  |--------------------------------------------------------------------------
+  | UI
+  |--------------------------------------------------------------------------
+  */
 
   return (
 
@@ -139,17 +641,13 @@ const UserLogin = () => {
         flex
         items-center
         justify-center
-
         sm:px-6
         sm:py-16
-
         lg:px-8
       "
     >
 
-      {/* ================================================================
-          BACKGROUND DECORATION (Earthy Ambient Glows)
-      ================================================================= */}
+      {/* Background Decoration */}
 
       <div
         className="
@@ -165,7 +663,6 @@ const UserLogin = () => {
         "
       />
 
-
       <div
         className="
           pointer-events-none
@@ -175,15 +672,13 @@ const UserLogin = () => {
           h-96
           w-96
           rounded-full
-          bg-amber-600/10
+          bg-tertiary/10
           blur-[100px]
         "
       />
 
 
-      {/* ================================================================
-          LOGIN CONTAINER
-      ================================================================= */}
+      {/* Login Container */}
 
       <div
         className="
@@ -200,15 +695,11 @@ const UserLogin = () => {
           bg-card
           shadow-2xl
           shadow-black/5
-
           lg:grid-cols-[1fr_1.15fr]
         "
       >
 
-
-        {/* ================================================================
-            LEFT BRAND SECTION
-        ================================================================= */}
+        {/* Left Side */}
 
         <div
           className="
@@ -218,17 +709,20 @@ const UserLogin = () => {
             bg-primary
             p-12
             text-primary-foreground
-
             lg:flex
             lg:flex-col
             lg:justify-between
           "
         >
 
-          {/* Decorative Pattern / Subtle Overlay */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_50%)]" />
+          <div
+            className="
+              absolute
+              inset-0
+              bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_50%)]
+            "
+          />
 
-          {/* Decorative Circles */}
           <div
             className="
               absolute
@@ -255,9 +749,7 @@ const UserLogin = () => {
           />
 
 
-          {/* ================================================================
-              BRAND LOGO
-          ================================================================= */}
+          {/* Brand */}
 
           <div
             className="
@@ -269,10 +761,10 @@ const UserLogin = () => {
             <Link
               to="/"
               className="
+                group
                 inline-flex
                 items-center
                 gap-3
-                group
               "
             >
 
@@ -295,11 +787,8 @@ const UserLogin = () => {
                   group-hover:scale-105
                 "
               >
-
                 EE
-
               </div>
-
 
               <span
                 className="
@@ -310,9 +799,7 @@ const UserLogin = () => {
                   text-primary-foreground
                 "
               >
-
                 Earthen Echoes
-
               </span>
 
             </Link>
@@ -320,9 +807,7 @@ const UserLogin = () => {
           </div>
 
 
-          {/* ================================================================
-              LEFT CONTENT
-          ================================================================= */}
+          {/* Left Content */}
 
           <div
             className="
@@ -331,7 +816,6 @@ const UserLogin = () => {
               py-10
             "
           >
-
 
             <span
               className="
@@ -363,7 +847,7 @@ const UserLogin = () => {
             </span>
 
 
-            <hh1
+            <h1
               className="
                 max-w-md
                 font-heading
@@ -371,7 +855,6 @@ const UserLogin = () => {
                 font-bold
                 leading-[1.2]
                 text-primary-foreground
-
                 xl:text-5xl
               "
             >
@@ -380,15 +863,15 @@ const UserLogin = () => {
 
               <span
                 className="
-                  block
                   mt-1
+                  block
                   text-primary-foreground/90
                 "
               >
                 crafted for your soul.
               </span>
 
-            </hh1>
+            </h1>
 
 
             <p
@@ -400,17 +883,14 @@ const UserLogin = () => {
                 text-primary-foreground/80
               "
             >
-
-              Log in to access your saved wishlist, track handcrafted terracotta orders, and experience the warmth of sustainable Indian artistry.
-
+              Log in to access your saved wishlist,
+              track handcrafted terracotta orders,
+              and experience the warmth of sustainable
+              Indian artistry.
             </p>
 
           </div>
 
-
-          {/* ================================================================
-              SECURITY TEXT
-          ================================================================= */}
 
           <div
             className="
@@ -427,7 +907,9 @@ const UserLogin = () => {
 
             <ShieldCheck
               size={18}
-              className="text-primary-foreground"
+              className="
+                text-primary-foreground
+              "
             />
 
             100% Secure & Authentic Terracotta Store
@@ -437,9 +919,7 @@ const UserLogin = () => {
         </div>
 
 
-        {/* ================================================================
-            RIGHT LOGIN SECTION
-        ================================================================= */}
+        {/* Right Login Section */}
 
         <div
           className="
@@ -448,9 +928,7 @@ const UserLogin = () => {
             justify-center
             bg-card
             p-8
-
             sm:p-12
-
             lg:p-16
           "
         >
@@ -462,17 +940,13 @@ const UserLogin = () => {
             "
           >
 
-
-            {/* ================================================================
-                MOBILE LOGO
-            ================================================================= */}
+            {/* Mobile Logo */}
 
             <div
               className="
                 mb-8
                 flex
                 justify-center
-
                 lg:hidden
               "
             >
@@ -501,11 +975,8 @@ const UserLogin = () => {
                     text-primary-foreground
                   "
                 >
-
                   EE
-
                 </div>
-
 
                 <span
                   className="
@@ -515,9 +986,7 @@ const UserLogin = () => {
                     text-foreground
                   "
                 >
-
                   Earthen Echoes
-
                 </span>
 
               </Link>
@@ -525,9 +994,7 @@ const UserLogin = () => {
             </div>
 
 
-            {/* ================================================================
-                HEADING
-            ================================================================= */}
+            {/* Heading */}
 
             <div
               className="
@@ -537,18 +1004,15 @@ const UserLogin = () => {
 
               <h2
                 className="
+                  !text-3xl
                   font-heading
-                  text-3xl
                   font-bold
                   tracking-tight
-                  text-foreground
+                  !text-foreground
                 "
               >
-
                 Welcome Back
-
               </h2>
-
 
               <p
                 className="
@@ -557,29 +1021,25 @@ const UserLogin = () => {
                   text-muted-foreground
                 "
               >
-
-                Please enter your credentials to access your account.
-
+                Please enter your credentials to access
+                your account.
               </p>
 
             </div>
 
 
-            {/* ================================================================
-                FORM
-            ================================================================= */}
+            {/* Login Form */}
 
             <form
-              onSubmit={handleSubmit}
+              onSubmit={
+                handleSubmit
+              }
               className="
                 space-y-5
               "
             >
 
-
-              {/* ==============================================================
-                  EMAIL
-              =============================================================== */}
+              {/* Email */}
 
               <div>
 
@@ -595,17 +1055,11 @@ const UserLogin = () => {
                     text-foreground/80
                   "
                 >
-
                   Email Address
-
                 </label>
 
 
-                <div
-                  className="
-                    relative
-                  "
-                >
+                <div className="relative">
 
                   <Mail
                     size={18}
@@ -619,24 +1073,19 @@ const UserLogin = () => {
                     "
                   />
 
-
                   <input
                     id="email"
                     name="email"
                     type="email"
                     required
                     autoComplete="email"
-
                     value={
                       formData.email
                     }
-
                     onChange={
                       handleChange
                     }
-
                     placeholder="name@example.com"
-
                     className="
                       h-12
                       w-full
@@ -650,9 +1099,7 @@ const UserLogin = () => {
                       text-foreground
                       outline-none
                       transition-all
-
                       placeholder:text-muted-foreground/50
-
                       focus:border-primary
                       focus:bg-card
                       focus:ring-2
@@ -665,9 +1112,7 @@ const UserLogin = () => {
               </div>
 
 
-              {/* ==============================================================
-                  PASSWORD
-              =============================================================== */}
+              {/* Password */}
 
               <div>
 
@@ -691,11 +1136,8 @@ const UserLogin = () => {
                       text-foreground/80
                     "
                   >
-
                     Password
-
                   </label>
-
 
                   <Link
                     to="/forgot-password"
@@ -704,23 +1146,16 @@ const UserLogin = () => {
                       font-medium
                       text-primary
                       transition
-
                       hover:underline
                     "
                   >
-
                     Forgot password?
-
                   </Link>
 
                 </div>
 
 
-                <div
-                  className="
-                    relative
-                  "
-                >
+                <div className="relative">
 
                   <LockKeyhole
                     size={18}
@@ -734,31 +1169,23 @@ const UserLogin = () => {
                     "
                   />
 
-
                   <input
                     id="password"
                     name="password"
-
                     type={
                       showPassword
                         ? "text"
                         : "password"
                     }
-
                     required
-
                     autoComplete="current-password"
-
                     value={
                       formData.password
                     }
-
                     onChange={
                       handleChange
                     }
-
                     placeholder="••••••••"
-
                     className="
                       h-12
                       w-full
@@ -772,9 +1199,7 @@ const UserLogin = () => {
                       text-foreground
                       outline-none
                       transition-all
-
                       placeholder:text-muted-foreground/50
-
                       focus:border-primary
                       focus:bg-card
                       focus:ring-2
@@ -785,19 +1210,17 @@ const UserLogin = () => {
 
                   <button
                     type="button"
-
                     onClick={() =>
                       setShowPassword(
-                        (prev) => !prev
+                        (prev) =>
+                          !prev
                       )
                     }
-
                     aria-label={
                       showPassword
                         ? "Hide password"
                         : "Show password"
                     }
-
                     className="
                       absolute
                       right-4
@@ -805,7 +1228,6 @@ const UserLogin = () => {
                       -translate-y-1/2
                       text-muted-foreground
                       transition
-
                       hover:text-foreground
                     "
                   >
@@ -831,64 +1253,52 @@ const UserLogin = () => {
               </div>
 
 
-              {/* ==============================================================
-                  REMEMBER ME
-              =============================================================== */}
+              {/* Remember Me */}
 
-              <div className="flex items-center justify-between">
+              <label
+                className="
+                  flex
+                  cursor-pointer
+                  items-center
+                  gap-2.5
+                  text-sm
+                  text-muted-foreground
+                  select-none
+                "
+              >
 
-                <label
+                <input
+                  type="checkbox"
+                  name="rememberMe"
+                  checked={
+                    formData.rememberMe
+                  }
+                  onChange={
+                    handleChange
+                  }
                   className="
-                    flex
+                    h-4
+                    w-4
                     cursor-pointer
-                    items-center
-                    gap-2.5
-                    text-sm
-                    text-muted-foreground
-                    select-none
+                    rounded
+                    border-input
+                    accent-primary
                   "
-                >
+                />
 
-                  <input
-                    type="checkbox"
-                    name="rememberMe"
+                Keep me signed in
 
-                    checked={
-                      formData.rememberMe
-                    }
-
-                    onChange={
-                      handleChange
-                    }
-
-                    className="
-                      h-4
-                      w-4
-                      rounded
-                      border-input
-                      cursor-pointer
-                      accent-primary
-                    "
-                  />
-
-                  Keep me signed in
-
-                </label>
-
-              </div>
+              </label>
 
 
-              {/* ==============================================================
-                  LOGIN BUTTON
-              =============================================================== */}
+              {/* Login Button */}
 
               <button
                 type="submit"
-
                 disabled={
-                  loading
+                  loading ||
+                  googleLoading
                 }
-
                 className="
                   group
                   flex
@@ -905,12 +1315,9 @@ const UserLogin = () => {
                   text-primary-foreground
                   shadow-md
                   transition-all
-
                   hover:opacity-95
                   hover:shadow-lg
-
                   active:scale-[0.99]
-
                   disabled:cursor-not-allowed
                   disabled:opacity-60
                 "
@@ -918,24 +1325,36 @@ const UserLogin = () => {
 
                 {
                   loading
-                    ? "Signing In..."
-                    : "Sign In"
-                }
+                    ? (
+                      <>
+                        <span
+                          className="
+                            h-4
+                            w-4
+                            animate-spin
+                            rounded-full
+                            border-2
+                            border-primary-foreground/40
+                            border-t-primary-foreground
+                          "
+                        />
 
+                        Signing In...
+                      </>
+                    )
+                    : (
+                      <>
+                        Sign In
 
-                {
-                  !loading && (
-
-                    <ArrowRight
-                      size={17}
-                      className="
-                        transition-transform
-
-                        group-hover:translate-x-1
-                      "
-                    />
-
-                  )
+                        <ArrowRight
+                          size={17}
+                          className="
+                            transition-transform
+                            group-hover:translate-x-1
+                          "
+                        />
+                      </>
+                    )
                 }
 
               </button>
@@ -943,9 +1362,7 @@ const UserLogin = () => {
             </form>
 
 
-            {/* ================================================================
-                DIVIDER
-            ================================================================= */}
+            {/* Divider */}
 
             <div
               className="
@@ -964,7 +1381,6 @@ const UserLogin = () => {
                 "
               />
 
-
               <span
                 className="
                   text-xs
@@ -973,11 +1389,8 @@ const UserLogin = () => {
                   text-muted-foreground
                 "
               >
-
-                New to Earthen Echoes?
-
+                Or continue with
               </span>
-
 
               <div
                 className="
@@ -990,13 +1403,139 @@ const UserLogin = () => {
             </div>
 
 
-            {/* ================================================================
-                REGISTER BUTTON
-            ================================================================= */}
+            {/* Google Login */}
+
+            <div
+              className="
+                flex
+                min-h-[52px]
+                w-full
+                items-center
+                justify-center
+              "
+            >
+
+              {
+                googleLoading
+                  ? (
+
+                    <div
+                      className="
+                        flex
+                        h-12
+                        w-full
+                        items-center
+                        justify-center
+                        gap-3
+                        rounded-xl
+                        border
+                        border-border
+                        bg-background
+                        text-sm
+                        font-medium
+                        text-foreground
+                      "
+                    >
+
+                      <span
+                        className="
+                          h-5
+                          w-5
+                          animate-spin
+                          rounded-full
+                          border-2
+                          border-border
+                          border-t-primary
+                        "
+                      />
+
+                      Signing in with Google...
+
+                    </div>
+
+                  )
+                  : (
+
+                    <div
+                      className="
+                        flex
+                        w-full
+                        justify-center
+                        overflow-hidden
+                        rounded-xl
+                      "
+                    >
+
+                      <GoogleLogin
+                        onSuccess={
+                          handleGoogleSuccess
+                        }
+                        onError={
+                          handleGoogleError
+                        }
+                        useOneTap={false}
+                        auto_select={false}
+                        theme="outline"
+                        size="large"
+                        text="continue_with"
+                        shape="rectangular"
+                        logo_alignment="left"
+                        width="400"
+                      />
+
+                    </div>
+
+                  )
+              }
+
+            </div>
+
+
+            {/* Register Divider */}
+
+            <div
+              className="
+                my-6
+                flex
+                items-center
+                gap-4
+              "
+            >
+
+              <div
+                className="
+                  h-px
+                  flex-1
+                  bg-border
+                "
+              />
+
+              <span
+                className="
+                  text-xs
+                  uppercase
+                  tracking-wider
+                  text-muted-foreground
+                "
+              >
+                New to Earthen Echoes?
+              </span>
+
+              <div
+                className="
+                  h-px
+                  flex-1
+                  bg-border
+                "
+              />
+
+            </div>
+
+
+            {/* Register */}
 
             <Link
               to="/user/register"
-
               className="
                 flex
                 h-12
@@ -1011,21 +1550,16 @@ const UserLogin = () => {
                 font-medium
                 text-foreground
                 transition-all
-
                 hover:border-primary/50
                 hover:bg-secondary/40
                 hover:text-primary
               "
             >
-
               Create an Account
-
             </Link>
 
 
-            {/* ================================================================
-                BACK HOME LINK
-            ================================================================= */}
+            {/* Back Home */}
 
             <div
               className="
@@ -1036,7 +1570,6 @@ const UserLogin = () => {
 
               <Link
                 to="/"
-
                 className="
                   inline-flex
                   items-center
@@ -1045,13 +1578,10 @@ const UserLogin = () => {
                   font-medium
                   text-muted-foreground
                   transition
-
                   hover:text-primary
                 "
               >
-
                 ← Back to Home Catalogue
-
               </Link>
 
             </div>

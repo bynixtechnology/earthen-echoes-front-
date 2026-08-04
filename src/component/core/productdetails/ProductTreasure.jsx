@@ -24,22 +24,22 @@
 
 //       setIsAdding(true);
 //       addToCart(product, quantity);
-    
+
 //    const res = await axiosInstance.post(API_ENDPOINTS.CART.ADD, {
 //         productId: product._id,
 //         quantity: quantity
 //       }); 
 
-     
+
 //       if(res.data.cart) {
 //          updateCartCount(res.data.cart.length); 
 //       } else {
-   
-   
+
+
 //       }
 //     } catch (error) {
 //       console.error("Error adding to cart:", error);
-   
+
 //     } finally {
 //       setIsAdding(false);
 //     }
@@ -63,13 +63,13 @@
 //     }
 //   };
 
-  
+
 //   return (
 //     <section className="py-16 bg-muted/20 border-t border-border/40">
 //       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
 //         <div>
 //           <h2 className="text-2xl font-heading font-bold text-foreground mb-8">
-            
+
 //           </h2>
 //           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
 //             {products.slice(0, 4).map((product) => (
@@ -108,7 +108,7 @@
 //             ))}
 //           </div>
 //         </div>
- 
+
 //       </div>
 //     </section>
 
@@ -190,24 +190,24 @@ const ProductTreasure = ({
   */
 
   useEffect(() => {
-    if (!categoryId) {
-      dispatch(
-        clearCategoryProducts()
-      );
+    console.log("=================================");
+    console.log("ProductTreasure Loaded");
+    console.log("Category ID =>", categoryId);
 
+    if (!categoryId) {
+      console.log("Category ID Empty");
+      dispatch(clearCategoryProducts());
       return;
     }
 
-    dispatch(
-      fetchProductsByCategory(
-        categoryId
-      )
-    );
-  }, [
-    categoryId,
-    dispatch,
-  ]);
+    console.log("Dispatching fetchProductsByCategory");
 
+    dispatch(
+      fetchProductsByCategory({
+        categoryId,
+      })
+    );
+  }, [categoryId, dispatch]);
   /*
   |--------------------------------------------------------------------------
   | Add To Cart
@@ -322,6 +322,8 @@ const ProductTreasure = ({
                     categoryId
                   )
                 )
+
+
               }
               className="
                 mt-4
@@ -483,26 +485,24 @@ const ProductTreasure = ({
                     >
                       <img
                         src={
-                          product
-                            ?.images?.[0] ||
-                          product
-                            ?.image ||
+                          product?.images?.[0]?.url ||
+                          product?.image?.url ||
+                          product?.image ||
                           "/placeholder.png"
                         }
-                        alt={
-                          product
-                            ?.title ||
-                          "Product"
-                        }
+                        alt={product?.title || "Product"}
                         loading="lazy"
+                        onError={(e) => {
+                          e.currentTarget.src = "/placeholder.png";
+                        }}
                         className="
-                          w-full
-                          h-full
-                          object-cover
-                          transition-transform
-                          duration-500
-                          group-hover:scale-105
-                        "
+    w-full
+    h-full
+    object-cover
+    transition-transform
+    duration-500
+    group-hover:scale-105
+  "
                       />
                     </Link>
 
@@ -574,20 +574,20 @@ const ProductTreasure = ({
                     {product
                       ?.category
                       ?.name && (
-                      <p
-                        className="
+                        <p
+                          className="
                           text-xs
                           text-muted-foreground
                           mb-3
                         "
-                      >
-                        {
-                          product
-                            .category
-                            .name
-                        }
-                      </p>
-                    )}
+                        >
+                          {
+                            product
+                              .category
+                              .name
+                          }
+                        </p>
+                      )}
 
                     <div
                       className="
@@ -614,7 +614,7 @@ const ProductTreasure = ({
                         ₹
                         {Number(
                           product.price ||
-                            0
+                          0
                         ).toLocaleString(
                           "en-IN"
                         )}

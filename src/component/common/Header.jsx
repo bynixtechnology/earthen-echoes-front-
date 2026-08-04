@@ -1,5 +1,6 @@
 import React, {
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -7,7 +8,13 @@ import {
   Link,
   NavLink,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
+
+import {
+  useDispatch,
+  useSelector,
+} from "react-redux";
 
 import {
   Menu,
@@ -15,11 +22,36 @@ import {
   Heart,
   ShoppingCart,
   User,
+  UserCircle,
+  Package,
+  LogOut,
+  ChevronDown,
 } from "lucide-react";
 
+import toast from "react-hot-toast";
+
 import {
-  useCart,
-} from "../core/context/CartContext";
+  fetchCart,
+} from "../../redux/thunks/cartThunk";
+
+import {
+  getWishlist,
+} from "../../redux/thunks/wishlistThunk";
+
+import {
+  clearCart,
+  selectCartCount,
+} from "../../redux/slices/cartSlice";
+
+import {
+  logoutUser,
+  selectUser,
+  selectUserAuthenticated,
+} from "../../redux/slices/userAuthSlice";
+
+import {
+  selectWishlistItems,
+} from "../../redux/slices/wishlistSlice";
 
 
 /*
@@ -52,7 +84,26 @@ export default function Header() {
 
   /*
   |--------------------------------------------------------------------------
-  | State
+  | Hooks
+  |--------------------------------------------------------------------------
+  */
+
+  const dispatch =
+    useDispatch();
+
+  const navigate =
+    useNavigate();
+
+  const location =
+    useLocation();
+
+  const profileRef =
+    useRef(null);
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Local State
   |--------------------------------------------------------------------------
   */
 
@@ -61,9 +112,40 @@ export default function Header() {
     setMobileMenu,
   ] = useState(false);
 
+  const [
+    profileMenu,
+    setProfileMenu,
+  ] = useState(false);
 
-  const location =
-    useLocation();
+
+  /*
+  |--------------------------------------------------------------------------
+  | User Authentication
+  |--------------------------------------------------------------------------
+  */
+
+  const user =
+    useSelector(
+      selectUser
+    );
+
+  const isAuthenticated =
+    useSelector(
+      selectUserAuthenticated
+    );
+
+  const cartCount =
+    useSelector(
+      selectCartCount
+    );
+
+  const wishlistItems =
+    useSelector(
+      selectWishlistItems
+    );
+
+  const wishlistCount =
+    wishlistItems?.length || 0;
 
 
   /*
@@ -72,42 +154,98 @@ export default function Header() {
   |--------------------------------------------------------------------------
   */
 
-  const {
-    cartItems,
-  } = useCart();
-
-
-  const cartCount =
-    cartItems?.reduce(
-      (total, item) =>
-        total +
-        (item.quantity || 1),
-      0
-    ) || 0;
 
 
   /*
   |--------------------------------------------------------------------------
-  | Close Mobile Menu On Route Change
+  | User Initial
+  |--------------------------------------------------------------------------
+  */
+
+  const userInitial =
+    user?.name
+      ?.trim()
+      ?.charAt(0)
+      ?.toUpperCase() ||
+
+    user?.email
+      ?.trim()
+      ?.charAt(0)
+      ?.toUpperCase() ||
+
+    "U";
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | User Avatar
+  |--------------------------------------------------------------------------
+  |
+  | Supports:
+  |
+  | avatar
+  | picture
+  | profileImage
+  |
+  */
+
+  const userAvatar =
+    user?.avatar ||
+    user?.picture ||
+    user?.profileImage ||
+    "";
+
+
+  useEffect(() => {
+
+    if (
+      isAuthenticated
+    ) {
+
+      dispatch(fetchCart());
+
+      dispatch(getWishlist());
+
+    }
+
+  }, [
+    dispatch,
+    isAuthenticated,
+  ]);
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Close Menus On Route Change
   |--------------------------------------------------------------------------
   */
 
   useEffect(() => {
 
-    setMobileMenu(false);
+    setMobileMenu(
+      false
+    );
 
-  }, [location.pathname]);
+    setProfileMenu(
+      false
+    );
+
+  }, [
+    location.pathname,
+  ]);
 
 
   /*
   |--------------------------------------------------------------------------
-  | Stop Body Scroll When Drawer Open
+  | Stop Body Scroll When Mobile Drawer Open
   |--------------------------------------------------------------------------
   */
 
   useEffect(() => {
 
-    if (mobileMenu) {
+    if (
+      mobileMenu
+    ) {
 
       document.body.style.overflow =
         "hidden";
@@ -127,25 +265,36 @@ export default function Header() {
 
     };
 
-  }, [mobileMenu]);
+  }, [
+    mobileMenu,
+  ]);
 
 
   /*
   |--------------------------------------------------------------------------
-  | Close Drawer With Escape Key
+  | Escape Key
   |--------------------------------------------------------------------------
   */
 
   useEffect(() => {
 
     const handleEscape =
-      (event) => {
+      (
+        event
+      ) => {
 
         if (
-          event.key === "Escape"
+          event.key ===
+          "Escape"
         ) {
 
-          setMobileMenu(false);
+          setMobileMenu(
+            false
+          );
+
+          setProfileMenu(
+            false
+          );
 
         }
 
@@ -170,6 +319,116 @@ export default function Header() {
   }, []);
 
 
+  /*
+  |--------------------------------------------------------------------------
+  | Close Profile Dropdown On Outside Click
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(() => {
+
+    const handleOutsideClick =
+      (
+        event
+      ) => {
+
+        if (
+          profileRef.current &&
+          !profileRef.current.contains(
+            event.target
+          )
+        ) {
+
+          setProfileMenu(
+            false
+          );
+
+        }
+
+      };
+
+
+    document.addEventListener(
+      "mousedown",
+      handleOutsideClick
+    );
+
+
+    return () => {
+
+      document.removeEventListener(
+        "mousedown",
+        handleOutsideClick
+      );
+
+    };
+
+  }, []);
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Logout User
+  |--------------------------------------------------------------------------
+  */
+
+  const handleLogout =
+    () => {
+
+      dispatch(
+        logoutUser()
+      );
+
+      dispatch(
+        clearCart()
+      );
+
+
+      setProfileMenu(
+        false
+      );
+
+      setMobileMenu(
+        false
+      );
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | Notify Other Components
+      |--------------------------------------------------------------------------
+      */
+
+      window.dispatchEvent(
+
+        new Event(
+          "userAuthChanged"
+        )
+
+      );
+
+
+      toast.success(
+        "Logged out successfully."
+      );
+
+
+      navigate(
+        "/",
+        {
+          replace: true,
+        }
+      );
+
+    };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | UI
+  |--------------------------------------------------------------------------
+  */
+
   return (
 
     <>
@@ -183,10 +442,13 @@ export default function Header() {
           sticky
           top-0
           z-50
-          bg-background/95
-          backdrop-blur-md
+
           border-b
           border-border/60
+
+          bg-background/95
+          backdrop-blur-md
+
           shadow-sm
         "
       >
@@ -195,20 +457,26 @@ export default function Header() {
           className="
             max-w-7xl
             mx-auto
+
             h-20
+
             px-4
             sm:px-6
             lg:px-8
+
             flex
             items-center
             justify-between
           "
         >
 
-          {/* ================= LOGO ================= */}
+          {/* ============================================================
+              LOGO
+          ============================================================ */}
 
           <Link
             to="/"
+
             className="
               flex
               items-center
@@ -220,134 +488,183 @@ export default function Header() {
               className="
                 w-10
                 h-10
+
                 rounded-full
+
                 bg-primary
+
                 flex
                 items-center
                 justify-center
+
                 text-primary-foreground
+
                 font-bold
               "
             >
+
               EE
+
             </div>
 
           </Link>
 
 
-          {/* ================= DESKTOP NAVIGATION ================= */}
+          {/* ============================================================
+              DESKTOP NAVIGATION
+          ============================================================ */}
 
           <nav
             className="
               hidden
+
               md:flex
               items-center
+
               gap-8
             "
           >
 
-            {navLinks.map(
-              (item) => (
+            {
+              navLinks.map(
+                (
+                  item
+                ) => (
 
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-
-                  className={({
-                    isActive,
-                  }) =>
-
-                    `
-                      pb-1
-                      transition-colors
-                      duration-200
-
-                      ${isActive
-                      ? `
-                            text-primary
-                            border-b-2
-                            border-primary
-                          `
-                      : `
-                            text-foreground/80
-                            hover:text-primary
-                          `
+                  <NavLink
+                    key={
+                      item.path
                     }
-                    `
 
-                  }
-                >
+                    to={
+                      item.path
+                    }
 
-                  {item.name}
+                    className={({
+                      isActive,
+                    }) =>
 
-                </NavLink>
+                      `
+                        pb-1
 
+                        transition-colors
+                        duration-200
+
+                        ${isActive
+
+                        ? `
+                                text-primary
+
+                                border-b-2
+                                border-primary
+                              `
+
+                        : `
+                                text-foreground/80
+
+                                hover:text-primary
+                              `
+                      }
+                      `
+
+                    }
+                  >
+
+                    {
+                      item.name
+                    }
+
+                  </NavLink>
+
+                )
               )
-            )}
+            }
 
           </nav>
 
 
-          {/* ================= RIGHT ACTIONS ================= */}
+          {/* ============================================================
+              RIGHT ACTIONS
+          ============================================================ */}
 
           <div
             className="
               flex
               items-center
               justify-end
-              gap-4
+
+              gap-3
+              sm:gap-4
             "
           >
 
-            {/* Wishlist */}
+            {/* ========================================================
+                WISHLIST
+            ======================================================== */}
 
-            <button
-              type="button"
-              aria-label="Wishlist"
+            <Link
+              to={
+                isAuthenticated
+                  ? "/user/wishlist"
+                  : "/user/login"
+              }
               className="
-                relative
-                text-foreground/80
-                hover:text-primary
-                transition-colors
-              "
+    relative
+    text-foreground/80
+    hover:text-primary
+  "
             >
 
               <Heart size={22} />
 
+              {
+                wishlistCount > 0 && (
+                  <span
+                    className="
+          absolute
+          -top-2
+          -right-2
+          min-w-4
+          h-4
+          px-1
+          rounded-full
+          bg-red-500
+          text-white
+          text-[10px]
+          flex
+          items-center
+          justify-center
+        "
+                  >
+                    {
+                      wishlistCount > 99
+                        ? "99+"
+                        : wishlistCount
+                    }
+                  </span>
+                )
+              }
 
-              <span
-                className="
-                  absolute
-                  -top-2
-                  -right-2
-                  w-4
-                  h-4
-                  rounded-full
-                  bg-primary
-                  text-white
-                  text-[10px]
-                  flex
-                  items-center
-                  justify-center
-                "
-              >
-                2
-              </span>
-
-            </button>
+            </Link>
 
 
-            {/* Cart */}
+            {/* ========================================================
+                CART
+            ======================================================== */}
 
             <Link
               to="/cart"
+
               aria-label="Shopping Cart"
 
               className="
                 relative
+
                 text-foreground/80
-                hover:text-primary
+
                 transition-colors
+
+                hover:text-primary
               "
             >
 
@@ -356,74 +673,712 @@ export default function Header() {
               />
 
 
-              {cartCount > 0 && (
+              {
+                cartCount > 0 && (
 
-                <span
-                  className="
-                    absolute
-                    -top-2
-                    -right-2
-                    min-w-4
-                    h-4
-                    px-1
-                    rounded-full
-                    bg-primary
-                    text-white
-                    text-[10px]
-                    flex
-                    items-center
-                    justify-center
-                  "
-                >
+                  <span
+                    className="
+                      absolute
 
-                  {cartCount}
+                      -top-2
+                      -right-2
 
-                </span>
+                      min-w-4
+                      h-4
 
-              )}
+                      px-1
+
+                      rounded-full
+
+                      bg-primary
+
+                      text-white
+                      text-[10px]
+
+                      flex
+                      items-center
+                      justify-center
+                    "
+                  >
+
+                    {
+                      cartCount > 99
+                        ? "99+"
+                        : cartCount
+                    }
+
+                  </span>
+
+                )
+              }
 
             </Link>
 
 
-            {/* Admin Login */}
+            {/* ========================================================
+                USER AUTH / PROFILE
+            ======================================================== */}
 
-            <Link
-              to="/user/login"
-              title="Admin Portal Login"
+            <div
+              ref={
+                profileRef
+              }
 
               className="
-                text-foreground/80
-                hover:text-primary
-                transition-colors
-                duration-200
+                relative
               "
             >
 
-              <User size={22} />
+              {
+                isAuthenticated &&
+                  user
 
-            </Link>
+                  ? (
+
+                    <>
+
+                      {/* ==================================================
+                          LOGGED-IN PROFILE BUTTON
+                      ================================================== */}
+
+                      <button
+                        type="button"
+
+                        onClick={() =>
+                          setProfileMenu(
+                            (
+                              previous
+                            ) =>
+                              !previous
+                          )
+                        }
+
+                        aria-label="Open profile menu"
+
+                        aria-expanded={
+                          profileMenu
+                        }
+
+                        className="
+                          flex
+                          items-center
+
+                          gap-2
+
+                          rounded-full
+
+                          transition-all
+                          duration-200
+
+                          hover:bg-secondary/50
+
+                          sm:pr-2
+                        "
+                      >
+
+                        {/* Avatar */}
+
+                        <div
+                          className="
+                            flex
+
+                            h-10
+                            w-10
+
+                            shrink-0
+
+                            items-center
+                            justify-center
+
+                            overflow-hidden
+
+                            rounded-full
+
+                            border-2
+                            border-primary/20
+
+                            bg-primary
+
+                            text-sm
+                            font-bold
+
+                            text-primary-foreground
+
+                            shadow-sm
+
+                            transition-all
+
+                            hover:border-primary/50
+                          "
+                        >
+
+                          {
+                            userAvatar
+
+                              ? (
+
+                                <img
+                                  src={userAvatar}
+                                  alt={user?.name || "User"}
+                                  className="h-full w-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                  onError={(e) => {
+                                    console.log("Avatar failed:", userAvatar);
+                                    e.target.style.display = "none";
+                                  }}
+                                />
+
+                              )
+
+                              : (
+
+                                <span>
+
+                                  {
+                                    userInitial
+                                  }
+
+                                </span>
+
+                              )
+                          }
+
+                        </div>
 
 
-            {/* Mobile Hamburger */}
+                        {/* Desktop Name */}
+
+                        <div
+                          className="
+                            hidden
+
+                            text-left
+
+                            lg:block
+                          "
+                        >
+
+                          <p
+                            className="
+                              max-w-[110px]
+
+                              truncate
+
+                              text-xs
+                              font-semibold
+
+                              text-foreground
+                            "
+                          >
+
+                            {
+                              user?.name ||
+                              "My Account"
+                            }
+
+                          </p>
+
+
+                          <p
+                            className="
+                              text-[10px]
+
+                              text-muted-foreground
+                            "
+                          >
+
+                            My Account
+
+                          </p>
+
+                        </div>
+
+
+                        <ChevronDown
+                          size={15}
+
+                          className={`
+                            hidden
+
+                            text-muted-foreground
+
+                            transition-transform
+                            duration-200
+
+                            lg:block
+
+                            ${profileMenu
+                              ? "rotate-180"
+                              : ""
+                            }
+                          `}
+                        />
+
+                      </button>
+
+
+                      {/* ==================================================
+                          PROFILE DROPDOWN
+                      ================================================== */}
+
+                      {
+                        profileMenu && (
+
+                          <div
+                            className="
+                              absolute
+
+                              right-0
+                              top-[calc(100%+12px)]
+
+                              z-[100]
+
+                              w-[280px]
+                              max-w-[calc(100vw-24px)]
+
+                              overflow-hidden
+
+                              rounded-2xl
+
+                              border
+                              border-border
+
+                              bg-card
+
+                              shadow-2xl
+                              shadow-black/10
+                            "
+                          >
+
+                            {/* ============================================
+                                USER DETAILS
+                            ============================================ */}
+
+                            <div
+                              className="
+                                border-b
+                                border-border
+
+                                bg-secondary/30
+
+                                px-4
+                                py-4
+                              "
+                            >
+
+                              <div
+                                className="
+                                  flex
+                                  items-center
+
+                                  gap-3
+                                "
+                              >
+
+                                <div
+                                  className="
+                                    flex
+
+                                    h-12
+                                    w-12
+
+                                    shrink-0
+
+                                    items-center
+                                    justify-center
+
+                                    overflow-hidden
+
+                                    rounded-full
+
+                                    bg-primary
+
+                                    font-bold
+
+                                    text-primary-foreground
+                                  "
+                                >
+
+                                  {
+                                    userAvatar
+
+                                      ? (
+
+                                        <img
+                                          src={
+                                            userAvatar
+                                          }
+
+                                          alt={
+                                            user?.name ||
+                                            "User"
+                                          }
+
+                                          className="
+                                            h-full
+                                            w-full
+
+                                            object-cover
+                                          "
+                                        />
+
+                                      )
+
+                                      : (
+
+                                        <span>
+
+                                          {
+                                            userInitial
+                                          }
+
+                                        </span>
+
+                                      )
+                                  }
+
+                                </div>
+
+
+                                <div
+                                  className="
+                                    min-w-0
+                                    flex-1
+                                  "
+                                >
+
+                                  <p
+                                    className="
+                                      truncate
+
+                                      text-sm
+                                      font-semibold
+
+                                      text-foreground
+                                    "
+                                  >
+
+                                    {
+                                      user?.name ||
+                                      "User"
+                                    }
+
+                                  </p>
+
+
+                                  <p
+                                    className="
+                                      mt-0.5
+
+                                      truncate
+
+                                      text-xs
+
+                                      text-muted-foreground
+                                    "
+                                  >
+
+                                    {
+                                      user?.email ||
+                                      ""
+                                    }
+
+                                  </p>
+
+                                </div>
+
+                              </div>
+
+                            </div>
+
+
+                            {/* ============================================
+                                MENU LINKS
+                            ============================================ */}
+
+                            <div
+                              className="
+                                p-2
+                              "
+                            >
+
+                              {/* Profile */}
+
+                              <Link
+                                to="/user/profile"
+
+                                onClick={() =>
+                                  setProfileMenu(
+                                    false
+                                  )
+                                }
+
+                                className="
+                                  flex
+                                  items-center
+
+                                  gap-3
+
+                                  rounded-xl
+
+                                  px-3
+                                  py-2.5
+
+                                  text-sm
+                                  font-medium
+
+                                  text-foreground
+
+                                  transition-all
+
+                                  hover:bg-secondary
+                                  hover:text-primary
+                                "
+                              >
+
+                                <UserCircle
+                                  size={18}
+                                />
+
+                                <span>
+                                  My Profile
+                                </span>
+
+                              </Link>
+
+
+                              {/* Orders */}
+
+                              <Link
+                                to="/user/orders"
+
+                                onClick={() =>
+                                  setProfileMenu(
+                                    false
+                                  )
+                                }
+
+                                className="
+                                  flex
+                                  items-center
+
+                                  gap-3
+
+                                  rounded-xl
+
+                                  px-3
+                                  py-2.5
+
+                                  text-sm
+                                  font-medium
+
+                                  text-foreground
+
+                                  transition-all
+
+                                  hover:bg-secondary
+                                  hover:text-primary
+                                "
+                              >
+
+                                <Package
+                                  size={18}
+                                />
+
+                                <span>
+                                  My Orders
+                                </span>
+
+                              </Link>
+
+
+                              {/* Wishlist */}
+
+                              <Link
+                                to="/user/wishlist"
+
+                                onClick={() =>
+                                  setProfileMenu(
+                                    false
+                                  )
+                                }
+
+                                className="
+                                  flex
+                                  items-center
+
+                                  gap-3
+
+                                  rounded-xl
+
+                                  px-3
+                                  py-2.5
+
+                                  text-sm
+                                  font-medium
+
+                                  text-foreground
+
+                                  transition-all
+
+                                  hover:bg-secondary
+                                  hover:text-primary
+                                "
+                              >
+
+                                <Heart
+                                  size={18}
+                                />
+
+                                <span>
+                                  My Wishlist
+                                </span>
+
+                              </Link>
+
+                            </div>
+
+
+                            {/* ============================================
+                                LOGOUT
+                            ============================================ */}
+
+                            <div
+                              className="
+                                border-t
+                                border-border
+
+                                p-2
+                              "
+                            >
+
+                              <button
+                                type="button"
+
+                                onClick={
+                                  handleLogout
+                                }
+
+                                className="
+                                  flex
+                                  w-full
+                                  items-center
+
+                                  gap-3
+
+                                  rounded-xl
+
+                                  px-3
+                                  py-2.5
+
+                                  text-sm
+                                  font-medium
+
+                                  text-destructive
+
+                                  transition-all
+
+                                  hover:bg-destructive/10
+                                  cursor-pointer
+                                "
+                              >
+
+                                <LogOut
+                                  size={18}
+                                />
+
+                                <span>
+                                  Logout
+                                </span>
+
+                              </button>
+
+                            </div>
+
+                          </div>
+
+                        )
+                      }
+
+                    </>
+
+                  )
+
+                  : (
+
+                    /* ====================================================
+                        NOT LOGGED-IN USER
+                    ==================================================== */
+
+                    <Link
+                      to="/user/login"
+
+                      title="Login"
+
+                      aria-label="User Login"
+
+                      className="
+                        flex
+
+                        h-10
+                        w-10
+
+                        items-center
+                        justify-center
+
+                        rounded-full
+
+                        text-foreground/80
+
+                        transition-all
+                        duration-200
+
+                        hover:bg-secondary
+                        hover:text-primary
+                      "
+                    >
+
+                      <User
+                        size={22}
+                      />
+
+                    </Link>
+
+                  )
+              }
+
+            </div>
+
+
+            {/* ========================================================
+                MOBILE HAMBURGER
+            ======================================================== */}
 
             <button
               type="button"
+
               aria-label="Open Menu"
 
               onClick={() =>
-                setMobileMenu(true)
+                setMobileMenu(
+                  true
+                )
               }
 
               className="
                 md:hidden
+
                 flex
                 items-center
                 justify-center
+
                 text-foreground
               "
             >
 
-              <Menu size={26} />
+              <Menu
+                size={26}
+              />
 
             </button>
 
@@ -441,13 +1396,16 @@ export default function Header() {
       <div
 
         onClick={() =>
-          setMobileMenu(false)
+          setMobileMenu(
+            false
+          )
         }
 
         className={`
           fixed
           inset-0
-          z-999
+
+          z-[999]
 
           bg-black/40
 
@@ -457,15 +1415,17 @@ export default function Header() {
           md:hidden
 
           ${mobileMenu
+
             ? `
-                opacity-100
-                visible
-              `
+                  opacity-100
+                  visible
+                `
+
             : `
-                opacity-0
-                invisible
-                pointer-events-none
-              `
+                  opacity-0
+                  invisible
+                  pointer-events-none
+                `
           }
         `}
 
@@ -473,18 +1433,19 @@ export default function Header() {
 
 
       {/* ================================================================
-          SIMPLE MOBILE DRAWER
+          MOBILE DRAWER
       ================================================================= */}
 
       <aside
         className={`
           fixed
+
           top-0
           right-0
 
-          z-1000
+          z-[1000]
 
-          w-70
+          w-72
           max-w-[85%]
 
           h-dvh
@@ -511,11 +1472,14 @@ export default function Header() {
         `}
       >
 
-        {/* ================= DRAWER HEADER ================= */}
+        {/* ============================================================
+            DRAWER HEADER
+        ============================================================ */}
 
         <div
           className="
             h-20
+
             px-5
 
             flex
@@ -533,12 +1497,15 @@ export default function Header() {
             to="/"
 
             onClick={() =>
-              setMobileMenu(false)
+              setMobileMenu(
+                false
+              )
             }
 
             className="
               flex
               items-center
+
               gap-2
             "
           >
@@ -562,7 +1529,9 @@ export default function Header() {
                 text-sm
               "
             >
+
               EE
+
             </div>
 
 
@@ -570,24 +1539,30 @@ export default function Header() {
               className="
                 font-heading
                 font-semibold
+
                 text-base
                 text-foreground
               "
             >
+
               Earthen Echoes
+
             </span>
 
           </Link>
 
 
-          {/* Close Button */}
+          {/* Close */}
 
           <button
             type="button"
+
             aria-label="Close Menu"
 
             onClick={() =>
-              setMobileMenu(false)
+              setMobileMenu(
+                false
+              )
             }
 
             className="
@@ -597,20 +1572,164 @@ export default function Header() {
 
               text-foreground
 
-              hover:text-primary
-
               transition-colors
+
+              hover:text-primary
             "
           >
 
-            <X size={24} />
+            <X
+              size={24}
+            />
 
           </button>
 
         </div>
 
 
-        {/* ================= MOBILE NAVIGATION ================= */}
+        {/* ============================================================
+            LOGGED-IN USER MOBILE CARD
+        ============================================================ */}
+
+        {
+          isAuthenticated &&
+          user && (
+
+            <div
+              className="
+                border-b
+                border-border
+
+                bg-secondary/30
+
+                px-5
+                py-4
+              "
+            >
+
+              <div
+                className="
+                  flex
+                  items-center
+
+                  gap-3
+                "
+              >
+
+                <div
+                  className="
+                    flex
+
+                    h-11
+                    w-11
+
+                    shrink-0
+
+                    items-center
+                    justify-center
+
+                    overflow-hidden
+
+                    rounded-full
+
+                    bg-primary
+
+                    font-bold
+
+                    text-primary-foreground
+                  "
+                >
+
+                  {
+                    userAvatar
+
+                      ? (
+
+                        <img
+                          src={
+                            userAvatar
+                          }
+
+                          alt={
+                            user?.name ||
+                            "User"
+                          }
+
+                          className="
+                            h-full
+                            w-full
+
+                            object-cover
+                          "
+                        />
+
+                      )
+
+                      : (
+
+                        userInitial
+
+                      )
+                  }
+
+                </div>
+
+
+                <div
+                  className="
+                    min-w-0
+                  "
+                >
+
+                  <p
+                    className="
+                      truncate
+
+                      text-sm
+                      font-semibold
+
+                      text-foreground
+                    "
+                  >
+
+                    {
+                      user?.name ||
+                      "User"
+                    }
+
+                  </p>
+
+
+                  <p
+                    className="
+                      truncate
+
+                      text-xs
+
+                      text-muted-foreground
+                    "
+                  >
+
+                    {
+                      user?.email ||
+                      ""
+                    }
+
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          )
+        }
+
+
+        {/* ============================================================
+            MOBILE NAVIGATION
+        ============================================================ */}
 
         <nav
           className="
@@ -619,56 +1738,286 @@ export default function Header() {
           "
         >
 
-          {navLinks.map(
-            (item) => (
+          {
+            navLinks.map(
+              (
+                item
+              ) => (
 
-              <NavLink
-                key={item.path}
+                <NavLink
+                  key={
+                    item.path
+                  }
 
-                to={item.path}
+                  to={
+                    item.path
+                  }
 
-                onClick={() =>
-                  setMobileMenu(false)
-                }
+                  onClick={() =>
+                    setMobileMenu(
+                      false
+                    )
+                  }
 
-                className={({
-                  isActive,
-                }) =>
+                  className={({
+                    isActive,
+                  }) =>
 
-                  `
-                    block
+                    `
+                      block
 
-                    py-4
+                      py-4
 
-                    border-b
-                    border-border/60
+                      border-b
+                      border-border/60
+
+                      text-sm
+                      font-medium
+
+                      transition-colors
+                      duration-200
+
+                      ${isActive
+
+                      ? `
+                              text-primary
+                            `
+
+                      : `
+                              text-foreground
+
+                              hover:text-primary
+                            `
+                    }
+                    `
+
+                  }
+                >
+
+                  {
+                    item.name
+                  }
+
+                </NavLink>
+
+              )
+            )
+          }
+
+
+          {/* ============================================================
+              USER MOBILE LINKS
+          ============================================================ */}
+
+          {
+            isAuthenticated &&
+              user
+
+              ? (
+
+                <div
+                  className="
+                    mt-3
+                  "
+                >
+
+                  <Link
+                    to="/user/profile"
+
+                    onClick={() =>
+                      setMobileMenu(
+                        false
+                      )
+                    }
+
+                    className="
+                      flex
+                      items-center
+
+                      gap-3
+
+                      py-3
+
+                      text-sm
+                      font-medium
+
+                      text-foreground
+
+                      transition
+
+                      hover:text-primary
+                    "
+                  >
+
+                    <UserCircle
+                      size={18}
+                    />
+
+                    My Profile
+
+                  </Link>
+
+
+                  <Link
+                    to="/user/orders"
+
+                    onClick={() =>
+                      setMobileMenu(
+                        false
+                      )
+                    }
+
+                    className="
+                      flex
+                      items-center
+
+                      gap-3
+
+                      py-3
+
+                      text-sm
+                      font-medium
+
+                      text-foreground
+
+                      transition
+
+                      hover:text-primary
+                    "
+                  >
+
+                    <Package
+                      size={18}
+                    />
+
+                    My Orders
+
+                  </Link>
+
+
+                  <Link
+                    to="/user/wishlist"
+
+                    onClick={() =>
+                      setMobileMenu(
+                        false
+                      )
+                    }
+
+                    className="
+                      flex
+                      items-center
+
+                      gap-3
+
+                      py-3
+
+                      text-sm
+                      font-medium
+
+                      text-foreground
+
+                      transition
+
+                      hover:text-primary
+                    "
+                  >
+
+                    <Heart
+                      size={18}
+                    />
+
+                    My Wishlist
+
+                  </Link>
+
+
+                  <button
+                    type="button"
+
+                    onClick={
+                      handleLogout
+                    }
+
+                    className="
+                      flex
+                      w-full
+                      items-center
+
+                      gap-3
+
+                      py-3
+
+                      text-sm
+                      font-medium
+
+                      text-destructive
+
+                      transition
+                    "
+                  >
+
+                    <LogOut
+                      size={18}
+                    />
+
+                    Logout
+
+                  </button>
+
+                </div>
+
+              )
+
+              : (
+
+                <Link
+                  to="/user/login"
+
+                  onClick={() =>
+                    setMobileMenu(
+                      false
+                    )
+                  }
+
+                  className="
+                    mt-5
+
+                    flex
+                    w-full
+                    items-center
+                    justify-center
+
+                    gap-2
+
+                    rounded-xl
+
+                    bg-primary
+
+                    px-4
+                    py-3
 
                     text-sm
-                    font-medium
+                    font-semibold
 
-                    transition-colors
-                    duration-200
+                    text-primary-foreground
 
-                    ${isActive
-                    ? `
-                          text-primary
-                        `
-                    : `
-                          text-foreground
-                          hover:text-primary
-                        `
-                  }
-                  `
+                    transition
 
-                }
-              >
+                    hover:opacity-90
+                  "
+                >
 
-                {item.name}
+                  <User
+                    size={18}
+                  />
 
-              </NavLink>
+                  Login / Register
 
-            )
-          )}
+                </Link>
+
+              )
+          }
 
         </nav>
 
