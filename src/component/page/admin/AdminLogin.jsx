@@ -132,7 +132,7 @@ const AdminLogin = () => {
     ) {
 
       navigate(
-        "/admin/dashboard",
+        "/admin/product",
         {
           replace: true,
         }
@@ -311,7 +311,7 @@ const AdminLogin = () => {
         */
 
         navigate(
-          "/admin/dashboard",
+          "/admin/product",
           {
             replace: true,
           }

@@ -1,4 +1,5 @@
 import React from "react";
+import { C } from "../../../constants/theme";
 
 const teamMembers = [
   {
@@ -32,44 +33,95 @@ const teamMembers = [
 
 const MeetTeam = () => {
   return (
-    <section className="py-20 bg-background">
+    <section
+      className="py-20"
+      style={{ background: C.ivory }}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Heading */}
         <div className="text-center max-w-xl mx-auto mb-16">
-          <h2 className="text-3xl font-heading font-bold mb-4">
+          <span
+            className="inline-block px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest mb-4"
+            style={{
+              background: `${C.coral}15`,
+              color: C.coral,
+              border: `1px solid ${C.coral}30`,
+            }}
+          >
+            Our Team
+          </span>
+
+          <h2
+            className="text-3xl lg:text-5xl font-bold mb-4"
+            style={{
+              fontFamily: "'Playfair Display', serif",
+              color: C.dark,
+            }}
+          >
             Meet Our Master Artisans
           </h2>
 
-          <p className="text-muted-foreground">
+          <p
+            className="leading-8"
+            style={{ color: "#6B5B4E" }}
+          >
             The hands that mold the earth and breathe life into Earthen Echoes.
           </p>
 
-          <div className="w-16 h-1 bg-primary mx-auto mt-4" />
+          <div
+            className="w-16 h-1 rounded-full mx-auto mt-5"
+            style={{
+              background: `linear-gradient(90deg, ${C.coral}, ${C.teal})`,
+            }}
+          />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+        {/* Team Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {teamMembers.map((member) => (
             <div
               key={member.id}
-              className="bg-card rounded-xl overflow-hidden border border-border/40 shadow-sm text-center"
+              className="rounded-3xl overflow-hidden transition-all duration-300 hover:-translate-y-2"
+              style={{
+                background: "#fff",
+                border: `1px solid ${C.paleCoral}`,
+                boxShadow: "0 12px 35px rgba(28,18,8,.08)",
+              }}
             >
-              <div className="aspect-square bg-muted">
+              <div className="aspect-square overflow-hidden">
                 <img
                   src={member.image}
                   alt={member.alt}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
                 />
               </div>
 
-              <div className="p-6">
-                <h3 className="font-heading font-bold text-lg text-foreground">
+              <div className="p-6 text-center">
+                <h3
+                  className="text-2xl font-bold mb-2"
+                  style={{
+                    fontFamily: "'Playfair Display', serif",
+                    color: C.dark,
+                  }}
+                >
                   {member.name}
                 </h3>
 
-                <p className="text-xs text-primary uppercase tracking-wider font-semibold mb-2">
+                <p
+                  className="text-xs uppercase tracking-widest font-semibold mb-4"
+                  style={{
+                    color: C.coral,
+                  }}
+                >
                   {member.role}
                 </p>
 
-                <p className="text-xs text-muted-foreground">
+                <p
+                  className="text-sm leading-7"
+                  style={{
+                    color: "#6B5B4E",
+                  }}
+                >
                   {member.description}
                 </p>
               </div>

@@ -8,6 +8,7 @@ import {
     Send,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { C } from "../../../constants/theme";
 
 
 

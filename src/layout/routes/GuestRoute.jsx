@@ -21,7 +21,7 @@ const GuestRoute = () => {
     if (user?.role === "admin") {
       return (
         <Navigate
-          to="/admin/dashboard"
+          to="/admin/product"
           replace
         />
       );

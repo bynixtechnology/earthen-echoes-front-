@@ -1,4 +1,3 @@
-
 import React, {
   useEffect,
   useState,
@@ -11,6 +10,7 @@ import {
 
 import {
   useNavigate,
+  useParams,
 } from "react-router-dom";
 
 import {
@@ -19,6 +19,7 @@ import {
   Loader2,
   ArrowLeft,
   Tag,
+  Trash2,
 } from "lucide-react";
 
 import {
@@ -30,7 +31,8 @@ import {
 } from "../../../redux/thunks/productTagThunk";
 
 import {
-  createProduct,
+  fetchProductById,
+  updateProduct,
 } from "../../../redux/thunks/productThunk";
 
 import {
@@ -39,6 +41,8 @@ import {
 } from "../../../redux/slices/categorySlice";
 
 import {
+  selectSelectedProduct,
+  selectProductDetailsLoading,
   selectProductActionLoading,
 } from "../../../redux/slices/productSlice";
 
@@ -70,19 +74,17 @@ export const C = {
 };
 
 
-export default function AddProduct() {
+export default function EditProduct() {
 
   /*
   |--------------------------------------------------------------------------
-  | Hooks
+  | Hooks & Params
   |--------------------------------------------------------------------------
   */
 
-  const dispatch =
-    useDispatch();
-
-  const navigate =
-    useNavigate();
+  const { id } = useParams();
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
 
   /*
@@ -106,7 +108,17 @@ export default function AddProduct() {
       (state) => state.productTags || {}
     );
 
-  const loading =
+  const selectedProduct =
+    useSelector(
+      selectSelectedProduct
+    );
+
+  const isLoading =
+    useSelector(
+      selectProductDetailsLoading
+    );
+
+  const isSubmitting =
     useSelector(
       selectProductActionLoading
     );
@@ -118,18 +130,15 @@ export default function AddProduct() {
   |--------------------------------------------------------------------------
   */
 
-  const [
-    images,
-    setImages,
-  ] = useState([]);
-
+  const [existingImages, setExistingImages] = useState([]);
+  const [newImages, setNewImages] = useState([]);
 
   const [
     formData,
     setFormData,
   ] = useState({
 
-    id: "",
+    numericalId: "",
 
     title: "",
 
@@ -174,21 +183,62 @@ export default function AddProduct() {
 
   /*
   |--------------------------------------------------------------------------
-  | Fetch Categories & Product Tags
+  | Fetch Categories, Tags & Product Details
   |--------------------------------------------------------------------------
   */
 
   useEffect(() => {
+    dispatch(fetchCategories());
+    dispatch(fetchProductTags());
+    if (id) {
+      dispatch(fetchProductById(id));
+    }
+  }, [dispatch, id]);
 
-    dispatch(
-      fetchCategories()
-    );
+  useEffect(() => {
+    if (selectedProduct) {
+      const categoryId =
+        selectedProduct.category?._id ||
+        selectedProduct.category?.id ||
+        selectedProduct.category ||
+        "";
 
-    dispatch(
-      fetchProductTags()
-    );
+      const mappedTags = (
+        selectedProduct.productTags ||
+        selectedProduct.tags ||
+        []
+      ).map((t) => t?._id || t?.id || t);
 
-  }, [dispatch]);
+      setFormData({
+        numericalId:
+          selectedProduct.numericalId ||
+          selectedProduct.numericId ||
+          selectedProduct.id ||
+          "",
+        title: selectedProduct.title || "",
+        collectionName: selectedProduct.collectionName || "",
+        category: categoryId,
+        productTags: mappedTags,
+        sku: selectedProduct.sku || "",
+        description: selectedProduct.description || "",
+        longDescription: selectedProduct.longDescription || "",
+        longDescription1: selectedProduct.longDescription1 || "",
+        price: selectedProduct.price ?? "",
+        originalPrice: selectedProduct.originalPrice ?? "",
+        discountPercentage: selectedProduct.discountPercentage ?? "",
+        stock: selectedProduct.stock ?? "",
+        dimensions: selectedProduct.specifications?.dimensions || "",
+        weight: selectedProduct.specifications?.weight || "",
+        composition: selectedProduct.specifications?.composition || "",
+        placement: selectedProduct.specifications?.placement || "",
+        finish: selectedProduct.specifications?.finish || "",
+        suggestedProducts: selectedProduct.suggestedProducts || [],
+        isActive: selectedProduct.isActive ?? false,
+      });
+
+      setExistingImages(selectedProduct.images || []);
+    }
+  }, [selectedProduct]);
 
 
   /*
@@ -206,12 +256,6 @@ export default function AddProduct() {
       value,
     } = e.target;
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Convert isActive To Boolean
-    |--------------------------------------------------------------------------
-    */
 
     if (
       name === "isActive"
@@ -268,7 +312,7 @@ export default function AddProduct() {
 
   /*
   |--------------------------------------------------------------------------
-  | Image Selection
+  | Image Selection (New Files)
   |--------------------------------------------------------------------------
   */
 
@@ -283,14 +327,12 @@ export default function AddProduct() {
       );
 
 
-    if (
-      images.length +
-      files.length >
-      5
-    ) {
+    const totalImagesCount = existingImages.length + newImages.length + files.length;
+
+    if (totalImagesCount > 5) {
 
       showToast.error(
-        "Maximum 5 images are allowed."
+        "Maximum 5 images are allowed in total."
       );
 
       e.target.value = "";
@@ -300,19 +342,12 @@ export default function AddProduct() {
     }
 
 
-    setImages(
+    setNewImages(
       (prev) => [
         ...prev,
         ...files,
       ]
     );
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Allow Same File Selection Again
-    |--------------------------------------------------------------------------
-    */
 
     e.target.value = "";
 
@@ -321,15 +356,15 @@ export default function AddProduct() {
 
   /*
   |--------------------------------------------------------------------------
-  | Remove Image
+  | Remove New Image Preview
   |--------------------------------------------------------------------------
   */
 
-  const removeImage = (
+  const removeNewImage = (
     index
   ) => {
 
-    setImages(
+    setNewImages(
       (prev) =>
         prev.filter(
           (
@@ -346,34 +381,41 @@ export default function AddProduct() {
 
   /*
   |--------------------------------------------------------------------------
-  | Submit Product
+  | Remove Existing Image
+  |--------------------------------------------------------------------------
+  */
+
+  const removeExistingImage = (indexToRemove) => {
+    setExistingImages((prev) =>
+      prev.filter((_, idx) => idx !== indexToRemove)
+    );
+  };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Submit Updated Product via Redux Thunk
   |--------------------------------------------------------------------------
   */
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (loading) return;
+    if (isSubmitting) return;
 
     if (!formData.category) {
       showToast.error("Please select a valid category.");
       return;
     }
 
-    if (images.length === 0) {
+    if (existingImages.length === 0 && newImages.length === 0) {
       showToast.error("At least one product image is required.");
-      return;
-    }
-
-    if (images.length > 5) {
-      showToast.error("Maximum 5 images are allowed.");
       return;
     }
 
     const data = new FormData();
 
-    // Append all basic text fields safely
-    data.append("id", formData.id);
+    data.append("numericalId", formData.numericalId);
     data.append("title", formData.title.trim());
     data.append("collectionName", formData.collectionName.trim());
     data.append("category", formData.category);
@@ -397,12 +439,10 @@ export default function AddProduct() {
     data.append("stock", Number(formData.stock || 0));
     data.append("isActive", String(formData.isActive));
 
-    // Append Product Tags array as JSON string
     if (formData.productTags && formData.productTags.length > 0) {
       data.append("productTags", JSON.stringify(formData.productTags));
     }
 
-    // Append Specifications object as JSON string
     const specifications = {
       dimensions: formData.dimensions.trim(),
       weight: formData.weight.trim(),
@@ -412,36 +452,54 @@ export default function AddProduct() {
     };
     data.append("specifications", JSON.stringify(specifications));
 
-    // Append Suggested Products if any
     if (formData.suggestedProducts?.length) {
       data.append("suggestedProducts", JSON.stringify(formData.suggestedProducts));
     }
 
-    // Append Image Files
-    images.forEach((image) => {
+    if (existingImages.length > 0) {
+      data.append("existingImages", JSON.stringify(existingImages));
+    }
+
+    newImages.forEach((image) => {
       data.append("images", image);
     });
 
     try {
-      const response = await dispatch(createProduct({ formData: data })).unwrap();
-
-      showToast.success(
-        response?.message || "Product created successfully."
+      const resultAction = await dispatch(
+        updateProduct({ id, data })
       );
 
-      navigate("/admin/product", {
-        replace: true,
-      });
+      if (updateProduct.fulfilled.match(resultAction)) {
+        showToast.success(
+          resultAction.payload?.message || "Product updated successfully."
+        );
+
+        navigate("/admin/product", {
+          replace: true,
+        });
+      } else {
+        throw new Error(resultAction.payload || "Failed to update product.");
+      }
     } catch (error) {
-      console.error("CREATE PRODUCT ERROR:", error);
+      console.error("UPDATE PRODUCT ERROR:", error);
 
       showToast.error(
         typeof error === "string"
           ? error
-          : error?.message || "Failed to create product."
+          : error?.message || "Failed to update product."
       );
     }
   };
+
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <Loader2 size={32} className="animate-spin text-[#1BACB1]" />
+        <p className="text-sm font-medium text-slate-500">Loading product details...</p>
+      </div>
+    );
+  }
 
 
   /*
@@ -516,7 +574,7 @@ export default function AddProduct() {
             style={{ color: C.dark }}
           >
 
-            Add New Product
+            Edit Product
 
           </h2>
 
@@ -530,8 +588,7 @@ export default function AddProduct() {
             style={{ color: C.teal }}
           >
 
-            Create and publish a new
-            Earthen Echoes product.
+            Update inventory and specifications.
 
           </p>
 
@@ -628,10 +685,10 @@ export default function AddProduct() {
 
                   required
 
-                  name="id"
+                  name="numericalId"
 
                   value={
-                    formData.id
+                    formData.numericalId
                   }
 
                   onChange={
@@ -1448,8 +1505,8 @@ export default function AddProduct() {
 
 
           {/* ============================================================
-              IMAGES
-          ============================================================= */}
+              IMAGES (Existing + New)
+          ============================================================ */}
 
           <div
             className="
@@ -1485,7 +1542,7 @@ export default function AddProduct() {
               style={{ color: C.teal }}
             >
 
-              Maximum 5 images allowed.
+              Maximum 5 images total (existing + new).
 
             </p>
 
@@ -1499,88 +1556,100 @@ export default function AddProduct() {
               "
             >
 
-              {images.map(
-                (
-                  image,
-                  index
-                ) => (
+              {/* Existing Images from server */}
+              {existingImages.map((imgObj, idx) => (
+                <div
+                  key={`existing-${idx}`}
+                  className="relative aspect-square rounded-xl overflow-hidden border group"
+                  style={{ borderColor: C.blush, backgroundColor: C.cream }}
+                >
+                  <img
+                    src={imgObj.url}
+                    alt="Existing"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = "/no-image.png";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeExistingImage(idx)}
+                    className="absolute top-2 right-2 p-1.5 rounded-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition"
+                    style={{ backgroundColor: C.dark, color: "#FFFFFF" }}
+                    title="Remove Image"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
 
-                  <ImagePreview
 
-                    key={`${image.name}-${index}`}
+              {/* Newly Uploaded Files Preview */}
+              {newImages.map((image, index) => (
+                <ImagePreview
+                  key={`new-${image.name}-${index}`}
+                  image={image}
+                  onRemove={() => removeNewImage(index)}
+                />
+              ))}
 
-                    image={
-                      image
+
+              {/* Upload Input Button */}
+              {(existingImages.length + newImages.length) < 5 && (
+
+                <label
+                  className="
+                    aspect-square
+                    rounded-xl
+                    border-2
+                    border-dashed
+                    flex
+                    flex-col
+                    items-center
+                    justify-center
+                    cursor-pointer
+                    transition
+                    gap-2
+                  "
+                  style={{ borderColor: C.blush, backgroundColor: C.cream, color: C.teal }}
+                >
+
+                  <Upload
+                    size={20}
+                  />
+
+
+                  <span
+                    className="
+                      text-xs
+                      font-semibold
+                    "
+                  >
+
+                    Upload
+
+                  </span>
+
+
+                  <input
+
+                    type="file"
+
+                    multiple
+
+                    accept="image/*"
+
+                    onChange={
+                      handleFileChange
                     }
 
-                    onRemove={() =>
-                      removeImage(
-                        index
-                      )
-                    }
+                    className="hidden"
 
                   />
 
-                )
+                </label>
+
               )}
-
-
-              {images.length <
-                5 && (
-
-                  <label
-                    className="
-                      aspect-square
-                      rounded-xl
-                      border-2
-                      border-dashed
-                      flex
-                      flex-col
-                      items-center
-                      justify-center
-                      cursor-pointer
-                      transition
-                      gap-2
-                    "
-                    style={{ borderColor: C.blush, backgroundColor: C.cream, color: C.teal }}
-                  >
-
-                    <Upload
-                      size={20}
-                    />
-
-
-                    <span
-                      className="
-                        text-xs
-                        font-semibold
-                      "
-                    >
-
-                      Upload
-
-                    </span>
-
-
-                    <input
-
-                      type="file"
-
-                      multiple
-
-                      accept="image/*"
-
-                      onChange={
-                        handleFileChange
-                      }
-
-                      className="hidden"
-
-                    />
-
-                  </label>
-
-                )}
 
             </div>
 
@@ -1595,7 +1664,7 @@ export default function AddProduct() {
 
             type="submit"
 
-            disabled={loading}
+            disabled={isSubmitting}
 
             className="
               w-full
@@ -1615,7 +1684,7 @@ export default function AddProduct() {
 
           >
 
-            {loading ? (
+            {isSubmitting ? (
 
               <>
 
@@ -1629,13 +1698,13 @@ export default function AddProduct() {
 
                 />
 
-                Creating Product...
+                Updating Product...
 
               </>
 
             ) : (
 
-              "Create Product"
+              "Update Product"
 
             )}
 
@@ -1654,7 +1723,7 @@ export default function AddProduct() {
 
 /*
 |--------------------------------------------------------------------------
-| Image Preview Component
+| Image Preview Component for New Files
 |--------------------------------------------------------------------------
 */
 

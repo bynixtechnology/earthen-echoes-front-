@@ -1,7 +1,7 @@
 import {
   useEffect,
   useState,
-  useRef,
+   useRef,
 } from "react";
 
 import {
@@ -16,10 +16,10 @@ import {
   ChevronRight,
   Download,
   Upload,
+  Tag,
 } from "lucide-react";
 
 import * as XLSX from "xlsx";
-
 
 import {
   useNavigate,
@@ -32,6 +32,10 @@ import {
 import {
   CategoryService,
 } from "../../../services/categoryService";
+
+import {
+  ProductTagService,
+} from "../../../services/productTagService";
 
 import {
   showToast,
@@ -55,6 +59,11 @@ export default function Dashboard() {
   ] = useState([]);
 
   const [
+    productTagsList,
+    setProductTagsList,
+  ] = useState([]);
+
+  const [
     isLoading,
     setIsLoading,
   ] = useState(true);
@@ -72,16 +81,6 @@ export default function Dashboard() {
   const [
     featuredLoading,
     setFeaturedLoading,
-  ] = useState(null);
-
-  const [
-    isEditModalOpen,
-    setIsEditModalOpen,
-  ] = useState(false);
-
-  const [
-    selectedProduct,
-    setSelectedProduct,
   ] = useState(null);
 
 
@@ -172,28 +171,11 @@ export default function Dashboard() {
           await ProductService.getAll({
             page,
             limit: pageLimit,
-
             search,
-
             category: categoryFilter,
-
             minPrice,
-
             maxPrice,
           });
-
-
-        console.log(
-          "PRODUCT RESPONSE:",
-          res
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Support Different Response Structures
-        |--------------------------------------------------------------------------
-        */
 
         const productData =
           res?.data?.products ||
@@ -219,12 +201,6 @@ export default function Dashboard() {
             : []
         );
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Pagination Response
-        |--------------------------------------------------------------------------
-        */
 
         const pagination =
           res?.data?.pagination ||
@@ -314,6 +290,16 @@ export default function Dashboard() {
     }
   };
 
+  const fetchProductTags = async () => {
+    try {
+      const res = await ProductTagService.getAll();
+      const list = res?.data || res || [];
+      setProductTagsList(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleDownloadTemplate = () => {
     const templateData = [
       {
@@ -322,30 +308,24 @@ export default function Dashboard() {
         "Product Title": "Bamboo Basket",
         "Collection": "Premium Collection",
         "Category": "Home & Kitchen",
-
+        "Product Tags": "Best Seller, Eco Friendly",
         "Sale Price": 1500,
         "Original Price": 1800,
         "Discount %": 20,
         "Stock": 100,
-
         "Description":
           "Premium bamboo basket for home use.",
-
         "Long Description":
           "High quality bamboo basket made from natural bamboo. Perfect for storage, decoration and everyday use.",
-
         "Long Description 1":
           "Suitable for kitchen, bedroom, living room and gifting purpose.",
-
         "Dimensions": "20 x 15 x 10 cm",
         "Weight": "1.2 kg",
         "Composition": "Natural Bamboo",
         "Placement": "Indoor",
         "Finish": "Matte",
-
         "Status": "Active",
         "Featured": "No",
-
         "Product Image URL":
           "https://picsum.photos/seed/product1/800/800",
       },
@@ -358,7 +338,8 @@ export default function Dashboard() {
       { wch: 20 }, // SKU
       { wch: 35 }, // Product Title
       { wch: 25 }, // Collection
-      { wch: 30 }, // Category
+      { wch: 25 }, // Category
+      { wch: 25 }, // Product Tags
       { wch: 15 }, // Sale Price
       { wch: 18 }, // Original Price
       { wch: 12 }, // Discount %
@@ -472,12 +453,6 @@ export default function Dashboard() {
     try {
       setIsExporting(true);
 
-      /*
-      |--------------------------------------------------------------------------
-      | Fetch All Products
-      |--------------------------------------------------------------------------
-      */
-
       const allProducts =
         await getAllProductsForExport();
 
@@ -492,12 +467,6 @@ export default function Dashboard() {
         return;
       }
 
-      /*
-      |--------------------------------------------------------------------------
-      | Convert Products To Excel Rows
-      |--------------------------------------------------------------------------
-      */
-
       const excelData =
         allProducts.map(
           (product, index) => ({
@@ -506,6 +475,7 @@ export default function Dashboard() {
             "Numerical ID":
               product.numericalId ||
               product.numericId ||
+              product.id ||
               "",
 
             "Product Title":
@@ -526,6 +496,10 @@ export default function Dashboard() {
             "Category Name":
               product.category?.name ||
               "",
+
+            "Product Tags": (product.productTags || [])
+              .map((tag) => tag.name || tag)
+              .join(", "),
 
             "Sale Price":
               Number(
@@ -588,12 +562,6 @@ export default function Dashboard() {
           })
         );
 
-      /*
-      |--------------------------------------------------------------------------
-      | Create Excel Worksheet
-      |--------------------------------------------------------------------------
-      */
-
       const worksheet =
         XLSX.utils.json_to_sheet(
           excelData
@@ -605,7 +573,8 @@ export default function Dashboard() {
         { wch: 35 },
         { wch: 18 },
         { wch: 25 },
-        { wch: 30 },
+        { wch: 25 },
+        { wch: 25 },
         { wch: 25 },
         { wch: 15 },
         { wch: 15 },
@@ -622,12 +591,6 @@ export default function Dashboard() {
         { wch: 20 },
       ];
 
-      /*
-      |--------------------------------------------------------------------------
-      | Create Workbook
-      |--------------------------------------------------------------------------
-      */
-
       const workbook =
         XLSX.utils.book_new();
 
@@ -636,12 +599,6 @@ export default function Dashboard() {
         worksheet,
         "Products"
       );
-
-      /*
-      |--------------------------------------------------------------------------
-      | Download Excel
-      |--------------------------------------------------------------------------
-      */
 
       const date =
         new Date()
@@ -675,404 +632,6 @@ export default function Dashboard() {
     }
   };
 
-  const parseBooleanValue = (
-    value,
-    defaultValue = false
-  ) => {
-
-    if (
-      value === undefined ||
-      value === null ||
-      value === ""
-    ) {
-      return defaultValue;
-    }
-
-
-    const normalized =
-      String(value)
-        .trim()
-        .toLowerCase();
-
-
-    return [
-      "true",
-      "yes",
-      "1",
-      "active",
-    ].includes(normalized);
-  };
-
-
-  const getExcelValue = (
-    row,
-    keys
-  ) => {
-
-    for (const key of keys) {
-
-      const value =
-        row[key];
-
-
-      if (
-        value !== undefined &&
-        value !== null &&
-        String(value).trim() !== ""
-      ) {
-
-        return value;
-
-      }
-
-    }
-
-
-    return "";
-  };
-
-  const createProductFromExcelRow =
-    (row) => {
-
-      console.log("==========================");
-      console.log("ROW DATA:", row);
-      console.log("ROW KEYS:", Object.keys(row));
-
-      const title =
-        String(
-          getExcelValue(
-            row,
-            [
-              "Product Title",
-              "Title",
-              "title",
-            ]
-          )
-        ).trim();
-
-      console.log("TITLE:", title);
-
-
-      const sku =
-        String(
-          getExcelValue(
-            row,
-            [
-              "SKU",
-              "sku",
-            ]
-          )
-        ).trim();
-
-
-      const categoryValue = String(
-        getExcelValue(row, [
-          "Category ID",
-          "Category",
-          "Category Name",
-          "category",
-          "category_name",
-        ])
-      ).trim();
-
-      let category = categoryValue;
-
-      if (
-        categoryValue &&
-        !/^[a-fA-F0-9]{24}$/.test(categoryValue)
-      ) {
-        const matchedCategory = categories.find((item) => {
-          return (
-            item.name?.trim().toLowerCase() ===
-            categoryValue.trim().toLowerCase()
-          );
-        });
-
-        if (matchedCategory) {
-          category = matchedCategory._id;
-        }
-      }
-
-
-      const salePriceValue = getExcelValue(
-        row,
-        [
-          "Sale Price",
-          "Price",
-          "price",
-        ]
-      );
-
-      console.log("SALE PRICE RAW:", salePriceValue);
-
-      const price = Number(salePriceValue);
-
-      console.log("PRICE NUMBER:", price);
-
-
-      const stock =
-        Number(
-          getExcelValue(
-            row,
-            [
-              "Stock",
-              "stock",
-            ]
-          ) || 0
-        );
-
-
-      if (!title) {
-
-        throw new Error(
-          "Product Title is required."
-        );
-
-      }
-
-
-      if (!sku) {
-
-        throw new Error(
-          "SKU is required."
-        );
-
-      }
-
-
-      if (!category) {
-        throw new Error("Category is required.");
-      }
-
-      if (!/^[a-fA-F0-9]{24}$/.test(category)) {
-        throw new Error(
-          `Category "${categoryValue}" not found.`
-        );
-      }
-
-
-      if (
-        !Number.isFinite(price) ||
-        price < 0
-      ) {
-
-        throw new Error(
-          "Valid Sale Price is required."
-        );
-
-      }
-
-
-      const formData =
-        new FormData();
-
-
-      formData.append(
-        "title",
-        title
-      );
-
-
-      formData.append(
-        "sku",
-        sku
-      );
-
-
-      formData.append(
-        "category",
-        category
-      );
-
-
-      formData.append(
-        "price",
-        String(price)
-      );
-
-
-      formData.append(
-        "stock",
-        String(stock)
-      );
-
-
-      formData.append(
-        "collectionName",
-        String(
-          getExcelValue(
-            row,
-            ["Collection"]
-          ) || ""
-        ).trim()
-      );
-
-
-      formData.append(
-        "description",
-        String(
-          getExcelValue(
-            row,
-            [
-              "Short Description",
-              "Description",
-            ]
-          ) || ""
-        ).trim()
-      );
-
-
-      formData.append(
-        "longDescription",
-        String(
-          getExcelValue(
-            row,
-            [
-              "Long Description",
-            ]
-          ) || ""
-        ).trim()
-      );
-
-
-      const originalPrice =
-        getExcelValue(
-          row,
-          ["Original Price"]
-        );
-
-
-      formData.append(
-        "originalPrice",
-        String(
-          originalPrice === ""
-            ? price
-            : Number(
-              originalPrice
-            )
-        )
-      );
-
-
-      const discount =
-        getExcelValue(
-          row,
-          ["Discount %"]
-        );
-
-
-      formData.append(
-        "discountPercentage",
-        String(
-          discount === ""
-            ? 0
-            : Number(discount)
-        )
-      );
-
-
-      formData.append(
-        "isActive",
-        String(
-          parseBooleanValue(
-            getExcelValue(
-              row,
-              ["Status"]
-            ),
-            true
-          )
-        )
-      );
-
-
-      formData.append(
-        "isFeatured",
-        String(
-          parseBooleanValue(
-            getExcelValue(
-              row,
-              ["Featured"]
-            ),
-            false
-          )
-        )
-      );
-
-
-      const numericalId =
-        getExcelValue(
-          row,
-          ["Numerical ID"]
-        );
-
-
-      if (numericalId !== "") {
-
-        formData.append(
-          "numericalId",
-          String(
-            numericalId
-          ).trim()
-        );
-
-      }
-
-
-      const specifications = {
-
-        dimensions:
-          String(
-            getExcelValue(
-              row,
-              ["Dimensions"]
-            ) || ""
-          ).trim(),
-
-        weight:
-          String(
-            getExcelValue(
-              row,
-              ["Weight"]
-            ) || ""
-          ).trim(),
-
-        composition:
-          String(
-            getExcelValue(
-              row,
-              ["Composition"]
-            ) || ""
-          ).trim(),
-
-        placement:
-          String(
-            getExcelValue(
-              row,
-              ["Placement"]
-            ) || ""
-          ).trim(),
-
-        finish:
-          String(
-            getExcelValue(
-              row,
-              ["Finish"]
-            ) || ""
-          ).trim(),
-
-      };
-
-
-      formData.append(
-        "specifications",
-        JSON.stringify(
-          specifications
-        )
-      );
-
-
-      return formData;
-    };
   const handleImportExcel = async (event) => {
 
     const file = event.target.files?.[0];
@@ -1179,34 +738,35 @@ export default function Dashboard() {
   |--------------------------------------------------------------------------
   */
 
- useEffect(() => {
+  useEffect(() => {
 
-  fetchProducts(
+    fetchProducts(
+      currentPage,
+      limit
+    );
+
+  }, [
+
     currentPage,
-    limit
-  );
 
-}, [
+    limit,
 
-  currentPage,
+    search,
 
-  limit,
+    categoryFilter,
 
-  search,
+    minPrice,
 
-  categoryFilter,
+    maxPrice,
 
-  minPrice,
+  ]);
 
-  maxPrice,
+  useEffect(() => {
 
-]);
+    fetchCategories();
+    fetchProductTags();
 
-useEffect(() => {
-
-  fetchCategories();
-
-}, []);
+  }, []);
 
 
 
@@ -1251,12 +811,6 @@ useEffect(() => {
           "Product deleted successfully."
         );
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | If Last Item Of Page Deleted
-        |--------------------------------------------------------------------------
-        */
 
         if (
           products.length === 1 &&
@@ -1520,227 +1074,14 @@ useEffect(() => {
 
   /*
   |--------------------------------------------------------------------------
-  | Open Edit Modal
+  | Open Edit Page (Redirect)
   |--------------------------------------------------------------------------
   */
 
-  const openEditModal =
-    (
-      product
-    ) => {
-
-      setSelectedProduct({
-
-        ...product,
-
-        category:
-          product.category?._id ||
-          product.category ||
-          "",
-
-        isActive:
-          product.isActive ??
-          false,
-
-        isFeatured:
-          product.isFeatured ??
-          false,
-
-        dimensions:
-          product.specifications
-            ?.dimensions ||
-          "",
-
-        weight:
-          product.specifications
-            ?.weight ||
-          "",
-
-        composition:
-          product.specifications
-            ?.composition ||
-          "",
-
-        placement:
-          product.specifications
-            ?.placement ||
-          "",
-
-        finish:
-          product.specifications
-            ?.finish ||
-          "",
-
-      });
-
-
-      setIsEditModalOpen(
-        true
-      );
-
-    };
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | Update Product
-  |--------------------------------------------------------------------------
-  */
-
-  const handleUpdateSubmit =
-    async (
-      e
-    ) => {
-
-      e.preventDefault();
-
-
-      if (!selectedProduct) {
-        return;
-      }
-
-
-      const idToUpdate =
-        selectedProduct._id ||
-        selectedProduct.id;
-
-
-      const updatedPayload = {
-
-        title:
-          selectedProduct.title,
-
-        collectionName:
-          selectedProduct
-            .collectionName,
-
-        category:
-          selectedProduct.category,
-
-        sku:
-          selectedProduct.sku,
-
-        description:
-          selectedProduct
-            .description,
-
-        longDescription:
-          selectedProduct
-            .longDescription,
-
-        price:
-          Number(
-            selectedProduct.price
-          ),
-
-        originalPrice:
-          Number(
-            selectedProduct
-              .originalPrice ||
-            0
-          ),
-
-        discountPercentage:
-          Number(
-            selectedProduct
-              .discountPercentage ||
-            0
-          ),
-
-        stock:
-          Number(
-            selectedProduct.stock
-          ),
-
-        specifications: {
-
-          dimensions:
-            selectedProduct
-              .dimensions,
-
-          weight:
-            selectedProduct
-              .weight,
-
-          composition:
-            selectedProduct
-              .composition,
-
-          placement:
-            selectedProduct
-              .placement,
-
-          finish:
-            selectedProduct
-              .finish,
-
-        },
-
-      };
-
-
-      const toastId =
-        showToast.loading(
-          "Updating product..."
-        );
-
-
-      try {
-
-        await ProductService.update(
-          idToUpdate,
-          updatedPayload
-        );
-
-
-        showToast.dismiss(
-          toastId
-        );
-
-
-        showToast.success(
-          "Product updated successfully."
-        );
-
-
-        setIsEditModalOpen(
-          false
-        );
-
-        setSelectedProduct(
-          null
-        );
-
-
-        await fetchProducts(
-          currentPage,
-          limit
-        );
-
-
-      } catch (err) {
-
-        showToast.dismiss(
-          toastId
-        );
-
-
-        console.error(
-          "UPDATE PRODUCT ERROR:",
-          err
-        );
-
-
-        showToast.error(
-          err?.response?.data
-            ?.message ||
-          err?.message ||
-          "Unable to update product."
-        );
-
-      }
-
-    };
+  const handleEditRedirect = (product) => {
+    const productId = product._id || product.id;
+    navigate(`/admin/edit-product/${productId}`);
+  };
 
 
   /*
@@ -2043,27 +1384,27 @@ useEffect(() => {
         </div>
         {/* Filters */}
 
-<div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
 
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
 
-    {/* Search */}
+            {/* Search */}
 
-    <input
-      type="text"
-      placeholder="Search Product..."
+            <input
+              type="text"
+              placeholder="Search Product..."
 
-      value={search}
+              value={search}
 
-      onChange={(e) => {
+              onChange={(e) => {
 
-        setCurrentPage(1);
+                setCurrentPage(1);
 
-        setSearch(e.target.value);
+                setSearch(e.target.value);
 
-      }}
+              }}
 
-      className="
+              className="
         h-11
         px-4
         rounded-xl
@@ -2072,23 +1413,23 @@ useEffect(() => {
         outline-none
         focus:border-slate-900
       "
-    />
+            />
 
-    {/* Category */}
+            {/* Category */}
 
-    <select
+            <select
 
-      value={categoryFilter}
+              value={categoryFilter}
 
-      onChange={(e) => {
+              onChange={(e) => {
 
-        setCurrentPage(1);
+                setCurrentPage(1);
 
-        setCategoryFilter(e.target.value);
+                setCategoryFilter(e.target.value);
 
-      }}
+              }}
 
-      className="
+              className="
         h-11
         px-4
         rounded-xl
@@ -2098,49 +1439,49 @@ useEffect(() => {
         focus:border-slate-900
       "
 
-    >
+            >
 
-      <option value="">
-        All Categories
-      </option>
+              <option value="">
+                All Categories
+              </option>
 
-      {categories.map((category) => (
+              {categories.map((category) => (
 
-        <option
+                <option
 
-          key={category._id}
+                  key={category._id}
 
-          value={category._id}
+                  value={category._id}
 
-        >
+                >
 
-          {category.name}
+                  {category.name}
 
-        </option>
+                </option>
 
-      ))}
+              ))}
 
-    </select>
+            </select>
 
-    {/* Min Price */}
+            {/* Min Price */}
 
-    <input
+            <input
 
-      type="number"
+              type="number"
 
-      placeholder="Min Price"
+              placeholder="Min Price"
 
-      value={minPrice}
+              value={minPrice}
 
-      onChange={(e) => {
+              onChange={(e) => {
 
-        setCurrentPage(1);
+                setCurrentPage(1);
 
-        setMinPrice(e.target.value);
+                setMinPrice(e.target.value);
 
-      }}
+              }}
 
-      className="
+              className="
         h-11
         px-4
         rounded-xl
@@ -2149,27 +1490,27 @@ useEffect(() => {
         outline-none
         focus:border-slate-900
       "
-    />
+            />
 
-    {/* Max Price */}
+            {/* Max Price */}
 
-    <input
+            <input
 
-      type="number"
+              type="number"
 
-      placeholder="Max Price"
+              placeholder="Max Price"
 
-      value={maxPrice}
+              value={maxPrice}
 
-      onChange={(e) => {
+              onChange={(e) => {
 
-        setCurrentPage(1);
+                setCurrentPage(1);
 
-        setMaxPrice(e.target.value);
+                setMaxPrice(e.target.value);
 
-      }}
+              }}
 
-      className="
+              className="
         h-11
         px-4
         rounded-xl
@@ -2178,29 +1519,29 @@ useEffect(() => {
         outline-none
         focus:border-slate-900
       "
-    />
+            />
 
-    {/* Reset */}
+            {/* Reset */}
 
-    <button
+            <button
 
-      type="button"
+              type="button"
 
-      onClick={() => {
+              onClick={() => {
 
-        setSearch("");
+                setSearch("");
 
-        setCategoryFilter("");
+                setCategoryFilter("");
 
-        setMinPrice("");
+                setMinPrice("");
 
-        setMaxPrice("");
+                setMaxPrice("");
 
-        setCurrentPage(1);
+                setCurrentPage(1);
 
-      }}
+              }}
 
-      className="
+              className="
         h-11
         rounded-xl
         bg-slate-900
@@ -2209,15 +1550,15 @@ useEffect(() => {
         hover:bg-slate-800
       "
 
-    >
+            >
 
-      Reset Filters
+              Reset Filters
 
-    </button>
+            </button>
 
-  </div>
+          </div>
 
-</div>
+        </div>
       </div>
 
 
@@ -2905,7 +2246,7 @@ useEffect(() => {
                               type="button"
 
                               onClick={() =>
-                                openEditModal(
+                                handleEditRedirect(
                                   product
                                 )
                               }
@@ -3086,45 +2427,45 @@ useEffect(() => {
 
             <div
               className="
-              flex
-              flex-col
-              lg:flex-row
-              lg:items-center
-              justify-between
-              gap-4
-              px-6
-              py-4
-              border-t
-              border-slate-200
-              bg-slate-50/40
-            "
+                flex
+                flex-col
+                lg:flex-row
+                lg:items-center
+                justify-between
+                gap-4
+                px-6
+                py-4
+                border-t
+                border-slate-200
+                bg-slate-50/40
+              "
             >
 
               {/* Results + Limit */}
 
               <div
                 className="
-                flex
-                flex-wrap
-                items-center
-                gap-4
-              "
+                  flex
+                  flex-wrap
+                  items-center
+                  gap-4
+                "
               >
 
                 <p
                   className="
-                  text-sm
-                  text-slate-500
-                "
+                    text-sm
+                    text-slate-500
+                  "
                 >
 
                   Showing{" "}
 
                   <span
                     className="
-                    font-bold
-                    text-slate-800
-                  "
+                      font-bold
+                      text-slate-800
+                    "
                   >
                     {startItem}
                   </span>
@@ -3133,9 +2474,9 @@ useEffect(() => {
 
                   <span
                     className="
-                    font-bold
-                    text-slate-800
-                  "
+                      font-bold
+                      text-slate-800
+                    "
                   >
                     {endItem}
                   </span>
@@ -3144,9 +2485,9 @@ useEffect(() => {
 
                   <span
                     className="
-                    font-bold
-                    text-slate-800
-                  "
+                      font-bold
+                      text-slate-800
+                    "
                   >
                     {totalProducts}
                   </span>
@@ -3158,18 +2499,18 @@ useEffect(() => {
 
                 <div
                   className="
-                  flex
-                  items-center
-                  gap-2
-                "
+                    flex
+                    items-center
+                    gap-2
+                  "
                 >
 
                   <span
                     className="
-                    text-xs
-                    font-semibold
-                    text-slate-500
-                  "
+                      text-xs
+                      font-semibold
+                      text-slate-500
+                    "
                   >
                     Show
                   </span>
@@ -3197,19 +2538,19 @@ useEffect(() => {
                     }}
 
                     className="
-                    px-3
-                    py-2
-                    bg-white
-                    border
-                    border-slate-200
-                    rounded-lg
-                    text-sm
-                    font-semibold
-                    text-slate-700
-                    outline-none
-                    cursor-pointer
-                    focus:border-slate-400
-                  "
+                      px-3
+                      py-2
+                      bg-white
+                      border
+                      border-slate-200
+                      rounded-lg
+                      text-sm
+                      font-semibold
+                      text-slate-700
+                      outline-none
+                      cursor-pointer
+                      focus:border-slate-400
+                    "
                   >
 
                     <option value={5}>
@@ -3243,11 +2584,11 @@ useEffect(() => {
 
               <div
                 className="
-                flex
-                flex-wrap
-                items-center
-                gap-2
-              "
+                  flex
+                  flex-wrap
+                  items-center
+                  gap-2
+                "
               >
 
                 <button
@@ -3269,23 +2610,23 @@ useEffect(() => {
                   }
 
                   className="
-                  inline-flex
-                  items-center
-                  gap-1
-                  px-3
-                  h-10
-                  border
-                  border-slate-200
-                  rounded-lg
-                  bg-white
-                  text-sm
-                  font-semibold
-                  text-slate-600
-                  hover:bg-slate-100
-                  transition
-                  disabled:opacity-40
-                  disabled:cursor-not-allowed
-                "
+                    inline-flex
+                    items-center
+                    gap-1
+                    px-3
+                    h-10
+                    border
+                    border-slate-200
+                    rounded-lg
+                    bg-white
+                    text-sm
+                    font-semibold
+                    text-slate-600
+                    hover:bg-slate-100
+                    transition
+                    disabled:opacity-40
+                    disabled:cursor-not-allowed
+                  "
                 >
 
                   <ChevronLeft
@@ -3314,10 +2655,10 @@ useEffect(() => {
                       <div
                         key={page}
                         className="
-                        flex
-                        items-center
-                        gap-2
-                      "
+                          flex
+                          items-center
+                          gap-2
+                        "
                       >
 
                         {previousPage &&
@@ -3327,10 +2668,10 @@ useEffect(() => {
 
                             <span
                               className="
-                            px-1
-                            text-slate-400
-                            font-semibold
-                          "
+                                px-1
+                                text-slate-400
+                                font-semibold
+                              "
                             >
                               ...
                             </span>
@@ -3352,33 +2693,33 @@ useEffect(() => {
                           }
 
                           className={`
-                          min-w-10
-                          h-10
-                          px-3
-                          rounded-lg
-                          text-sm
-                          font-bold
-                          border
-                          transition
+                            min-w-10
+                            h-10
+                            px-3
+                            rounded-lg
+                            text-sm
+                            font-bold
+                            border
+                            transition
 
-                          ${currentPage ===
+                            ${currentPage ===
                               page
 
                               ? `
-                                bg-slate-950
-                                text-white
-                                border-slate-950
-                                shadow-sm
-                              `
+                                  bg-slate-950
+                                  text-white
+                                  border-slate-950
+                                  shadow-sm
+                                `
 
                               : `
-                                bg-white
-                                text-slate-600
-                                border-slate-200
-                                hover:bg-slate-100
-                              `
+                                  bg-white
+                                  text-slate-600
+                                  border-slate-200
+                                  hover:bg-slate-100
+                                `
                             }
-                        `}
+                          `}
                         >
 
                           {page}
@@ -3413,23 +2754,23 @@ useEffect(() => {
                   }
 
                   className="
-                  inline-flex
-                  items-center
-                  gap-1
-                  px-3
-                  h-10
-                  border
-                  border-slate-200
-                  rounded-lg
-                  bg-white
-                  text-sm
-                  font-semibold
-                  text-slate-600
-                  hover:bg-slate-100
-                  transition
-                  disabled:opacity-40
-                  disabled:cursor-not-allowed
-                "
+                    inline-flex
+                    items-center
+                    gap-1
+                    px-3
+                    h-10
+                    border
+                    border-slate-200
+                    rounded-lg
+                    bg-white
+                    text-sm
+                    font-semibold
+                    text-slate-600
+                    hover:bg-slate-100
+                    transition
+                    disabled:opacity-40
+                    disabled:cursor-not-allowed
+                  "
                 >
 
                   Next
@@ -3448,788 +2789,8 @@ useEffect(() => {
 
       </div>
 
-
-      {/* Edit Product Modal */}
-
-      {isEditModalOpen &&
-        selectedProduct && (
-
-          <div
-            className="
-            fixed
-            inset-0
-            z-50
-            flex
-            items-center
-            justify-center
-            p-4
-            bg-slate-900/60
-            backdrop-blur-sm
-          "
-          >
-
-            <div
-              className="
-              bg-white
-              rounded-3xl
-              shadow-2xl
-              border
-              border-slate-200
-              max-w-3xl
-              w-full
-              max-h-[85vh]
-              overflow-y-auto
-            "
-            >
-
-              {/* Modal Header */}
-
-              <div
-                className="
-                flex
-                items-center
-                justify-between
-                p-6
-                border-b
-                border-slate-100
-                sticky
-                top-0
-                bg-white
-                z-10
-              "
-              >
-
-                <div>
-
-                  <h3
-                    className="
-                    text-lg
-                    font-bold
-                    text-slate-900
-                  "
-                  >
-                    Edit Product
-                  </h3>
-
-
-                  <p
-                    className="
-                    text-xs
-                    text-slate-400
-                  "
-                  >
-
-                    ID:{" "}
-
-                    {selectedProduct._id ||
-                      selectedProduct.id}
-
-                  </p>
-
-                </div>
-
-
-                <button
-                  type="button"
-
-                  onClick={() => {
-
-                    setIsEditModalOpen(
-                      false
-                    );
-
-                    setSelectedProduct(
-                      null
-                    );
-
-                  }}
-
-                  className="
-                  p-1.5
-                  hover:bg-slate-100
-                  rounded-lg
-                  text-slate-400
-                  hover:text-slate-900
-                "
-                >
-
-                  <X
-                    size={20}
-                  />
-
-                </button>
-
-              </div>
-
-
-              {/* Form */}
-
-              <form
-                onSubmit={
-                  handleUpdateSubmit
-                }
-
-                className="
-                p-6
-                space-y-6
-              "
-              >
-
-                {/* Title + SKU */}
-
-                <div
-                  className="
-                  grid
-                  grid-cols-1
-                  sm:grid-cols-2
-                  gap-4
-                "
-                >
-
-                  <FormField
-                    label="Product Title"
-                  >
-
-                    <input
-                      type="text"
-                      required
-
-                      value={
-                        selectedProduct
-                          .title ||
-                        ""
-                      }
-
-                      onChange={(e) =>
-                        setSelectedProduct({
-                          ...selectedProduct,
-
-                          title:
-                            e.target.value,
-                        })
-                      }
-
-                      className={
-                        inputClass
-                      }
-                    />
-
-                  </FormField>
-
-
-                  <FormField
-                    label="SKU"
-                  >
-
-                    <input
-                      type="text"
-                      required
-
-                      value={
-                        selectedProduct
-                          .sku ||
-                        ""
-                      }
-
-                      onChange={(e) =>
-                        setSelectedProduct({
-                          ...selectedProduct,
-
-                          sku:
-                            e.target.value,
-                        })
-                      }
-
-                      className={
-                        inputClass
-                      }
-                    />
-
-                  </FormField>
-
-                </div>
-
-
-                {/* Collection / Category / Stock */}
-
-                <div
-                  className="
-                  grid
-                  grid-cols-1
-                  sm:grid-cols-3
-                  gap-4
-                "
-                >
-
-                  <FormField
-                    label="Collection"
-                  >
-
-                    <input
-                      type="text"
-
-                      value={
-                        selectedProduct
-                          .collectionName ||
-                        ""
-                      }
-
-                      onChange={(e) =>
-                        setSelectedProduct({
-                          ...selectedProduct,
-
-                          collectionName:
-                            e.target.value,
-                        })
-                      }
-
-                      className={
-                        inputClass
-                      }
-                    />
-
-                  </FormField>
-
-
-                  <FormField
-                    label="Category ID"
-                  >
-
-                    <input
-                      type="text"
-                      required
-
-                      value={
-                        selectedProduct
-                          .category ||
-                        ""
-                      }
-
-                      onChange={(e) =>
-                        setSelectedProduct({
-                          ...selectedProduct,
-
-                          category:
-                            e.target.value,
-                        })
-                      }
-
-                      className={
-                        inputClass
-                      }
-                    />
-
-                  </FormField>
-
-
-                  <FormField
-                    label="Stock"
-                  >
-
-                    <input
-                      type="number"
-                      min="0"
-                      required
-
-                      value={
-                        selectedProduct
-                          .stock ??
-                        0
-                      }
-
-                      onChange={(e) =>
-                        setSelectedProduct({
-                          ...selectedProduct,
-
-                          stock:
-                            e.target.value,
-                        })
-                      }
-
-                      className={
-                        inputClass
-                      }
-                    />
-
-                  </FormField>
-
-                </div>
-
-
-                {/* Pricing */}
-
-                <div
-                  className="
-                  grid
-                  grid-cols-1
-                  sm:grid-cols-3
-                  gap-4
-                  border-t
-                  pt-4
-                "
-                >
-
-                  <FormField
-                    label="Price (₹)"
-                  >
-
-                    <input
-                      type="number"
-                      min="0"
-                      required
-
-                      value={
-                        selectedProduct
-                          .price ??
-                        ""
-                      }
-
-                      onChange={(e) =>
-                        setSelectedProduct({
-                          ...selectedProduct,
-
-                          price:
-                            e.target.value,
-                        })
-                      }
-
-                      className={
-                        inputClass
-                      }
-                    />
-
-                  </FormField>
-
-
-                  <FormField
-                    label="Original Price"
-                  >
-
-                    <input
-                      type="number"
-                      min="0"
-
-                      value={
-                        selectedProduct
-                          .originalPrice ||
-                        ""
-                      }
-
-                      onChange={(e) =>
-                        setSelectedProduct({
-                          ...selectedProduct,
-
-                          originalPrice:
-                            e.target.value,
-                        })
-                      }
-
-                      className={
-                        inputClass
-                      }
-                    />
-
-                  </FormField>
-
-
-                  <FormField
-                    label="Discount %"
-                  >
-
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-
-                      value={
-                        selectedProduct
-                          .discountPercentage ??
-                        0
-                      }
-
-                      onChange={(e) =>
-                        setSelectedProduct({
-                          ...selectedProduct,
-
-                          discountPercentage:
-                            e.target.value,
-                        })
-                      }
-
-                      className={
-                        inputClass
-                      }
-                    />
-
-                  </FormField>
-
-                </div>
-
-
-                {/* Dimensions / Weight */}
-
-                <div
-                  className="
-                  grid
-                  grid-cols-1
-                  sm:grid-cols-2
-                  gap-4
-                "
-                >
-
-                  <FormField
-                    label="Dimensions"
-                  >
-
-                    <input
-                      type="text"
-
-                      value={
-                        selectedProduct
-                          .dimensions ||
-                        ""
-                      }
-
-                      onChange={(e) =>
-                        setSelectedProduct({
-                          ...selectedProduct,
-
-                          dimensions:
-                            e.target.value,
-                        })
-                      }
-
-                      className={
-                        inputClass
-                      }
-                    />
-
-                  </FormField>
-
-
-                  <FormField
-                    label="Weight"
-                  >
-
-                    <input
-                      type="text"
-
-                      value={
-                        selectedProduct
-                          .weight ||
-                        ""
-                      }
-
-                      onChange={(e) =>
-                        setSelectedProduct({
-                          ...selectedProduct,
-
-                          weight:
-                            e.target.value,
-                        })
-                      }
-
-                      className={
-                        inputClass
-                      }
-                    />
-
-                  </FormField>
-
-                </div>
-
-
-                {/* Extra Specifications */}
-
-                <div
-                  className="
-                  grid
-                  grid-cols-1
-                  sm:grid-cols-3
-                  gap-4
-                "
-                >
-
-                  <FormField
-                    label="Composition"
-                  >
-
-                    <input
-                      type="text"
-
-                      value={
-                        selectedProduct
-                          .composition ||
-                        ""
-                      }
-
-                      onChange={(e) =>
-                        setSelectedProduct({
-                          ...selectedProduct,
-
-                          composition:
-                            e.target.value,
-                        })
-                      }
-
-                      className={
-                        inputClass
-                      }
-                    />
-
-                  </FormField>
-
-
-                  <FormField
-                    label="Placement"
-                  >
-
-                    <input
-                      type="text"
-
-                      value={
-                        selectedProduct
-                          .placement ||
-                        ""
-                      }
-
-                      onChange={(e) =>
-                        setSelectedProduct({
-                          ...selectedProduct,
-
-                          placement:
-                            e.target.value,
-                        })
-                      }
-
-                      className={
-                        inputClass
-                      }
-                    />
-
-                  </FormField>
-
-
-                  <FormField
-                    label="Finish"
-                  >
-
-                    <input
-                      type="text"
-
-                      value={
-                        selectedProduct
-                          .finish ||
-                        ""
-                      }
-
-                      onChange={(e) =>
-                        setSelectedProduct({
-                          ...selectedProduct,
-
-                          finish:
-                            e.target.value,
-                        })
-                      }
-
-                      className={
-                        inputClass
-                      }
-                    />
-
-                  </FormField>
-
-                </div>
-
-
-                {/* Description */}
-
-                <FormField
-                  label="Short Description"
-                >
-
-                  <textarea
-                    rows={3}
-                    required
-
-                    value={
-                      selectedProduct
-                        .description ||
-                      ""
-                    }
-
-                    onChange={(e) =>
-                      setSelectedProduct({
-                        ...selectedProduct,
-
-                        description:
-                          e.target.value,
-                      })
-                    }
-
-                    className={`
-                    ${inputClass}
-                    resize-none
-                  `}
-                  />
-
-                </FormField>
-
-
-                {/* Long Description */}
-
-                <FormField
-                  label="Long Description"
-                >
-
-                  <textarea
-                    rows={5}
-
-                    value={
-                      selectedProduct
-                        .longDescription ||
-                      ""
-                    }
-
-                    onChange={(e) =>
-                      setSelectedProduct({
-                        ...selectedProduct,
-
-                        longDescription:
-                          e.target.value,
-                      })
-                    }
-
-                    className={`
-                    ${inputClass}
-                    resize-none
-                  `}
-                  />
-
-                </FormField>
-
-
-                {/* Buttons */}
-
-                <div
-                  className="
-                  flex
-                  justify-end
-                  gap-3
-                  border-t
-                  pt-4
-                "
-                >
-
-                  <button
-                    type="button"
-
-                    onClick={() => {
-
-                      setIsEditModalOpen(
-                        false
-                      );
-
-                      setSelectedProduct(
-                        null
-                      );
-
-                    }}
-
-                    className="
-                    px-5
-                    py-2.5
-                    border
-                    border-slate-200
-                    rounded-xl
-                    text-sm
-                    font-semibold
-                    hover:bg-slate-50
-                  "
-                  >
-                    Cancel
-                  </button>
-
-
-                  <button
-                    type="submit"
-
-                    className="
-                    px-6
-                    py-2.5
-                    bg-slate-950
-                    text-white
-                    rounded-xl
-                    text-sm
-                    font-bold
-                    hover:bg-slate-900
-                  "
-                  >
-                    Update Product
-                  </button>
-
-                </div>
-
-              </form>
-
-            </div>
-
-          </div>
-
-        )}
-
     </div>
 
   );
 
 }
-
-
-/*
-|--------------------------------------------------------------------------
-| Reusable Form Field
-|--------------------------------------------------------------------------
-*/
-
-function FormField({
-  label,
-  children,
-}) {
-
-  return (
-
-    <div>
-
-      <label
-        className="
-          text-xs
-          font-bold
-          text-slate-500
-          block
-          mb-1
-        "
-      >
-        {label}
-      </label>
-
-      {children}
-
-    </div>
-
-  );
-
-}
-
-
-const inputClass = `
-  w-full
-  px-3.5
-  py-2.5
-  bg-slate-50
-  border
-  border-slate-200
-  rounded-xl
-  text-sm
-  outline-none
-  focus:border-slate-950
-`;

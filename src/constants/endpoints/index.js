@@ -21,3 +21,7 @@ export {
 export {
   WISHLIST_ENDPOINTS,
 } from "./wishlistEndpoints";
+
+export {
+  PRODUCT_TAG_ENDPOINTS,
+} from "./productTagEndpoints";

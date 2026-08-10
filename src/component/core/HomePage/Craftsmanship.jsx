@@ -1,116 +1,143 @@
-import React from "react";
-import { ArrowRight, CheckCircle } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { C, img } from "../../../constants/theme";
 
-const features = [
-  {
-    title: "Traditional Techniques",
-    description: "Wheel-spun and hand-patted for organic textures.",
-  },
-  {
-    title: "Natural Clay Selection",
-    description:
-      "Locally sourced alluvial clay with no synthetic additives.",
-  },
-  {
-    title: "Kiln-Fired Durability",
-    description:
-      "Fired at high temperatures for long-lasting structural strength.",
-  },
-  {
-    title: "Artisan Heritage",
-    description:
-      "Directly supporting and funding 40+ artisan families.",
-  },
+const timeline = [
+  { year:"2009", title:"Founded in Jaipur", desc:"Started with 3 artisans and one kiln" },
+  { year:"2014", title:"Traditional Clay Selection", desc:"Partnered with natural mineral clay mines in Rajasthan" },
+  { year:"2019", title:"Kiln-Fired Durability", desc:"Introduced high-temperature firing for lasting beauty" },
+  { year:"2024", title:"Artisan Heritage Network", desc:"Now empowering 200+ artisans across India" },
 ];
 
-const Craftsmanship = () => {
-  return (
-    <section className="py-20 bg-muted/20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+export default function Craftsmanship(){
+  const [mobile,setMobile]=useState(false);
 
-          {/* Image side */}
+  useEffect(()=>{
+    const update=()=>setMobile(window.innerWidth<992);
+    update();
+    window.addEventListener("resize",update);
+    return ()=>window.removeEventListener("resize",update);
+  },[]);
 
-          <div className="relative rounded-2xl overflow-hidden shadow-xl aspect-[4/3] lg:aspect-auto lg:h-[500px]">
+  return(
+    <section style={{padding:mobile?"70px 18px":"100px 40px",background:C.cream}}>
+      <div style={{
+        maxWidth:1280,
+        margin:"0 auto",
+        display:"grid",
+        gridTemplateColumns:mobile?"1fr":"1fr 1fr",
+        gap:mobile?50:80,
+        alignItems:"center"
+      }}>
+        <div style={{position:"relative"}}>
+          <div style={{
+            position:"absolute",
+            inset:mobile?8:-20,
+            borderRadius:"50% 40% 50% 40% / 40% 50% 40% 50%",
+            background:`linear-gradient(135deg,${C.blush}55,${C.coral}20)`
+          }}/>
+          <div style={{
+            position:"relative",
+            overflow:"hidden",
+            borderRadius:mobile?24:"32px 32px 80px 32px",
+            boxShadow:"0 24px 60px rgba(28,18,8,.18)"
+          }}>
             <img
-              src="https://uxmagic.blob.core.windows.net/public/agent-images/artisan-craft-1783060841778-xbzpiwajcvf.png"
-              alt="Jaipur Terracotta Artisan Craftsmanship"
-              className="w-full h-full object-cover"
+              src={img("1493106641515-6b5631de4bb9",700,700)}
+              alt="Craftsmanship"
+              style={{
+                width:"100%",
+                height:mobile?420:520,
+                objectFit:"cover",
+                display:"block"
+              }}
             />
-
-            <div className="absolute inset-0 bg-gradient-to-t from-primary/50 to-transparent" />
-
-            <div className="absolute bottom-6 left-6 text-primary-foreground">
-              <p className="text-xs uppercase tracking-widest text-primary-foreground mb-1">
-                Master Artisan Ram Lal
-              </p>
-
-              <p className="font-heading text-lg italic">
+            <div style={{position:"absolute",inset:0,background:"linear-gradient(180deg,transparent 60%,rgba(28,18,8,.55))"}}/>
+            <div style={{
+              position:"absolute",
+              left:20,right:20,bottom:20,
+              background:"rgba(255,255,255,.12)",
+              backdropFilter:"blur(14px)",
+              borderRadius:16,
+              padding:"14px 18px",
+              color:"#fff"
+            }}>
+              <div style={{fontFamily:"Playfair Display, serif",fontStyle:"italic"}}>
                 "Clay remembers the hand that holds it."
-              </p>
+              </div>
+              <div style={{fontSize:12,opacity:.8,marginTop:6}}>— Earthen Echoes Artisan Team</div>
             </div>
           </div>
 
-          {/* Text side */}
+          <div style={{
+            position:"absolute",
+            top:mobile?20:40,
+            right:mobile?16:-30,
+            background:"#fff",
+            borderRadius:18,
+            padding:"16px 18px",
+            boxShadow:"0 12px 30px rgba(0,0,0,.12)"
+          }}>
+            <div style={{fontSize:28,fontWeight:700,color:C.coral}}>15+</div>
+            <div style={{fontSize:12,color:"#8A7A6E"}}>Years of Craft</div>
+          </div>
+        </div>
 
-          <div className="space-y-6">
-
-            <div className="inline-block bg-primary/10 text-primary text-xs uppercase tracking-widest font-bold px-3 py-1 rounded-full">
-              Our Heritage
-            </div>
-
-            <h2 className="text-3xl sm:text-4xl font-heading font-bold text-foreground">
-              Sustaining the Ancient Art of Clay Molding
+        <div style={{display:"flex",flexDirection:"column",gap:28}}>
+          <div>
+            <span style={{fontSize:12,fontWeight:700,letterSpacing:2,color:C.teal}}>OUR STORY</span>
+            <h2 style={{
+              fontFamily:"Playfair Display, serif",
+              fontSize:mobile?32:"clamp(32px,3vw,44px)",
+              lineHeight:1.2,
+              margin:"12px 0 16px",
+              color:C.dark
+            }}>
+              Sustaining the Ancient Art of Clay Moulding
             </h2>
-
-            <p className="text-muted-foreground leading-relaxed">
-              For generations, the potters of Jaipur have listened to the
-              whispers of the earth. At Earthen Echoes, we bring these timeless
-              methods to modern living spaces, protecting our heritage while
-              crafting sustainable designs.
+            <p style={{lineHeight:1.9,color:"#6B5B4E"}}>
+              For generations, the potters of Jaipur have listened to the whispers of the earth. We preserve these traditions while creating timeless handcrafted décor.
             </p>
-
-            {/* Features */}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
-              {features.map((feature, index) => (
-                <div key={index} className="flex gap-3">
-                  <CheckCircle
-                    size={22}
-                    className="text-primary flex-shrink-0 mt-0.5"
-                  />
-
-                  <div>
-                    <h4 className="font-heading font-bold text-foreground">
-                      {feature.title}
-                    </h4>
-
-                    <p className="text-xs text-muted-foreground">
-                      {feature.description}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Button */}
-
-            <div className="pt-6">
-              <a
-                href="#"
-                className="inline-flex items-center px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg shadow-md hover:bg-primary/90 transition-all"
-              >
-                Learn More About Our Journey
-
-                <ArrowRight size={18} className="ml-2" />
-              </a>
-            </div>
-
           </div>
+
+          <div>
+            {timeline.map((item,i)=>(
+              <div key={item.year} style={{display:"flex",gap:18}}>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
+                  <div style={{width:12,height:12,borderRadius:"50%",background:C.coral}}/>
+                  {i<timeline.length-1&&<div style={{width:2,flex:1,background:C.coral+"30"}}/>}
+                </div>
+                <div style={{paddingBottom:i<timeline.length-1?24:0}}>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:10,alignItems:"center"}}>
+                    <span style={{fontSize:11,fontWeight:700,color:C.coral,background:C.coral+"15",padding:"3px 8px",borderRadius:30}}>
+                      {item.year}
+                    </span>
+                    <strong>{item.title}</strong>
+                  </div>
+                  <p style={{margin:"8px 0 0",color:"#8A7A6E",lineHeight:1.7}}>{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"}
+            onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}
+            style={{
+              width:"fit-content",
+              border:"none",
+              cursor:"pointer",
+              background:C.teal,
+              color:"#fff",
+              padding:"14px 28px",
+              borderRadius:999,
+              fontWeight:600,
+              transition:".3s"
+            }}
+          >
+            Meet Our Artisans →
+          </button>
         </div>
       </div>
     </section>
   );
-};
-
-export default Craftsmanship;
+}

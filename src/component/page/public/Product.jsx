@@ -4,7 +4,7 @@ import ProductCard from "../../core/Product/ProductCard"
 const Product = () => {
   return (
     <>
-    <ProductHeroSection />
+    {/* <ProductHeroSection /> */}
     <ProductCard/>
     </>
   )

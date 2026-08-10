@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700&display=swap');
+
 @import "tailwindcss";
 
 /* ===============================
@@ -78,63 +80,67 @@
 }
 
 
-h2{
-  color: var(--secondary-foreground);
-  font-size: 35px;
-  font-weight: 600;
-}
-h3{
-  color: var(--secondary-foreground);
-  
+* {
+  box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
 
-/* ── Home Page page-specific styles ── */
-[data-page="home-page"] .brand-gradient { background-image: linear-gradient(135deg, var(--primary), var(--accent)); }
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: #FDF8F3;
+  color: #1C1208;
+  -webkit-font-smoothing: antialiased;
+}
 
-[data-page="home-page"] .shadow-theme {
-        box-shadow:
-          calc(var(--shadow-offset-x, 0) * 1px) calc(var(--shadow-offset-y, 10) * 1px)
-          calc(var(--shadow-blur, 30) * 1px) calc(var(--shadow-spread, -8) * 1px)
-          var(--shadow-color, rgba(15, 23, 42, 0.12));
-      }
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #FAF4ED;
+}
+::-webkit-scrollbar-thumb {
+  background: #F16937;
+  border-radius: 3px;
+}
 
-/* ── Product Catalogue page-specific styles ── */
-[data-page="product-catalogue"] .brand-gradient { background-image: linear-gradient(135deg, var(--primary), var(--accent)); }
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 
-[data-page="product-catalogue"] .shadow-theme {
-        box-shadow:
-          calc(var(--shadow-offset-x, 0) * 1px) calc(var(--shadow-offset-y, 10) * 1px)
-          calc(var(--shadow-blur, 30) * 1px) calc(var(--shadow-spread, -8) * 1px)
-          var(--shadow-color, rgba(15, 23, 42, 0.12));
-      }
+@keyframes floatUp {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
 
-/* ── Product Details page-specific styles ── */
-[data-page="product-details"] .brand-gradient { background-image: linear-gradient(135deg, var(--primary), var(--accent)); }
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(32px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
-[data-page="product-details"] .shadow-theme {
-        box-shadow:
-          calc(var(--shadow-offset-x, 0) * 1px) calc(var(--shadow-offset-y, 10) * 1px)
-          calc(var(--shadow-blur, 30) * 1px) calc(var(--shadow-spread, -8) * 1px)
-          var(--shadow-color, rgba(15, 23, 42, 0.12));
-      }
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
 
-/* ── About Us page-specific styles ── */
-[data-page="about-us"] .brand-gradient { background-image: linear-gradient(135deg, var(--primary), var(--accent)); }
+.float-anim {
+  animation: floatUp 6s ease-in-out infinite;
+}
 
-[data-page="about-us"] .shadow-theme {
-        box-shadow:
-          calc(var(--shadow-offset-x, 0) * 1px) calc(var(--shadow-offset-y, 10) * 1px)
-          calc(var(--shadow-blur, 30) * 1px) calc(var(--shadow-spread, -8) * 1px)
-          var(--shadow-color, rgba(15, 23, 42, 0.12));
-      }
+.fade-slide-up {
+  animation: fadeSlideUp 0.8s ease forwards;
+}
 
-/* ── Contact Us page-specific styles ── */
-[data-page="contact-us"] .brand-gradient { background-image: linear-gradient(135deg, var(--primary), var(--accent)); }
+input::placeholder {
+  color: rgba(255, 255, 255, 0.65);
+}
 
-[data-page="contact-us"] .shadow-theme {
-        box-shadow:
-          calc(var(--shadow-offset-x, 0) * 1px) calc(var(--shadow-offset-y, 10) * 1px)
-          calc(var(--shadow-blur, 30) * 1px) calc(var(--shadow-spread, -8) * 1px)
-          var(--shadow-color, rgba(15, 23, 42, 0.12));
-      }
+

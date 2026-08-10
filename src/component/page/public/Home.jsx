@@ -8,6 +8,7 @@ import Craftsmanship from '../../core/HomePage/Craftsmanship'
 import CustomerReviews from '../../core/HomePage/CustomerReviews'
 import Gallery from '../../core/HomePage/Gallery'
 import Newsletter from '../../core/HomePage/Newsletter'
+import Sustainability from '../../core/HomePage/Sustainability'
 
 
 const Home = () => {
@@ -29,6 +30,9 @@ const Home = () => {
 
       {/* Craftsmanship */}
       <Craftsmanship />
+
+      {/* Sustainability */}
+      <Sustainability />
 
       {/* Customer Reviews */}
       <CustomerReviews />

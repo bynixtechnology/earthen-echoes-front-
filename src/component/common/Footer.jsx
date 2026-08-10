@@ -47,6 +47,15 @@ const Footer = () => {
     setIsLoadingCategories,
   ] = useState(true);
 
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
 
   /*
   |--------------------------------------------------------------------------
@@ -71,13 +80,6 @@ const Footer = () => {
           |--------------------------------------------------------------------------
           | Handle different API response structures
           |--------------------------------------------------------------------------
-          |
-          | Possible:
-          |
-          | response.data
-          | response.data.data
-          | response
-          |
           */
 
           const categoryData =
@@ -199,11 +201,12 @@ const Footer = () => {
 
 
           <p
-            className="
+            className={`
               text-xs
               text-muted-foreground
               leading-relaxed
-            "
+              ${isMobile ? "text-center sm:text-left" : ""}
+            `}
           >
 
             Sustaining India&apos;s ancient
@@ -218,12 +221,13 @@ const Footer = () => {
           {/* Social Icons */}
 
           <div
-            className="
+            className={`
               flex
               items-center
               gap-3
               pt-2
-            "
+              ${isMobile ? "justify-center sm:justify-start" : ""}
+            `}
           >
 
             <a
@@ -338,7 +342,7 @@ const Footer = () => {
             QUICK LINKS
         ================================================================= */}
 
-        <div>
+        <div className={isMobile ? "text-center sm:text-left" : ""}>
 
           <h4
             className="
@@ -370,6 +374,7 @@ const Footer = () => {
                 className="
                   hover:text-primary
                   transition-colors
+                  inline-block
                 "
               >
                 Home Page
@@ -385,6 +390,7 @@ const Footer = () => {
                 className="
                   hover:text-primary
                   transition-colors
+                  inline-block
                 "
               >
                 Product Catalogue
@@ -400,6 +406,7 @@ const Footer = () => {
                 className="
                   hover:text-primary
                   transition-colors
+                  inline-block
                 "
               >
                 About Us
@@ -415,6 +422,7 @@ const Footer = () => {
                 className="
                   hover:text-primary
                   transition-colors
+                  inline-block
                 "
               >
                 Contact Support
@@ -431,7 +439,7 @@ const Footer = () => {
             DYNAMIC CATEGORIES FROM API
         ================================================================= */}
 
-        <div>
+        <div className={isMobile ? "text-center sm:text-left" : ""}>
 
           <h4
             className="
@@ -456,7 +464,7 @@ const Footer = () => {
             |--------------------------------------------------------------------------
             */
 
-            <div className="space-y-3">
+            <div className={`space-y-3 ${isMobile ? "flex flex-col items-center sm:items-start" : ""}`}>
 
               {[1, 2, 3, 4, 5].map(
                 (item) => (
@@ -552,7 +560,7 @@ const Footer = () => {
             CONTACT INFO
         ================================================================= */}
 
-        <div>
+        <div className={isMobile ? "text-center sm:text-left" : ""}>
 
           <h4
             className="
@@ -570,11 +578,12 @@ const Footer = () => {
 
 
           <div
-            className="
+            className={`
               space-y-4
               text-xs
               text-muted-foreground
-            "
+              ${isMobile ? "flex flex-col items-center sm:items-start" : ""}
+            `}
           >
 
             {/* Address */}
@@ -600,6 +609,7 @@ const Footer = () => {
               <span
                 className="
                   leading-relaxed
+                  text-left
                 "
               >
 

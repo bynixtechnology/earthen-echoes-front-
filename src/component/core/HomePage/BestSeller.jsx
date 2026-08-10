@@ -1,108 +1,60 @@
-import React, {
-  useEffect,
-  useState,
-} from "react";
-
+import React, { useEffect, useState, useRef } from "react";
+import { C, img } from "../../../constants/theme";
 import {
   Heart,
-  Eye,
   ShoppingCart,
   Star,
   Loader2,
   ArrowRight,
 } from "lucide-react";
-
-import {
-  Link,
-  useNavigate,
-} from "react-router-dom";
-
-import {
-  ProductService,
-} from "../../../services/productService";
-
-import {
-  useDispatch,
-  useSelector,
-} from "react-redux";
-
-import {
-  addProductToCart,
-} from "../../../redux/thunks/cartThunk";
-
-import {
-  getWishlist,
-  toggleWishlist,
-} from "../../../redux/thunks/wishlistThunk";
-
-
-
-
-
-import {
-  selectCartAdding,
-} from "../../../redux/slices/cartSlice";
-
-import {
-  selectWishlistItems,
-} from "../../../redux/slices/wishlistSlice";
-
+import { Link, useNavigate } from "react-router-dom";
+import { ProductService } from "../../../services/productService";
+import { useDispatch, useSelector } from "react-redux";
+import { addProductToCart } from "../../../redux/thunks/cartThunk";
+import { getWishlist, toggleWishlist } from "../../../redux/thunks/wishlistThunk";
+import { selectCartAdding } from "../../../redux/slices/cartSlice";
+import { selectWishlistItems } from "../../../redux/slices/wishlistSlice";
 import { showToast } from "../../../config/toast";
 
-
 const BestSeller = () => {
-
   /*
   |--------------------------------------------------------------------------
   | State
   |--------------------------------------------------------------------------
   */
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-  const [
-    products,
-    setProducts,
-  ] = useState([]);
-
-  const [
-    isLoading,
-    setIsLoading,
-  ] = useState(true);
-
-  const [
-    error,
-    setError,
-  ] = useState("");
-
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   /*
   |--------------------------------------------------------------------------
   | Hooks
   |--------------------------------------------------------------------------
   */
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const adding = useSelector(selectCartAdding);
+  const wishlistItems = useSelector(selectWishlistItems);
+  const scrollRef = useRef(null);
 
-  const navigate =
-    useNavigate();
-
-  const dispatch =
-    useDispatch();
-
-  const adding =
-    useSelector(
-      selectCartAdding
-    );
-
-  const wishlistItems =
-    useSelector(
-      selectWishlistItems
-    );
-
+  const scroll = (dir) => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft += dir * 320;
+    }
+  };
 
   /*
   |--------------------------------------------------------------------------
   | Fetch Best Sellers
   |--------------------------------------------------------------------------
   */
-
   useEffect(() => {
     let isMounted = true;
 
@@ -111,49 +63,30 @@ const BestSeller = () => {
         setIsLoading(true);
         setError("");
 
-        const response =
-          await ProductService.getAll({
-            page: 1,
-            limit: 4,
-            isActive: true,
-            isFeatured: true,
-          });
+        const response = await ProductService.getAll({
+          page: 1,
+          limit: 1000,
+          isActive: true,
+          isFeatured: true,
+        });
 
-       
-
-        const productList =
-          Array.isArray(
-            response?.products
-          )
-            ? response.products
-            : Array.isArray(
-              response?.data
-            )
-              ? response.data
-              : [];
+        const productList = Array.isArray(response?.products)
+          ? response.products
+          : Array.isArray(response?.data)
+          ? response.data
+          : [];
 
         if (isMounted) {
-          setProducts(
-            productList.slice(
-              0,
-              4
-            )
-          );
+          setProducts(productList);
         }
       } catch (error) {
-        console.error(
-          "FETCH BEST SELLERS ERROR:",
-          error
-        );
-
+        console.error("FETCH BEST SELLERS ERROR:", error);
         if (isMounted) {
           setProducts([]);
-
           setError(
-            error?.response?.data
-              ?.message ||
-            error?.message ||
-            "Unable to load products."
+            error?.response?.data?.message ||
+              error?.message ||
+              "Unable to load products."
           );
         }
       } finally {
@@ -163,55 +96,29 @@ const BestSeller = () => {
       }
     };
 
-    dispatch(
-  getWishlist()
-);
-
+    dispatch(getWishlist());
     fetchBestSellers();
 
     return () => {
       isMounted = false;
     };
-  }, []);
-
+  }, [dispatch]);
 
   /*
   |--------------------------------------------------------------------------
-  | Product Details
+  | Handlers
   |--------------------------------------------------------------------------
   */
-
-  const handleProductClick = (
-    productId
-  ) => {
-
-    if (!productId) {
-      return;
-    }
-
-    navigate(
-      `/products/${productId}`
-    );
-
+  const handleProductClick = (productId) => {
+    if (!productId) return;
+    navigate(`/products/${productId}`);
   };
 
-
-  /*
-  |--------------------------------------------------------------------------
-  | Add To Cart
-  |--------------------------------------------------------------------------
-  */
-  const handleAddToCart = async (
-    event,
-    productId
-  ) => {
-
+  const handleAddToCart = async (event, productId) => {
     event.stopPropagation();
-
     if (!productId) return;
 
     try {
-
       const response = await dispatch(
         addProductToCart({
           productId,
@@ -219,722 +126,595 @@ const BestSeller = () => {
         })
       ).unwrap();
 
-      showToast.success(
-        response?.message ||
-        "Product added to cart."
-      );
-
+      showToast.success(response?.message || "Product added to cart.");
     } catch (error) {
-
-      showToast.error(
-        error?.message ||
-        error ||
-        "Unable to add product."
-      );
-
+      showToast.error(error?.message || error || "Unable to add product.");
     }
-
   };
 
-
-  /*
-  |--------------------------------------------------------------------------
-  | Wishlist
-  |--------------------------------------------------------------------------
-  */
-
-  const handleWishlist = async (
-    event,
-    productId
-  ) => {
-
+  const handleWishlist = async (event, productId) => {
     event.stopPropagation();
-
     if (!productId) return;
 
     try {
-
-      const response =
-        await dispatch(
-          toggleWishlist(productId)
-        ).unwrap();
-
-      showToast.success(
-        response.message
-      );
-
+      const response = await dispatch(toggleWishlist(productId)).unwrap();
+      showToast.success(response.message);
     } catch (error) {
-
-      showToast.error(
-        error?.message ||
-        error
-      );
-
+      showToast.error(error?.message || error);
     }
-
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | Quick View
-  |--------------------------------------------------------------------------
-  */
-
-  const handleQuickView = (
-    event,
-    productId
-  ) => {
-
-    event.stopPropagation();
-
-    if (!productId) {
-      return;
-    }
-
-    navigate(
-      `/products/${productId}`
-    );
-
-  };
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | UI
-  |--------------------------------------------------------------------------
-  */
+  const displayedProducts = products.slice(0, 4);
 
   return (
-
     <section
-      className="
-        py-20
-        bg-muted
-      "
+      style={{
+        padding: isMobile ? "70px 16px" : "110px 0",
+        background: C.cream,
+        overflow: "hidden",
+      }}
     >
-
       <div
-        className="
-          max-w-7xl
-          mx-auto
-          px-4
-          sm:px-6
-          lg:px-8
-        "
+        style={{
+          maxWidth: 1440,
+          margin: "0 auto",
+          padding: isMobile ? "0" : "0 40px",
+        }}
       >
-
-        {/* ================================================================
-            HEADER
-        ================================================================= */}
-
+        {/* ================= HEADER ================= */}
         <div
-          className="
-            flex
-            flex-col
-            md:flex-row
-            md:items-end
-            justify-between
-            gap-4
-            mb-12
-          "
+          style={{
+            display: "flex",
+            flexDirection: isMobile ? "column" : "row",
+            justifyContent: "space-between",
+            alignItems: isMobile ? "flex-start" : "center",
+            gap: isMobile ? 20 : 0,
+            marginBottom: 48,
+          }}
         >
-
           <div>
-
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: 4,
+                color: C.teal,
+                textTransform: "uppercase",
+                display: "block",
+                marginBottom: 8,
+              }}
+            >
+              Curated Masterpieces
+            </span>
             <h2
-              className="
-                text-accent  
-               
-                mb-2
-                
-              "
+              style={{
+                margin: 0,
+                fontFamily: "'Playfair Display', serif",
+                fontWeight: 700,
+                fontSize: "clamp(32px, 5vw, 56px)",
+                color: C.dark,
+                letterSpacing: "-1px",
+                lineHeight: 1.1,
+              }}
             >
               Our Best Sellers
             </h2>
-
-
-            <p
-              className="
-                text-accent
-              "
-            >
-              Most-loved handcrafted
-              treasures appreciated by
-              design connoisseurs.
-            </p>
-
           </div>
 
-
-          <Link
-
-            to="/products"
-
-            className="
-              inline-flex
-              items-center
-              text-primary
-              font-semibold
-              hover:gap-2
-              transition-all
-              mt-4
-              md:mt-0
-            "
+          <div
+            style={{
+              display: "flex",
+              width: isMobile ? "100%" : "auto",
+              justifyContent: isMobile ? "space-between" : "flex-end",
+              alignItems: "center",
+              gap: 20,
+            }}
           >
+            <Link
+              to="/products"
+              style={{
+                textDecoration: "none",
+                color: C.coral,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontWeight: 700,
+                fontSize: 16,
+              }}
+            >
+              View All
+              <ArrowRight size={18} />
+            </Link>
 
-            View All Best Sellers
+            {!isMobile && (
+              <div style={{ display: "flex", gap: 12 }}>
+                <button
+                  onClick={() => scroll(-1)}
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: "50%",
+                    border: "1.5px solid #D9D2CC",
+                    background: "#fff",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: ".3s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = C.coral;
+                    e.currentTarget.style.color = "#fff";
+                    e.currentTarget.style.borderColor = C.coral;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#fff";
+                    e.currentTarget.style.color = C.dark;
+                    e.currentTarget.style.borderColor = "#D9D2CC";
+                  }}
+                >
+                  ←
+                </button>
 
-            <ArrowRight
-              size={18}
-              className="ml-1"
-            />
-
-          </Link>
-
+                <button
+                  onClick={() => scroll(1)}
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: "50%",
+                    border: "1.5px solid #D9D2CC",
+                    background: "#fff",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: ".3s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = C.coral;
+                    e.currentTarget.style.color = "#fff";
+                    e.currentTarget.style.borderColor = C.coral;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#fff";
+                    e.currentTarget.style.color = C.dark;
+                    e.currentTarget.style.borderColor = "#D9D2CC";
+                  }}
+                >
+                  →
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-
-        {/* ================================================================
-            LOADING
-        ================================================================= */}
-
+        {/* ================= LOADER / ERROR / GRID ================= */}
         {isLoading ? (
-
           <div
-            className="
-              flex
-              justify-center
-              items-center
-              py-20
-              min-h-[300px]
-            "
+            style={{
+              minHeight: 300,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
           >
-
-            <Loader2
-              className="
-                w-10
-                h-10
-                animate-spin
-                text-amber-700
-              "
-            />
-
+            <Loader2 size={46} className="animate-spin" color={C.coral} />
           </div>
-
         ) : error ? (
-
-          /* ================================================================
-             ERROR
-          ================================================================= */
-
           <div
-            className="
-              text-center
-              py-12
-            "
+            style={{
+              minHeight: 300,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              color: "#DC2626",
+              fontWeight: 600,
+              fontSize: 18,
+            }}
           >
-
-            <p
-              className="
-                text-red-600
-                font-medium
-              "
-            >
-              {error}
-            </p>
-
+            {error}
           </div>
-
-        ) : products.length === 0 ? (
-
-          /* ================================================================
-             EMPTY
-          ================================================================= */
-
+        ) : displayedProducts.length === 0 ? (
           <div
-            className="
-              text-center
-              text-gray-500
-              py-10
-              font-medium
-            "
+            style={{
+              minHeight: 300,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              color: "#777",
+              fontWeight: 600,
+              fontSize: 18,
+            }}
           >
-            No active products found
-            right now.
+            No products found.
           </div>
-
         ) : (
-
-          /* ================================================================
-             PRODUCT GRID
-          ================================================================= */
-
           <div
-            className="
-              grid
-              grid-cols-1
-              sm:grid-cols-2
-              lg:grid-cols-4
-              gap-8
-            "
+            ref={scrollRef}
+            className={isMobile ? "" : "hide-scrollbar"}
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "repeat(2, 1fr)"
+                : "repeat(4, minmax(0, 1fr))",
+              gap: isMobile ? 14 : 28,
+              overflowX: isMobile ? "visible" : "auto",
+              scrollBehavior: "smooth",
+              paddingBottom: 12,
+            }}
           >
+            {displayedProducts.map((product, index) => {
+              const productId = product?._id || product?.id;
 
-            {products.map(
-              (
-                product,
-                index
-              ) => {
-
-                /*
-                |--------------------------------------------------------------------------
-                | Product Data
-                |--------------------------------------------------------------------------
-                */
-
-                const productId =
-                  product?._id ||
-                  product?.id;
-
-                const isWishlisted =
-                  wishlistItems.some(
-                    (item) =>
-                      item.productId?._id ===
-                      productId
-                  );
-
-
-                const imageUrl =
-                  typeof product?.images?.[0] === "string"
-                    ? product.images[0]
-                    : product?.images?.[0]?.url ||
+              const image =
+                typeof product?.images?.[0] === "string"
+                  ? product.images[0]
+                  : product?.images?.[0]?.url ||
                     product?.image?.url ||
                     product?.image ||
                     "/placeholder.png";
 
+              const isWishlisted = wishlistItems.some(
+                (item) =>
+                  item.productId?._id === productId || item.product === productId
+              );
 
-                const productTitle =
-                  product?.title ||
-                  product?.name ||
-                  "Unknown Product";
+              const badge =
+                [
+                  { text: "Best Seller", color: C.coral },
+                  { text: "Trending", color: C.teal },
+                  { text: "Editor's Pick", color: C.raspberry },
+                  { text: "New", color: C.green },
+                ][index % 4];
 
+              const discount =
+                product?.originalPrice || product?.mrp
+                  ? Math.round(
+                      (1 -
+                        product.price /
+                          (product.originalPrice || product.mrp)) *
+                        100
+                    )
+                  : 20;
 
-                const productPrice =
-                  Number(
-                    product?.price
-                  ) || 0;
+              // Asymmetric mobile border radiuses for magazine look
+              const mobileRadiusProfiles = ["24px 12px 24px 12px", "12px 24px 12px 24px", "20px 20px 8px 24px", "8px 24px 20px 20px"];
+              const cardRadius = isMobile ? mobileRadiusProfiles[index % mobileRadiusProfiles.length] : 28;
 
+              return (
+                <div
+                  key={productId || index}
+                  onClick={() => handleProductClick(productId)}
+                  style={{
+                    width: "100%",
+                    background: "#fff",
+                    borderRadius: cardRadius,
+                    overflow: "hidden",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    cursor: "pointer",
+                    border: "1px solid rgba(28,18,8,.06)",
+                    boxShadow: "0 10px 30px rgba(0,0,0,.06)",
+                    transition: "all .5s cubic-bezier(.16,1,.3,1)",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isMobile) {
+                      e.currentTarget.style.transform = "translateY(-8px)";
+                      e.currentTarget.style.boxShadow =
+                        "0 25px 55px rgba(0,0,0,.12)";
 
-                const productDesc =
-                  product?.description ||
-                  "No description available.";
+                      const imgEl = e.currentTarget.querySelector("img");
+                      if (imgEl) {
+                        imgEl.style.transform = "scale(1.08)";
+                      }
 
+                      const quick = e.currentTarget.querySelector(".quick-add");
+                      if (quick) {
+                        quick.style.transform = "translateY(0)";
+                      }
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isMobile) {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow =
+                        "0 10px 30px rgba(0,0,0,.06)";
 
-                const productRating =
-                  product?.rating ||
-                  4.5;
+                      const imgEl = e.currentTarget.querySelector("img");
+                      if (imgEl) {
+                        imgEl.style.transform = "scale(1)";
+                      }
 
-
-                return (
-
+                      const quick = e.currentTarget.querySelector(".quick-add");
+                      if (quick) {
+                        quick.style.transform = "translateY(100%)";
+                      }
+                    }
+                  }}
+                >
+                  {/* IMAGE CONTAINER */}
                   <div
-
-                    key={
-                      productId ||
-                      index
-                    }
-
-                    onClick={() =>
-                      handleProductClick(
-                        productId
-                      )
-                    }
-
-                    className="
-                      group
-                      bg-card
-                      rounded-xl
-                      cursor-pointer
-                      overflow-hidden
-                      shadow-sm
-                      hover:shadow-lg
-                      transition-all
-                      duration-300
-                      flex
-                      flex-col
-                    "
+                    style={{
+                      position: "relative",
+                      aspectRatio: isMobile ? "4/5" : "auto",
+                      height: isMobile ? "auto" : 260,
+                      overflow: "hidden",
+                      background: "#F4EFEA",
+                    }}
                   >
+                    <img
+                      src={image}
+                      alt={product.title}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        transition: ".6s cubic-bezier(.16,1,.3,1)",
+                      }}
+                    />
 
-                    {/* ====================================================
-                        IMAGE
-                    ===================================================== */}
-
+                    {/* Gradient Overlay for Mobile Badges Readability */}
                     <div
-                      className="
-                        relative
-                        overflow-hidden
-                        aspect-square
-                        bg-muted
-                      "
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        background:
+                          "linear-gradient(180deg, rgba(0,0,0,0.2) 0%, transparent 40%)",
+                      }}
+                    />
+
+                    {/* Badge */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: isMobile ? 10 : 14,
+                        left: isMobile ? 10 : 14,
+                        background: badge.color,
+                        color: "#fff",
+                        padding: isMobile ? "4px 10px" : "6px 12px",
+                        borderRadius: 50,
+                        fontSize: isMobile ? 10 : 11,
+                        fontWeight: 700,
+                        letterSpacing: ".03em",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      }}
                     >
+                      {badge.text}
+                    </div>
 
-                      <img
-                        src={imageUrl}
-                        alt={productTitle}
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = "/placeholder.png";
-                        }}
-                        className="
-        w-full
-        h-full
-        object-cover
-        group-hover:scale-105
-        transition-transform
-        duration-500
-    "
-                      />
+                    {/* Discount */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: isMobile ? 10 : 14,
+                        right: isMobile ? 10 : 14,
+                        background: C.raspberry,
+                        color: "#fff",
+                        padding: isMobile ? "4px 10px" : "6px 12px",
+                        borderRadius: 50,
+                        fontSize: isMobile ? 10 : 11,
+                        fontWeight: 700,
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      }}
+                    >
+                      -{discount}%
+                    </div>
 
-
-                      {/* Best Seller Badge */}
-
-                      <span
-                        className="
-                          absolute
-                          top-3
-                          left-3
-                          bg-primary
-                          text-primary-foreground
-                          text-[10px]
-                          uppercase
-                          tracking-widest
-                          font-bold
-                          px-2.5
-                          py-1
-                          rounded
-                        "
-                      >
-                        Best Seller
-                      </span>
-
-
-                      {/* Wishlist */}
-
-                      <button
-
-                        type="button"
-
-                        onClick={(event) =>
-                          handleWishlist(
-                            event,
-                            productId
-                          )
+                    {/* Wishlist Button */}
+                    <button
+                      onClick={(e) => handleWishlist(e, productId)}
+                      style={{
+                        position: "absolute",
+                        right: isMobile ? 10 : 14,
+                        bottom: isMobile ? 10 : 14,
+                        width: isMobile ? 36 : 42,
+                        height: isMobile ? 36 : 42,
+                        borderRadius: "50%",
+                        border: `1.5px solid ${
+                          isWishlisted ? C.raspberry : "rgba(28,18,8,.15)"
+                        }`,
+                        background: isWishlisted
+                          ? "rgba(228,69,135,.1)"
+                          : "rgba(255,255,255,.9)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        backdropFilter: "blur(8px)",
+                        boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
+                      }}
+                    >
+                      <Heart
+                        size={isMobile ? 15 : 18}
+                        className={
+                          isWishlisted ? "fill-red-500 text-red-500" : ""
                         }
+                      />
+                    </button>
 
-                        aria-label="Add to wishlist"
-
-                        className="
-                          absolute
-                          top-3
-                          right-3
-                          w-8
-                          h-8
-                          rounded-full
-                          bg-background/80
-                          backdrop-blur-md
-                          flex
-                          items-center
-                          justify-center
-                          text-foreground
-                          hover:text-primary
-                          transition-colors
-                          shadow
-                        "
-                      >
-
-                       <Heart
-  size={16}
-  className={
-    isWishlisted
-      ? "fill-red-500 text-red-500"
-      : ""
-  }
-/>
-
-                      </button>
-
-
-                      {/* Quick View */}
-
+                    {/* Quick Add (Desktop Hover) */}
+                    {!isMobile && (
                       <div
-                        className="
-                          absolute
-                          inset-x-0
-                          bottom-0
-                          p-4
-                          bg-gradient-to-t
-                          from-primary/60
-                          to-transparent
-                          translate-y-full
-                          group-hover:translate-y-0
-                          transition-transform
-                          duration-300
-                          flex
-                          justify-center
-                          gap-2
-                        "
+                        style={{
+                          position: "absolute",
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          padding: "22px 16px 14px",
+                          background: `linear-gradient(0deg,${badge.color}EE 0%,${badge.color}AA 60%,transparent 100%)`,
+                          transform: "translateY(100%)",
+                          transition: ".35s",
+                        }}
+                        className="quick-add"
                       >
-
                         <button
-
-                          type="button"
-
-                          onClick={(
-                            event
-                          ) =>
-                            handleQuickView(
-                              event,
-                              productId
-                            )
-                          }
-
-                          className="
-                            px-3
-                            py-2
-                            bg-background
-                            text-foreground
-                            rounded-md
-                            text-xs
-                            font-semibold
-                            hover:bg-primary
-                            hover:text-primary-foreground
-                            transition-all
-                            flex
-                            items-center
-                            gap-1
-                          "
+                          onClick={(e) => handleAddToCart(e, productId)}
+                          style={{
+                            width: "100%",
+                            border: "none",
+                            borderRadius: 50,
+                            background: "#fff",
+                            color: badge.color,
+                            height: 46,
+                            fontWeight: 700,
+                            fontSize: 14,
+                            cursor: "pointer",
+                          }}
                         >
-
-                          <Eye
-                            size={14}
-                          />
-
-                          Quick View
-
-                        </button>
-
-                      </div>
-
-                    </div>
-
-
-                    {/* ====================================================
-                        PRODUCT CONTENT
-                    ===================================================== */}
-
-                    <div
-                      className="
-                        p-5
-                        flex-1
-                        flex
-                        flex-col
-                        justify-between
-                        bg-white
-                      "
-                    >
-
-                      <div>
-
-                        {/* Rating */}
-
-                        <div
-                          className="
-                            flex
-                            items-center
-                            gap-1
-                            text-amber-500
-                            text-xs
-                            mb-1
-                          "
-                        >
-
-                          {[
-                            ...Array(5),
-                          ].map(
-                            (_, i) => (
-
-                              <Star
-                                key={i}
-                                size={14}
-                                className="
-                                  fill-current
-                                "
-                              />
-
-                            )
+                          {adding ? (
+                            <Loader2 size={16} className="animate-spin" />
+                          ) : (
+                            "+ Quick Add"
                           )}
-
-                          <span
-                            className="
-                              text-muted-foreground
-                              ml-1
-                            "
-                          >
-                            (
-                            {
-                              productRating
-                            }
-                            )
-                          </span>
-
-                        </div>
-
-
-                        {/* Title */}
-
-                        <h3
-                          className="
-                            font-heading
-                            text-lg
-                            font-bold
-                            text-foreground
-                            group-hover:text-primary
-                            transition-colors
-                            mb-1
-                            truncate
-                          "
-                        >
-                          {
-                            productTitle
-                          }
-                        </h3>
-
-
-                        {/* Description */}
-
-                        <p
-                          className="
-                            text-xs
-                            text-muted-foreground
-                            line-clamp-2
-                            mb-4
-                          "
-                        >
-                          {
-                            productDesc
-                          }
-                        </p>
-
-                      </div>
-
-
-                      {/* ==================================================
-                          PRICE + CART
-                      =================================================== */}
-
-                      <div
-                        className="
-                          flex
-                          items-center
-                          justify-between
-                          gap-3
-                          border-t
-                          border-border/40
-                          pt-4
-                        "
-                      >
-
-                        <span
-                          className="
-                            font-heading
-                            text-lg
-                            font-bold
-                            text-emerald-600
-                          "
-                        >
-                          ₹
-                          {
-                            productPrice.toLocaleString(
-                              "en-IN"
-                            )
-                          }
-                        </span>
-
-
-                        <button
-
-                          type="button"
-                          disabled={adding}
-
-                          onClick={(event) =>
-                            handleAddToCart(
-                              event,
-                              productId
-                            )
-                          }
-
-                          className="
-px-4
-py-2
-bg-primary
-text-primary-foreground
-rounded-lg
-text-xs
-font-semibold
-hover:bg-primary/90
-transition-colors
-flex
-items-center
-gap-1.5
-disabled:opacity-60
-disabled:cursor-not-allowed
-"
-                        >
-
-                          {
-                            adding ? (
-                              <Loader2
-                                size={14}
-                                className="animate-spin"
-                              />
-                            ) : (
-                              <ShoppingCart
-                                size={14}
-                              />
-                            )
-                          }
-
-                          {
-                            adding
-                              ? "Adding..."
-                              : "Add"
-                          }
-
                         </button>
-
                       </div>
-
-                    </div>
-
+                    )}
                   </div>
 
-                );
+                  {/* CARD CONTENT */}
+                  <div
+                    style={{
+                      padding: isMobile ? "12px 12px 14px" : "18px 20px 20px",
+                      background: "#fff",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      flex: 1,
+                    }}
+                  >
+                    <div>
+                      {/* Rating */}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 2,
+                          marginBottom: isMobile ? 4 : 8,
+                        }}
+                      >
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <Star
+                            key={i}
+                            size={isMobile ? 11 : 13}
+                            fill={
+                              i <= Math.round(product.rating || 4.8)
+                                ? "#F59E0B"
+                                : "#E5E7EB"
+                            }
+                            color={
+                              i <= Math.round(product.rating || 4.8)
+                                ? "#F59E0B"
+                                : "#E5E7EB"
+                            }
+                          />
+                        ))}
 
-              }
-            )}
+                        <span
+                          style={{
+                            fontSize: isMobile ? 10 : 12,
+                            color: "#8A7A6E",
+                            marginLeft: 4,
+                          }}
+                        >
+                          ({product.reviewCount || product.reviews?.length || 127})
+                        </span>
+                      </div>
 
+                      {/* Product Name */}
+                      <h3
+                        style={{
+                          fontSize: isMobile ? 13 : 15,
+                          fontWeight: 600,
+                          color: C.dark,
+                          lineHeight: 1.35,
+                          margin: "0 0 10px",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {product.title || product.name}
+                      </h3>
+                    </div>
+
+                    <div>
+                      {/* Price Section */}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          flexWrap: "wrap",
+                          gap: 6,
+                          marginBottom: isMobile ? 10 : 0,
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                          <span
+                            style={{
+                              fontFamily: "'Playfair Display', serif",
+                              fontSize: isMobile ? 16 : 22,
+                              fontWeight: 700,
+                              color: C.dark,
+                            }}
+                          >
+                            ₹{Number(product.price || 0).toLocaleString("en-IN")}
+                          </span>
+
+                          {(product.originalPrice || product.mrp) && (
+                            <span
+                              style={{
+                                fontSize: isMobile ? 11 : 14,
+                                color: "#B0A090",
+                                textDecoration: "line-through",
+                              }}
+                            >
+                              ₹
+                              {Number(
+                                product.originalPrice || product.mrp
+                              ).toLocaleString("en-IN")}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Unique Frosted Glass Mobile Add to Cart Button */}
+                      {isMobile && (
+                        <button
+                          onClick={(e) => handleAddToCart(e, productId)}
+                          style={{
+                            width: "100%",
+                            padding: "9px 12px",
+                            borderRadius: 12,
+                            background: "rgba(241, 105, 55, 0.08)",
+                            border: "1px solid rgba(241, 105, 55, 0.3)",
+                            color: C.coral,
+                            fontWeight: 700,
+                            fontSize: 12,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 6,
+                            transition: "all 0.2s ease",
+                          }}
+                        >
+                          <ShoppingCart size={13} />
+                          Add to Cart
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-
         )}
-
       </div>
-
     </section>
-
   );
-
 };
-
 
 export default BestSeller;

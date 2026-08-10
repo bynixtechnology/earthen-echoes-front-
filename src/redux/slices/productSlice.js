@@ -2480,54 +2480,15 @@ export const selectSearchResults = (
 |--------------------------------------------------------------------------
 */
 
-const selectPagination = (
-  pagination
-) => ({
-  page:
-    pagination?.page ||
-    1,
-
-  limit:
-    pagination?.limit ||
-    10,
-
-  total:
-    pagination?.total ||
-    0,
-
-  totalProducts:
-    pagination
-      ?.totalProducts ||
-    pagination?.total ||
-    0,
-
-  totalPages:
-    pagination
-      ?.totalPages ||
-    1,
-
-  /*
-  |--------------------------------------------------------------------------
-  | Backward Compatibility
-  |--------------------------------------------------------------------------
-  */
-
-  pages:
-    pagination
-      ?.totalPages ||
-    1,
-
-  hasNextPage:
-    Boolean(
-      pagination
-        ?.hasNextPage
-    ),
-
-  hasPreviousPage:
-    Boolean(
-      pagination
-        ?.hasPreviousPage
-    ),
+const EMPTY_PAGINATION = Object.freeze({
+  page: 1,
+  limit: 10,
+  total: 0,
+  totalProducts: 0,
+  totalPages: 1,
+  pages: 1,
+  hasNextPage: false,
+  hasPreviousPage: false,
 });
 
 
@@ -2537,59 +2498,28 @@ const selectPagination = (
 |--------------------------------------------------------------------------
 */
 
-export const selectProductsPagination = (
-  state
-) =>
-  selectPagination(
-    state.products
-      ?.pagination
-  );
+export const selectProductsPagination = (state) =>
+  state.products?.pagination || EMPTY_PAGINATION;
 
 
-export const selectPublicProductsPagination = (
-  state
-) =>
-  selectPagination(
-    state.products
-      ?.publicPagination
-  );
+export const selectPublicProductsPagination = (state) =>
+  state.products?.publicPagination || EMPTY_PAGINATION;
 
 
-export const selectCategoryPagination = (
-  state
-) =>
-  selectPagination(
-    state.products
-      ?.categoryPagination
-  );
+export const selectCategoryPagination = (state) =>
+  state.products?.categoryPagination || EMPTY_PAGINATION;
 
 
-export const selectSearchPagination = (
-  state
-) =>
-  selectPagination(
-    state.products
-      ?.searchPagination
-  );
+export const selectSearchPagination = (state) =>
+  state.products?.searchPagination || EMPTY_PAGINATION;
 
 
-export const selectFeaturedPagination = (
-  state
-) =>
-  selectPagination(
-    state.products
-      ?.featuredPagination
-  );
+export const selectFeaturedPagination = (state) =>
+  state.products?.featuredPagination || EMPTY_PAGINATION;
 
 
-export const selectPublicFeaturedPagination = (
-  state
-) =>
-  selectPagination(
-    state.products
-      ?.publicFeaturedPagination
-  );
-
+export const selectPublicFeaturedPagination = (state) =>
+  state.products?.publicFeaturedPagination || EMPTY_PAGINATION;
 
 /*
 |--------------------------------------------------------------------------

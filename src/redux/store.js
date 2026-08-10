@@ -20,6 +20,9 @@ import cartReducer
 import wishlistReducer
   from "./slices/wishlistSlice";
 
+import productTagReducer
+  from "./slices/productTagSlice";
+
 export const store =
   configureStore({
 
@@ -52,6 +55,13 @@ export const store =
 
       categories:
         categoryReducer,
+
+      /*
+      | Product Tags
+      */
+
+      productTags:
+        productTagReducer,
 
       /*
       | Cart

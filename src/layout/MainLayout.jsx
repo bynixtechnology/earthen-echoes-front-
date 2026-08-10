@@ -56,11 +56,6 @@ const MainLayout = () => {
 
       {/* ================================================================
           FIRST VISIT GOOGLE SIGNUP PROMPT
-
-          - Guest user ke liye show hoga
-          - Right side par appear hoga
-          - Logged-in user ko show nahi hoga
-          - Close karne ke baad localStorage me remember hoga
       ================================================================= */}
 
       <GoogleSignupPrompt />
@@ -68,21 +63,6 @@ const MainLayout = () => {
 
       {/* ================================================================
           PAGE CONTENT
-
-          Public Pages:
-          - Home
-          - About
-          - Contact
-          - Products
-          - Product Details
-
-          User Pages:
-          - Dashboard
-          - Profile
-          - Orders
-          - Wishlist
-
-          Current route Outlet ke through render hoga.
       ================================================================= */}
 
       <main
@@ -104,7 +84,7 @@ const MainLayout = () => {
 
 
       {/* ================================================================
-          WHATSAPP FLOATING BUTTON
+          WHATSAPP FLOATING BUTTON (Bottom Right)
       ================================================================= */}
 
       <a
@@ -116,15 +96,19 @@ const MainLayout = () => {
         className="
           fixed
 
-          bottom-6
-          right-6
+          bottom-5
+          right-4
+          sm:bottom-6
+          sm:right-6
 
           z-50
 
           flex
 
-          h-14
-          w-14
+          h-12
+          w-12
+          sm:h-14
+          sm:w-14
 
           items-center
           justify-center
@@ -148,14 +132,15 @@ const MainLayout = () => {
       >
 
         <Phone
-          size={26}
+          size={22}
+          className="sm:w-[26px] sm:h-[26px]"
         />
 
       </a>
 
 
       {/* ================================================================
-          BACK TO TOP
+          BACK TO TOP (Staggered above WhatsApp on Mobile, Left on Desktop)
       ================================================================= */}
 
       <button
@@ -170,8 +155,10 @@ const MainLayout = () => {
         className="
           fixed
 
-          bottom-6
-          left-6
+          bottom-20
+          right-4
+          sm:bottom-6
+          sm:left-6
 
           z-50
 

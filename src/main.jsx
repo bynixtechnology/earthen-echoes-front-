@@ -5,13 +5,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 
 import "./index.css";
 
-import "@fontsource/poppins/400.css";
-import "@fontsource/poppins/500.css";
-import "@fontsource/poppins/600.css";
 
-import "@fontsource/playfair-display/700.css";
-import "@fontsource/playfair-display/800.css";
-import "@fontsource/playfair-display/900.css";
 
 import App from "./App.jsx";
 
