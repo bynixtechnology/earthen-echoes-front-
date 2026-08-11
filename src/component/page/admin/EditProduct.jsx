@@ -142,6 +142,8 @@ export default function EditProduct() {
 
     title: "",
 
+    slug: "",
+
     collectionName: "",
 
     category: "",
@@ -216,6 +218,7 @@ export default function EditProduct() {
           selectedProduct.id ||
           "",
         title: selectedProduct.title || "",
+        slug: selectedProduct.slug || "",
         collectionName: selectedProduct.collectionName || "",
         category: categoryId,
         productTags: mappedTags,
@@ -276,11 +279,24 @@ export default function EditProduct() {
 
 
     setFormData(
-      (prev) => ({
-        ...prev,
+      (prev) => {
+        const updated = {
+          ...prev,
+          [name]: value,
+        };
 
-        [name]: value,
-      })
+        // Auto-generate slug if title changes
+        if (name === "title") {
+          updated.slug = value
+            .toLowerCase()
+            .trim()
+            .replace(/[^\w\s-]/g, "")
+            .replace(/[\s_-]+/g, "-")
+            .replace(/^-+|-+$/g, "");
+        }
+
+        return updated;
+      }
     );
 
   };
@@ -417,6 +433,17 @@ export default function EditProduct() {
 
     data.append("numericalId", formData.numericalId);
     data.append("title", formData.title.trim());
+    
+    // Ensure slug is provided to satisfy backend requirements
+    const productSlug = formData.slug || formData.title
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, "")
+      .replace(/[\s_-]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+      
+    data.append("slug", productSlug);
+
     data.append("collectionName", formData.collectionName.trim());
     data.append("category", formData.category);
     data.append("sku", formData.sku.trim());

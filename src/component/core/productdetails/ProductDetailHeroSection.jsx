@@ -488,28 +488,73 @@ import { getWishlist, toggleWishlist as toggleWishlistThunk } from "../../../red
                 )}
               </div>
   
-              {productImages.length > 1 && (
-                <div className="mt-3 sm:mt-4 flex gap-2.5 sm:gap-3 overflow-x-auto pb-1">
-                  {productImages.map((image, index) => (
-                    <button
-                      key={`${image}-${index}`}
-                      type="button"
-                      onClick={() => selectImage(image, index)}
-                      className={`relative shrink-0 w-14 h-14 sm:w-[78px] sm:h-[78px] overflow-hidden rounded-xl sm:rounded-2xl transition-all ${
-                        selectedImage === image
-                          ? "ring-2 ring-[#F16937] ring-offset-2 ring-offset-[#FFFDF9] opacity-100"
-                          : "opacity-60 hover:opacity-100"
-                      }`}
-                    >
-                      <img
-                        src={image}
-                        alt={`${productName} ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
+             {productImages.length > 1 && (
+  <div
+    className="
+      mt-3
+      sm:mt-4
+      flex
+      gap-2.5
+      sm:gap-3
+      overflow-x-auto
+      overflow-y-visible
+      px-1
+      pt-1
+      pb-3
+      scrollbar-hide
+    "
+  >
+    {productImages.map((image, index) => (
+      <button
+        key={`${image}-${index}`}
+        type="button"
+        onClick={() => selectImage(image, index)}
+        className={`
+          relative
+          shrink-0
+          w-14
+          h-14
+          sm:w-[78px]
+          sm:h-[78px]
+          rounded-xl
+          sm:rounded-2xl
+          transition-all
+          duration-200
+          overflow-visible
+          ${
+            selectedImage === image
+              ? "ring-2 ring-[#F16937] ring-offset-2 ring-offset-[#FFFDF9] opacity-100"
+              : "opacity-60 hover:opacity-100"
+          }
+        `}
+      >
+        {/* IMAGE WRAPPER */}
+        <div
+          className="
+            w-full
+            h-full
+            overflow-hidden
+            rounded-xl
+            sm:rounded-2xl
+          "
+        >
+          <img
+            src={image}
+            alt={`${productName} ${index + 1}`}
+            className="
+              w-full
+              h-full
+            
+              transition-transform
+              duration-300
+              hover:scale-105
+            "
+          />
+        </div>
+      </button>
+    ))}
+  </div>
+)}
             </div>
   
             {/* Product Info */}
@@ -826,11 +871,11 @@ import { getWishlist, toggleWishlist as toggleWishlistThunk } from "../../../red
                     )}
                 </div>
   
-                <div className="rounded-[22px] sm:rounded-[28px] overflow-hidden bg-[#F5F0E8] aspect-[4/3]">
+                <div className="rounded-[22px] sm:rounded-[28px] overflow-hidden bg-[#F5F0E8] ">
                   <img
                     src={productImages[2] || productImages[0] || "/placeholder.png"}
                     alt={productName}
-                    className="w-full h-full object-cover"
+                    className="w-full h-[650px] object-cover"
                   />
                 </div>
               </div>

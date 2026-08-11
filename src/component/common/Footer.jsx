@@ -156,48 +156,28 @@ const Footer = () => {
 
         <div className="space-y-4">
 
-          <Link
-            to="/"
-            className="
-              flex
-              items-center
-              gap-2
-              w-fit
-            "
-          >
+       <Link
+  to="/"
+  className="
+    flex
+    items-center
+    gap-3
+    w-fit
+  "
+>
+  <img
+    src="/Earthen echos logo.png"
+    alt="Earthen Echoes Logo"
+    className="
+      h-10
+      w-auto
+      object-contain
+      shrink-0
+    "
+  />
 
-            <div
-              className="
-                w-8
-                h-8
-                rounded-full
-                bg-primary
-                flex
-                items-center
-                justify-center
-                text-primary-foreground
-                font-heading
-                font-bold
-                text-base
-              "
-            >
-              EE
-            </div>
-
-
-            <span
-              className="
-                font-heading
-                text-lg
-                font-bold
-                tracking-wide
-                text-foreground
-              "
-            >
-              Earthen Echoes
-            </span>
-
-          </Link>
+ 
+</Link>
 
 
           <p
@@ -518,7 +498,7 @@ const Footer = () => {
               "
             >
 
-              {categories.map(
+              {categories.slice(0, 5).map(
                 (category) => (
 
                   <li

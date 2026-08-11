@@ -486,25 +486,16 @@ export default function Header() {
 
             <div
               className="
-                w-10
-                h-10
+    w-96
+    h-12
 
-                rounded-full
-
-                bg-primary
-
-                flex
-                items-center
-                justify-center
-
-                text-primary-foreground
-
-                font-bold
-              "
+  "
             >
-
-              EE
-
+              <img
+                src="/Earthen echos logo.png"
+                alt="Earthen Echoes Logo"
+                className="w-fit  h-full object-cover"
+              />
             </div>
 
           </Link>

@@ -9,7 +9,7 @@ import CustomerReviews from '../../core/HomePage/CustomerReviews'
 import Gallery from '../../core/HomePage/Gallery'
 import Newsletter from '../../core/HomePage/Newsletter'
 import Sustainability from '../../core/HomePage/Sustainability'
-
+import Kitchenware from '../../core/HomePage/Kitchenware' 
 
 const Home = () => {
   return (
@@ -24,6 +24,10 @@ const Home = () => {
 
       {/* Best Sellers */}
       <BestSeller />
+
+
+      {/* Kitchenware Sellers */}
+      <Kitchenware />
 
       {/* Why Choose */}
       <WhyChoose />

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { C, img } from "../../../constants/theme";
+import { C } from "../../../constants/theme";
 import {
   Heart,
   ShoppingCart,
@@ -16,7 +16,7 @@ import { selectCartAdding } from "../../../redux/slices/cartSlice";
 import { selectWishlistItems } from "../../../redux/slices/wishlistSlice";
 import { showToast } from "../../../config/toast";
 
-const BestSeller = () => {
+const Kitchenware = () => {
   /*
   |--------------------------------------------------------------------------
   | State
@@ -52,22 +52,23 @@ const BestSeller = () => {
 
   /*
   |--------------------------------------------------------------------------
-  | Fetch Best Sellers
+  | Fetch Kitchenware Products
   |--------------------------------------------------------------------------
   */
   useEffect(() => {
     let isMounted = true;
 
-    const fetchBestSellers = async () => {
+    const fetchKitchenware = async () => {
       try {
         setIsLoading(true);
         setError("");
 
+        // Fetch products filtered by Kitchenware category or keyword search
         const response = await ProductService.getAll({
           page: 1,
           limit: 1000,
           isActive: true,
-          isFeatured: true,
+          categoryName: "Kitchen Ware", // Adjust parameters based on your API criteria
         });
 
         const productList = Array.isArray(response?.products)
@@ -80,13 +81,13 @@ const BestSeller = () => {
           setProducts(productList);
         }
       } catch (error) {
-        console.error("FETCH BEST SELLERS ERROR:", error);
+        console.error("FETCH KITCHENWARE ERROR:", error);
         if (isMounted) {
           setProducts([]);
           setError(
             error?.response?.data?.message ||
               error?.message ||
-              "Unable to load products."
+              "Unable to load kitchenware products."
           );
         }
       } finally {
@@ -97,7 +98,7 @@ const BestSeller = () => {
     };
 
     dispatch(getWishlist());
-    fetchBestSellers();
+    fetchKitchenware();
 
     return () => {
       isMounted = false;
@@ -150,7 +151,6 @@ const BestSeller = () => {
     <section
       style={{
         padding: isMobile ? "70px 16px" : "110px 0",
-        // background: C.cream,
         overflow: "hidden",
       }}
     >
@@ -184,7 +184,7 @@ const BestSeller = () => {
                 marginBottom: 8,
               }}
             >
-              Curated Masterpieces
+              Earthy Culinary Essentials
             </span>
             <h2
               style={{
@@ -197,7 +197,7 @@ const BestSeller = () => {
                 lineHeight: 1.1,
               }}
             >
-              Our Best Sellers
+              Kitchenware Collection
             </h2>
           </div>
 
@@ -211,7 +211,7 @@ const BestSeller = () => {
             }}
           >
             <Link
-              to="/products"
+              to="/products?category=kitchenware"
               style={{
                 textDecoration: "none",
                 color: C.coral,
@@ -326,7 +326,7 @@ const BestSeller = () => {
               fontSize: 18,
             }}
           >
-            No products found.
+            No kitchenware products found.
           </div>
         ) : (
           <div
@@ -359,14 +359,6 @@ const BestSeller = () => {
                   item.productId?._id === productId || item.product === productId
               );
 
-              const badge =
-                [
-                  { text: "Best Seller", color: C.coral },
-                  { text: "Trending", color: C.teal },
-                  { text: "Editor's Pick", color: C.raspberry },
-                  { text: "New", color: C.green },
-                ][index % 4];
-
               const discount =
                 product?.originalPrice || product?.mrp
                   ? Math.round(
@@ -377,9 +369,15 @@ const BestSeller = () => {
                     )
                   : 20;
 
-              // Asymmetric mobile border radiuses for magazine look
-              const mobileRadiusProfiles = ["24px 12px 24px 12px", "12px 24px 12px 24px", "20px 20px 8px 24px", "8px 24px 20px 20px"];
-              const cardRadius = isMobile ? mobileRadiusProfiles[index % mobileRadiusProfiles.length] : 28;
+              const mobileRadiusProfiles = [
+                "24px 12px 24px 12px",
+                "12px 24px 12px 24px",
+                "20px 20px 8px 24px",
+                "8px 24px 20px 20px",
+              ];
+              const cardRadius = isMobile
+                ? mobileRadiusProfiles[index % mobileRadiusProfiles.length]
+                : 28;
 
               return (
                 <div
@@ -395,7 +393,6 @@ const BestSeller = () => {
                     justifyContent: "space-between",
                     cursor: "pointer",
                     border: "1px solid rgba(28,18,8,.06)",
-                    // boxShadow: "0 10px 30px rgba(0,0,0,.06)",
                     transition: "all .5s cubic-bezier(.16,1,.3,1)",
                   }}
                   onMouseEnter={(e) => {
@@ -445,7 +442,7 @@ const BestSeller = () => {
                   >
                     <img
                       src={image}
-                      alt={product.title}
+                      alt={product.title || product.name}
                       style={{
                         width: "100%",
                         height: "100%",
@@ -454,7 +451,7 @@ const BestSeller = () => {
                       }}
                     />
 
-                    {/* Gradient Overlay for Mobile Badges Readability */}
+                    {/* Gradient Overlay for Mobile Readability */}
                     <div
                       style={{
                         position: "absolute",
@@ -463,25 +460,6 @@ const BestSeller = () => {
                           "linear-gradient(180deg, rgba(0,0,0,0.2) 0%, transparent 40%)",
                       }}
                     />
-
-                    {/* Badge */}
-                    {/* <div
-                      style={{
-                        position: "absolute",
-                        top: isMobile ? 10 : 14,
-                        left: isMobile ? 10 : 14,
-                        background: badge.color,
-                        color: "#fff",
-                        padding: isMobile ? "4px 10px" : "6px 12px",
-                        borderRadius: 50,
-                        fontSize: isMobile ? 10 : 11,
-                        fontWeight: 700,
-                        letterSpacing: ".03em",
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                      }}
-                    >
-                      {badge.text}
-                    </div> */}
 
                     {/* Discount */}
                     <div
@@ -542,7 +520,7 @@ const BestSeller = () => {
                           right: 0,
                           bottom: 0,
                           padding: "22px 16px 14px",
-                          background: `linear-gradient(0deg,${badge.color}EE 0%,${badge.color}AA 60%,transparent 100%)`,
+                          background: `linear-gradient(0deg, ${C.coral}EE 0%, ${C.coral}AA 60%, transparent 100%)`,
                           transform: "translateY(100%)",
                           transition: ".35s",
                         }}
@@ -555,7 +533,7 @@ const BestSeller = () => {
                             border: "none",
                             borderRadius: 50,
                             background: "#fff",
-                            color: badge.color,
+                            color: C.coral,
                             height: 46,
                             fontWeight: 700,
                             fontSize: 14,
@@ -617,7 +595,7 @@ const BestSeller = () => {
                             marginLeft: 4,
                           }}
                         >
-                          ({product.reviewCount || product.reviews?.length || 127})
+                          ({product.reviewsCount || product.reviews?.length || 127})
                         </span>
                       </div>
 
@@ -651,7 +629,13 @@ const BestSeller = () => {
                           marginBottom: isMobile ? 10 : 0,
                         }}
                       >
-                        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "baseline",
+                            gap: 6,
+                          }}
+                        >
                           <span
                             style={{
                               fontFamily: "'Playfair Display', serif",
@@ -680,7 +664,7 @@ const BestSeller = () => {
                         </div>
                       </div>
 
-                      {/* Unique Frosted Glass Mobile Add to Cart Button */}
+                      {/* Mobile Add to Cart Button */}
                       {isMobile && (
                         <button
                           onClick={(e) => handleAddToCart(e, productId)}
@@ -717,4 +701,4 @@ const BestSeller = () => {
   );
 };
 
-export default BestSeller;
+export default Kitchenware;
