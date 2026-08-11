@@ -815,28 +815,7 @@ const ProductGallery = ({
             {product?.title || "Product"}
           </h3>
 
-          <div className="mt-1.5 flex items-center gap-1.5 sm:mt-3 sm:gap-2">
-            <div className="flex items-center gap-0.5">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <span
-                  key={star}
-                  className="text-[10px] sm:text-xs"
-                  style={{
-                    color:
-                      star <= Math.round(rating)
-                        ? "#F59E0B"
-                        : "#E5E7EB",
-                  }}
-                >
-                  ★
-                </span>
-              ))}
-            </div>
-
-            <span className="text-[10px] text-[#78716C] sm:text-xs">
-              ({reviews})
-            </span>
-          </div>
+         
 
           <div
             className="

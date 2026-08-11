@@ -17,11 +17,6 @@ import { selectWishlistItems } from "../../../redux/slices/wishlistSlice";
 import { showToast } from "../../../config/toast";
 
 const Kitchenware = () => {
-  /*
-  |--------------------------------------------------------------------------
-  | State
-  |--------------------------------------------------------------------------
-  */
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -33,11 +28,6 @@ const Kitchenware = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  /*
-  |--------------------------------------------------------------------------
-  | Hooks
-  |--------------------------------------------------------------------------
-  */
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const adding = useSelector(selectCartAdding);
@@ -50,11 +40,6 @@ const Kitchenware = () => {
     }
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | Fetch Kitchenware Products
-  |--------------------------------------------------------------------------
-  */
   useEffect(() => {
     let isMounted = true;
 
@@ -63,12 +48,11 @@ const Kitchenware = () => {
         setIsLoading(true);
         setError("");
 
-        // Fetch products filtered by Kitchenware category or keyword search
         const response = await ProductService.getAll({
           page: 1,
           limit: 1000,
           isActive: true,
-          categoryName: "Kitchen Ware", // Adjust parameters based on your API criteria
+          categoryName: "Kitchen Ware",
         });
 
         const productList = Array.isArray(response?.products)
@@ -77,9 +61,7 @@ const Kitchenware = () => {
           ? response.data
           : [];
 
-        if (isMounted) {
-          setProducts(productList);
-        }
+        if (isMounted) setProducts(productList);
       } catch (error) {
         console.error("FETCH KITCHENWARE ERROR:", error);
         if (isMounted) {
@@ -91,9 +73,7 @@ const Kitchenware = () => {
           );
         }
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
       }
     };
 
@@ -105,11 +85,6 @@ const Kitchenware = () => {
     };
   }, [dispatch]);
 
-  /*
-  |--------------------------------------------------------------------------
-  | Handlers
-  |--------------------------------------------------------------------------
-  */
   const handleProductClick = (productId) => {
     if (!productId) return;
     navigate(`/products/${productId}`);
@@ -121,12 +96,8 @@ const Kitchenware = () => {
 
     try {
       const response = await dispatch(
-        addProductToCart({
-          productId,
-          quantity: 1,
-        })
+        addProductToCart({ productId, quantity: 1 })
       ).unwrap();
-
       showToast.success(response?.message || "Product added to cart.");
     } catch (error) {
       showToast.error(error?.message || error || "Unable to add product.");
@@ -150,18 +121,12 @@ const Kitchenware = () => {
   return (
     <section
       style={{
-        padding: isMobile ? "70px 16px" : "110px 0",
+        padding: isMobile ? "60px 16px" : "100px 24px",
         overflow: "hidden",
       }}
     >
-      <div
-        style={{
-          maxWidth: 1440,
-          margin: "0 auto",
-          padding: isMobile ? "0" : "0 40px",
-        }}
-      >
-        {/* ================= HEADER ================= */}
+      <div className="max-w-[1240px] mx-auto px-4 md:px-8">
+        {/* HEADER */}
         <div
           style={{
             display: "flex",
@@ -169,35 +134,22 @@ const Kitchenware = () => {
             justifyContent: "space-between",
             alignItems: isMobile ? "flex-start" : "center",
             gap: isMobile ? 20 : 0,
-            marginBottom: 48,
+            marginBottom: isMobile ? 32 : 48,
           }}
         >
           <div>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: 4,
-                color: C.teal,
-                textTransform: "uppercase",
-                display: "block",
-                marginBottom: 8,
-              }}
-            >
-              Earthy Culinary Essentials
-            </span>
             <h2
               style={{
                 margin: 0,
                 fontFamily: "'Playfair Display', serif",
                 fontWeight: 700,
-                fontSize: "clamp(32px, 5vw, 56px)",
+                fontSize: "clamp(30px, 4vw, 52px)",
                 color: C.dark,
                 letterSpacing: "-1px",
                 lineHeight: 1.1,
               }}
             >
-              Kitchenware Collection
+              Kitchen Ware Collection
             </h2>
           </div>
 
@@ -231,8 +183,8 @@ const Kitchenware = () => {
                 <button
                   onClick={() => scroll(-1)}
                   style={{
-                    width: 52,
-                    height: 52,
+                    width: 48,
+                    height: 48,
                     borderRadius: "50%",
                     border: "1.5px solid #D9D2CC",
                     background: "#fff",
@@ -259,8 +211,8 @@ const Kitchenware = () => {
                 <button
                   onClick={() => scroll(1)}
                   style={{
-                    width: 52,
-                    height: 52,
+                    width: 48,
+                    height: 48,
                     borderRadius: "50%",
                     border: "1.5px solid #D9D2CC",
                     background: "#fff",
@@ -288,7 +240,7 @@ const Kitchenware = () => {
           </div>
         </div>
 
-        {/* ================= LOADER / ERROR / GRID ================= */}
+        {/* PRODUCTS GRID */}
         {isLoading ? (
           <div
             style={{
@@ -337,15 +289,14 @@ const Kitchenware = () => {
               gridTemplateColumns: isMobile
                 ? "repeat(2, 1fr)"
                 : "repeat(4, minmax(0, 1fr))",
-              gap: isMobile ? 14 : 28,
+              gap: isMobile ? 16 : 28,
               overflowX: isMobile ? "visible" : "auto",
               scrollBehavior: "smooth",
-              paddingBottom: 12,
+              padding: isMobile ? "4px" : "12px 4px 20px 4px",
             }}
           >
             {displayedProducts.map((product, index) => {
               const productId = product?._id || product?.id;
-
               const image =
                 typeof product?.images?.[0] === "string"
                   ? product.images[0]
@@ -370,18 +321,19 @@ const Kitchenware = () => {
                   : 20;
 
               const mobileRadiusProfiles = [
-                "24px 12px 24px 12px",
-                "12px 24px 12px 24px",
-                "20px 20px 8px 24px",
-                "8px 24px 20px 20px",
+                "20px 12px 20px 12px",
+                "12px 20px 12px 20px",
+                "18px 18px 8px 20px",
+                "8px 20px 18px 18px",
               ];
               const cardRadius = isMobile
                 ? mobileRadiusProfiles[index % mobileRadiusProfiles.length]
-                : 28;
+                : 24;
 
               return (
                 <div
                   key={productId || index}
+                  className="group"
                   onClick={() => handleProductClick(productId)}
                   style={{
                     width: "100%",
@@ -392,42 +344,9 @@ const Kitchenware = () => {
                     flexDirection: "column",
                     justifyContent: "space-between",
                     cursor: "pointer",
-                    border: "1px solid rgba(28,18,8,.06)",
-                    transition: "all .5s cubic-bezier(.16,1,.3,1)",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isMobile) {
-                      e.currentTarget.style.transform = "translateY(-8px)";
-                      e.currentTarget.style.boxShadow =
-                        "0 25px 55px rgba(0,0,0,.12)";
-
-                      const imgEl = e.currentTarget.querySelector("img");
-                      if (imgEl) {
-                        imgEl.style.transform = "scale(1.08)";
-                      }
-
-                      const quick = e.currentTarget.querySelector(".quick-add");
-                      if (quick) {
-                        quick.style.transform = "translateY(0)";
-                      }
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isMobile) {
-                      e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.boxShadow =
-                        "0 10px 30px rgba(0,0,0,.06)";
-
-                      const imgEl = e.currentTarget.querySelector("img");
-                      if (imgEl) {
-                        imgEl.style.transform = "scale(1)";
-                      }
-
-                      const quick = e.currentTarget.querySelector(".quick-add");
-                      if (quick) {
-                        quick.style.transform = "translateY(100%)";
-                      }
-                    }
+                    border: "1px solid rgba(28,18,8,.08)",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.03)",
+                    transition: "all .4s cubic-bezier(.16,1,.3,1)",
                   }}
                 >
                   {/* IMAGE CONTAINER */}
@@ -447,17 +366,18 @@ const Kitchenware = () => {
                         width: "100%",
                         height: "100%",
                         objectFit: "cover",
-                        transition: ".6s cubic-bezier(.16,1,.3,1)",
+                        
                       }}
+                    
                     />
 
-                    {/* Gradient Overlay for Mobile Readability */}
                     <div
                       style={{
                         position: "absolute",
                         inset: 0,
                         background:
-                          "linear-gradient(180deg, rgba(0,0,0,0.2) 0%, transparent 40%)",
+                          "linear-gradient(180deg, rgba(0,0,0,0.15) 0%, transparent 40%)",
+                        pointerEvents: "none",
                       }}
                     />
 
@@ -469,11 +389,11 @@ const Kitchenware = () => {
                         right: isMobile ? 10 : 14,
                         background: C.raspberry,
                         color: "#fff",
-                        padding: isMobile ? "4px 10px" : "6px 12px",
+                        padding: isMobile ? "4px 8px" : "6px 12px",
                         borderRadius: 50,
                         fontSize: isMobile ? 10 : 11,
                         fontWeight: 700,
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        zIndex: 2,
                       }}
                     >
                       -{discount}%
@@ -486,46 +406,34 @@ const Kitchenware = () => {
                         position: "absolute",
                         right: isMobile ? 10 : 14,
                         bottom: isMobile ? 10 : 14,
-                        width: isMobile ? 36 : 42,
-                        height: isMobile ? 36 : 42,
+                        width: isMobile ? 34 : 40,
+                        height: isMobile ? 34 : 40,
                         borderRadius: "50%",
                         border: `1.5px solid ${
-                          isWishlisted ? C.raspberry : "rgba(28,18,8,.15)"
+                          isWishlisted ? C.raspberry : "rgba(28,18,8,.12)"
                         }`,
                         background: isWishlisted
-                          ? "rgba(228,69,135,.1)"
-                          : "rgba(255,255,255,.9)",
+                          ? "rgba(228,69,135,.15)"
+                          : "rgba(255,255,255,.92)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         cursor: "pointer",
-                        backdropFilter: "blur(8px)",
-                        boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
+                        zIndex: 2,
+                        backdropFilter: "blur(4px)",
                       }}
                     >
                       <Heart
-                        size={isMobile ? 15 : 18}
+                        size={isMobile ? 14 : 18}
                         className={
                           isWishlisted ? "fill-red-500 text-red-500" : ""
                         }
                       />
                     </button>
 
-                    {/* Quick Add (Desktop Hover) */}
+                    {/* Quick Add */}
                     {!isMobile && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          padding: "22px 16px 14px",
-                          background: `linear-gradient(0deg, ${C.coral}EE 0%, ${C.coral}AA 60%, transparent 100%)`,
-                          transform: "translateY(100%)",
-                          transition: ".35s",
-                        }}
-                        className="quick-add"
-                      >
+                      <div className="absolute inset-x-0 bottom-0 p-4 pt-6 bg-gradient-to-t from-black/60 to-transparent translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out">
                         <button
                           onClick={(e) => handleAddToCart(e, productId)}
                           style={{
@@ -534,10 +442,14 @@ const Kitchenware = () => {
                             borderRadius: 50,
                             background: "#fff",
                             color: C.coral,
-                            height: 46,
+                            height: 42,
                             fontWeight: 700,
                             fontSize: 14,
                             cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                           }}
                         >
                           {adding ? (
@@ -553,7 +465,7 @@ const Kitchenware = () => {
                   {/* CARD CONTENT */}
                   <div
                     style={{
-                      padding: isMobile ? "12px 12px 14px" : "18px 20px 20px",
+                      padding: isMobile ? "12px 12px 16px" : "18px 20px 22px",
                       background: "#fff",
                       display: "flex",
                       flexDirection: "column",
@@ -568,7 +480,7 @@ const Kitchenware = () => {
                           display: "flex",
                           alignItems: "center",
                           gap: 2,
-                          marginBottom: isMobile ? 4 : 8,
+                          marginBottom: isMobile ? 6 : 8,
                         }}
                       >
                         {[1, 2, 3, 4, 5].map((i) => (
@@ -599,14 +511,14 @@ const Kitchenware = () => {
                         </span>
                       </div>
 
-                      {/* Product Name */}
+                      {/* Title */}
                       <h3
                         style={{
                           fontSize: isMobile ? 13 : 15,
                           fontWeight: 600,
                           color: C.dark,
                           lineHeight: 1.35,
-                          margin: "0 0 10px",
+                          margin: "0 0 12px",
                           display: "-webkit-box",
                           WebkitLineClamp: 2,
                           WebkitBoxOrient: "vertical",
@@ -618,7 +530,7 @@ const Kitchenware = () => {
                     </div>
 
                     <div>
-                      {/* Price Section */}
+                      {/* Price */}
                       <div
                         style={{
                           display: "flex",
@@ -639,7 +551,7 @@ const Kitchenware = () => {
                           <span
                             style={{
                               fontFamily: "'Playfair Display', serif",
-                              fontSize: isMobile ? 16 : 22,
+                              fontSize: isMobile ? 16 : 20,
                               fontWeight: 700,
                               color: C.dark,
                             }}
@@ -650,7 +562,7 @@ const Kitchenware = () => {
                           {(product.originalPrice || product.mrp) && (
                             <span
                               style={{
-                                fontSize: isMobile ? 11 : 14,
+                                fontSize: isMobile ? 11 : 13,
                                 color: "#B0A090",
                                 textDecoration: "line-through",
                               }}
@@ -682,7 +594,7 @@ const Kitchenware = () => {
                             alignItems: "center",
                             justifyContent: "center",
                             gap: 6,
-                            transition: "all 0.2s ease",
+                            marginTop: 8,
                           }}
                         >
                           <ShoppingCart size={13} />

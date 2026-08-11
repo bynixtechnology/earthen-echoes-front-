@@ -591,29 +591,7 @@ import { getWishlist, toggleWishlist as toggleWishlistThunk } from "../../../red
                 )}
               </div>
   
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center gap-0.5">
-                  {Array.from({ length: 5 }).map((_, index) => (
-                    <Star
-                      key={index}
-                      size={15}
-                      className="text-amber-400"
-                      fill={index < Math.round(rating) ? "currentColor" : "none"}
-                    />
-                  ))}
-                </div>
-                <span className="text-xs sm:text-sm font-semibold">{rating.toFixed(1)}</span>
-                <span className="text-xs sm:text-sm text-[#78716C]">
-                  · {reviewCount} reviews
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("reviews")}
-                  className="text-xs font-semibold text-[#F16937] underline underline-offset-4 ml-1"
-                >
-                  See reviews
-                </button>
-              </div>
+             
   
               <div className="flex items-end gap-3 flex-wrap">
                 <span className="font-heading text-3xl sm:text-4xl font-bold text-[#F16937]">

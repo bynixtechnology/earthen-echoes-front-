@@ -26,12 +26,12 @@ const ProductFaq = ({ product }) => {
   ];
 
   return (
-    <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 sm:pb-14">
+    <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 sm:pb-14 mt-7 sm:mt-10">
       <div className="text-center mb-5 sm:mb-6">
         <p className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.16em] text-[#F16937]">
           FAQ
         </p>
-        <h2 className="mt-1.5 sm:mt-2 font-heading text-xl sm:text-2xl font-bold">Common Questions</h2>
+        <h2 className="mt-7 sm:mt-5 font-heading text-xl sm:text-2xl font-bold">Common Questions</h2>
       </div>
 
       <div className="space-y-2.5 sm:space-y-3">

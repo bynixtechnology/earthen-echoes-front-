@@ -61,7 +61,7 @@ const ProductCard = () => {
 
   const categoryFromUrl = searchParams.get("category");
   const currentPage = Math.max(1, Number(searchParams.get("page")) || 1);
-  const productsPerPage = 16;
+  const productsPerPage = 12;
 
   /*
   |--------------------------------------------------------------------------
@@ -416,7 +416,7 @@ const ProductCard = () => {
         {/* Breadcrumb */}
         <div className="flex items-center gap-3 mb-6">
           <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-full px-5 py-3 shadow-sm">
-            <span className="text-base">🏠</span>
+           
             <span className="text-gray-600 font-medium">Home</span>
           </div>
           <span className="text-gray-300 text-xl">›</span>
@@ -737,7 +737,7 @@ const ProductCard = () => {
                 className={`grid ${productGridClass} gap-3 sm:gap-6 lg:gap-8`}
               >
                 {/* First 9 Products */}
-                {products.slice(0, 9).map((product) => (
+                {products.slice(0, 6).map((product) => (
                   <ProductGallery
                     key={product._id}
                     product={product}
@@ -748,7 +748,7 @@ const ProductCard = () => {
                 ))}
 
                 {/* Mid-Grid Banner */}
-                {products.length > 9 && (
+                {products.length > 6 && (
                   <div className="col-span-full relative rounded-3xl overflow-hidden min-h-[260px]">
                     <img
                       src="https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=1200"
@@ -782,7 +782,7 @@ const ProductCard = () => {
                 )}
 
                 {/* Remaining Products */}
-                {products.slice(9).map((product) => (
+                {products.slice(6).map((product) => (
                   <ProductGallery
                     key={product._id}
                     product={product}
