@@ -1,24 +1,21 @@
 import React from "react";
 import {
   User,
-  Camera,
   MapPin,
   Lock,
-  Settings,
   LogOut,
+  ShoppingBag,
 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { C } from "../../../../constants/theme"; // Import theme object
 
-const ProfileSidebar = ({
-  activeTab,
-  setActiveTab,
-}) => {
+const ProfileSidebar = ({ activeTab, setActiveTab }) => {
   const menus = [
     {
       id: "profile",
       title: "Profile Information",
       icon: User,
     },
-   
     {
       id: "address",
       title: "Address Book",
@@ -29,40 +26,18 @@ const ProfileSidebar = ({
       title: "Change Password",
       icon: Lock,
     },
-   
   ];
 
   const handleLogout = () => {
     localStorage.removeItem("userToken");
     localStorage.removeItem("userData");
-
     window.location.href = "/user/login";
   };
 
   return (
-    <div className="bg-[var(--card)] text-[var(--card-foreground)] ">
-
-      {/* Profile Card / Header Banner */}
-      <div className="bg-[image:var(--brand-gradient,linear-gradient(135deg,var(--primary),var(--accent))] text-[var(--primary-foreground)] p-6">
-        <div className="flex flex-col items-center">
-          <img
-            src="https://ui-avatars.com/api/?name=User&background=ffffff&color=a0522d&size=128"
-            alt="Profile"
-            className="w-24 h-24 rounded-full border-4 border-[var(--card)] object-cover shadow-sm"
-          />
-
-          <h3 className="mt-4 text-lg font-semibold text-[var(--primary-foreground)]">
-            User Name
-          </h3>
-
-          <p className="text-sm opacity-90 text-[var(--primary-foreground)]">
-            user@email.com
-          </p>
-        </div>
-      </div>
-
+    <div className="flex flex-col justify-between h-full">
       {/* Menu List */}
-      <div className="py-2">
+      <div className="space-y-1.5 p-1">
         {menus.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -70,35 +45,56 @@ const ProfileSidebar = ({
           return (
             <button
               key={item.id}
+              type="button"
               onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-5 py-4 transition-all duration-200 text-sm font-medium
-                ${
-                  isActive
-                    ? "bg-[var(--secondary)] text-[var(--primary)] border-r-4 border-[var(--primary)] font-semibold"
-                    : "text-[var(--foreground)] hover:bg-[var(--secondary)]/50"
-                }`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs sm:text-sm font-bold ${
+                isActive ? "shadow-xs" : "hover:bg-white/50"
+              }`}
+              style={{
+                backgroundColor: isActive ? C.paleCoral : "transparent",
+                color: isActive ? C.coral : C.dark,
+              }}
             >
-              <Icon 
-                size={20} 
-                className={isActive ? "text-[var(--primary)]" : "text-[var(--muted-foreground)]"} 
+              <Icon
+                size={18}
+                style={{
+                  color: isActive ? C.coral : `${C.dark}70`,
+                }}
               />
               <span>{item.title}</span>
             </button>
           );
         })}
+
+        {/* Quick Link to My Orders */}
+        <Link
+          to="/user/orders"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-xs sm:text-sm font-bold hover:bg-white/50"
+          style={{ color: C.dark }}
+        >
+          <ShoppingBag size={18} style={{ color: `${C.dark}70` }} />
+          <span>My Orders</span>
+        </Link>
       </div>
 
       {/* Logout Action */}
-      <div className="border-t border-[var(--border)] p-4">
+      <div
+        className="pt-3 mt-4 border-t"
+        style={{ borderColor: `${C.dark}15` }}
+      >
         <button
+          type="button"
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 rounded-[var(--radius)] bg-[var(--destructive)]/10 text-[var(--destructive)] py-3 font-medium hover:bg-[var(--destructive)]/20 transition"
+          className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-xs sm:text-sm font-bold transition-all hover:opacity-90 active:scale-[0.98]"
+          style={{
+            backgroundColor: `${C.raspberry}15`,
+            color: C.raspberry,
+          }}
         >
-          <LogOut size={20} />
-          Logout
+          <LogOut size={18} />
+          <span>Logout</span>
         </button>
       </div>
-
     </div>
   );
 };

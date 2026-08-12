@@ -8,6 +8,7 @@ import UserRegister from "../../component/page/user/UserRegister";
 import UserProfile from "../../component/page/user/Profile";
 import UserOrders from "../../component/page/user/Orders";
 import UserWishlist from "../../component/page/user/WishlistPage";
+import CheckoutPage from "../../component/page/user/CheckoutPage";
 
 const userRoutes = [
   {
@@ -46,6 +47,10 @@ const userRoutes = [
           {
             path: "/user/wishlist",
             element: <UserWishlist />,
+          },
+          {
+            path: "/checkout",
+            element: <CheckoutPage />,
           },
         ],
       },

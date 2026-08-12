@@ -1,257 +1,224 @@
 import React, { useMemo, useState } from "react";
-import { Lock, Eye, EyeOff, ShieldCheck, Save, CheckCircle2, XCircle } from "lucide-react";
+import { Lock, Eye, EyeOff, ShieldCheck, Save, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { changePassword } from "../../../../redux/thunks/userAuthThunk";
+import { C } from "../../../../constants/theme";
 
-const PasswordTab = ({
-  loading = false,
-  user,
-}) => {
+// Top-level Field component to prevent re-render focus loss
+const PasswordField = ({ label, name, value, showPassword, onChange, onToggleShow, placeholder }) => (
+  <div>
+    <label className="block mb-1.5 text-xs sm:text-sm font-bold" style={{ color: C.dark }}>
+      {label}
+    </label>
+    <div className="relative">
+      <Lock size={18} className="absolute left-4 top-3.5" style={{ color: C.coral }} />
+      <input
+        type={showPassword ? "text" : "password"}
+        name={name}
+        value={value}
+        placeholder={placeholder}
+        autoComplete="off"
+        onChange={onChange}
+        className="w-full rounded-2xl border pl-11 pr-11 py-3 text-xs sm:text-sm font-medium outline-none bg-[#FFFDF9] focus:border-[#F16937] focus:ring-2 focus:ring-[#F16937]/15 transition-all"
+        style={{ borderColor: `${C.dark}20`, color: C.dark }}
+      />
+      <button
+        type="button"
+        onClick={onToggleShow}
+        className="absolute right-4 top-3.5 hover:opacity-75 transition-opacity cursor-pointer"
+        style={{ color: `${C.dark}70` }}
+      >
+        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+      </button>
+    </div>
+  </div>
+);
 
+const PasswordTab = ({ loading = false, user }) => {
   const dispatch = useDispatch();
-  const [submitting, setSubmitting] =
-    useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [show, setShow] = useState({ c: false, n: false, f: false });
   const [successMessage, setSuccess] = useState("");
   const [errorMessage, setError] = useState("");
 
-  const handleChange = e => {
-    setForm(p => ({ ...p, [e.target.name]: e.target.value }));
-    setError(""); setSuccess("");
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+    setError("");
+    setSuccess("");
   };
-  const v = useMemo(() => ({
-    minLength: form.newPassword.length >= 8,
-    hasUppercase: /[A-Z]/.test(form.newPassword),
-    hasNumber: /\d/.test(form.newPassword),
-    hasSpecial: /[^A-Za-z0-9]/.test(form.newPassword),
-  }), [form.newPassword]);
 
+  const v = useMemo(
+    () => ({
+      minLength: form.newPassword.length >= 8,
+      hasUppercase: /[A-Z]/.test(form.newPassword),
+      hasNumber: /\d/.test(form.newPassword),
+      hasSpecial: /[^A-Za-z0-9]/.test(form.newPassword),
+    }),
+    [form.newPassword]
+  );
 
-  const strength =
-    Object.values(v)
-      .filter(Boolean)
-      .length;
-
-
+  const strength = Object.values(v).filter(Boolean).length;
   const labels = ["Very Weak", "Weak", "Medium", "Strong", "Very Strong"];
-
-
-  const colors = ["bg-red-500", "bg-orange-500", "bg-yellow-500", "bg-blue-500", "bg-green-500"];
+  const strengthColors = [C.raspberry, "#F59E0B", "#EAB308", C.teal, C.green];
 
   const submit = async (e) => {
-
     e.preventDefault();
-
     setError("");
     setSuccess("");
 
-    if (
-      !form.currentPassword ||
-      !form.newPassword ||
-      !form.confirmPassword
-    ) {
-
-      setError(
-        "Please fill all fields."
-      );
-
+    if (!form.currentPassword || !form.newPassword || !form.confirmPassword) {
+      setError("Please fill all fields.");
       return;
-
     }
 
-    if (
-      form.newPassword !==
-      form.confirmPassword
-    ) {
-
-      setError(
-        "Passwords do not match."
-      );
-
+    if (form.newPassword !== form.confirmPassword) {
+      setError("Passwords do not match.");
       return;
-
     }
 
     if (strength < 4) {
-
-      setError(
-        "Password does not meet security requirements."
-      );
-
+      setError("Password does not meet all security requirements.");
       return;
-
     }
 
     try {
-
       setSubmitting(true);
-
       await dispatch(
         changePassword({
-
-          currentPassword:
-            form.currentPassword,
-
-          newPassword:
-            form.newPassword,
-
-          confirmPassword:
-            form.confirmPassword,
-
+          currentPassword: form.currentPassword,
+          newPassword: form.newPassword,
+          confirmPassword: form.confirmPassword,
         })
       ).unwrap();
 
-      setSuccess(
-        "Password updated successfully."
-      );
-      setTimeout(() => {
+      setSuccess("Password updated successfully.");
+      setTimeout(() => setSuccess(""), 3000);
 
-  setSuccess("");
-
-}, 3000);
-
-      setForm({
-
-        currentPassword: "",
-
-        newPassword: "",
-
-        confirmPassword: "",
-
-      });
-
+      setForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
     } catch (err) {
-
-      setError(
-
-        typeof err === "string"
-
-          ? err
-
-          : "Unable to update password."
-
-      );
-      setTimeout(() => {
-
-  setError("");
-
-}, 3000);
-
+      setError(typeof err === "string" ? err : "Unable to update password.");
+      setTimeout(() => setError(""), 3000);
     } finally {
-
       setSubmitting(false);
-
     }
-
   };
 
-  const Field = ({
-    label,
-    name,
-    showKey,
-    placeholder,
-  }) => (
-    <div>
-
-      <label className="block mb-2 text-sm">
-
-        {label}
-
-      </label>
-
-      <div className="relative">
-
-        <Lock
-          size={18}
-          className="absolute left-3 top-3.5"
-        />
-
-        <input
-
-          type={
-            show[showKey]
-              ? "text"
-              : "password"
-          }
-
-          name={name}
-
-          value={form[name]}
-
-          placeholder={placeholder}
-
-          autoComplete="off"
-
-          onChange={handleChange}
-
-          className="w-full border rounded pl-10 pr-10 py-3"
-
-        />
-
-        <button
-
-          type="button"
-
-          onClick={() =>
-            setShow((s) => ({
-              ...s,
-              [showKey]:
-                !s[showKey],
-            }))
-          }
-
-          className="absolute right-3 top-3.5"
-
-        >
-
-          {show[showKey]
-
-            ? <EyeOff size={18} />
-
-            : <Eye size={18} />}
-
-        </button>
-
+  return (
+    <div className="p-6 sm:p-8 rounded-3xl" style={{ backgroundColor: C.cream, color: C.dark }}>
+      <div className="mb-6 pb-4 border-b" style={{ borderColor: `${C.dark}15` }}>
+        <h2 className="text-2xl font-bold font-heading">Change Password</h2>
+        <p className="text-xs sm:text-sm mt-1" style={{ color: `${C.dark}80` }}>
+          Update your account password for enhanced security.
+        </p>
       </div>
 
+      {errorMessage && (
+        <div className="mb-5 p-3.5 rounded-2xl text-xs sm:text-sm font-semibold flex items-center gap-2" style={{ backgroundColor: `${C.raspberry}15`, color: C.raspberry }}>
+          <XCircle size={18} className="shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="mb-5 p-3.5 rounded-2xl text-xs sm:text-sm font-semibold flex items-center gap-2" style={{ backgroundColor: C.paleGreen, color: C.green }}>
+          <CheckCircle2 size={18} className="shrink-0" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
+      <form onSubmit={submit} className="space-y-5 max-w-2xl">
+        <PasswordField
+          label="Current Password"
+          name="currentPassword"
+          value={form.currentPassword}
+          showPassword={show.c}
+          onChange={handleChange}
+          onToggleShow={() => setShow((s) => ({ ...s, c: !s.c }))}
+          placeholder="Enter current password"
+        />
+
+        <PasswordField
+          label="New Password"
+          name="newPassword"
+          value={form.newPassword}
+          showPassword={show.n}
+          onChange={handleChange}
+          onToggleShow={() => setShow((s) => ({ ...s, n: !s.n }))}
+          placeholder="Enter new password"
+        />
+
+        <PasswordField
+          label="Confirm Password"
+          name="confirmPassword"
+          value={form.confirmPassword}
+          showPassword={show.f}
+          onChange={handleChange}
+          onToggleShow={() => setShow((s) => ({ ...s, f: !s.f }))}
+          placeholder="Confirm new password"
+        />
+
+        {/* Password Strength Indicator */}
+        {form.newPassword && (
+          <div className="space-y-1.5 pt-1">
+            <div className="flex justify-between text-xs font-bold">
+              <span style={{ color: `${C.dark}70` }}>Password Strength</span>
+              <span style={{ color: strengthColors[Math.max(0, strength - 1)] }}>
+                {labels[Math.max(0, strength - 1)]}
+              </span>
+            </div>
+            <div className="h-2 w-full rounded-full overflow-hidden bg-black/5">
+              <div
+                className="h-full transition-all duration-300 rounded-full"
+                style={{
+                  width: `${(strength / 4) * 100}%`,
+                  backgroundColor: strengthColors[Math.max(0, strength - 1)],
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Password Requirements Card */}
+        <div className="border p-4 rounded-2xl space-y-2.5 bg-[#FFFDF9]" style={{ borderColor: `${C.dark}15` }}>
+          <div className="flex gap-2 items-center text-xs font-bold" style={{ color: C.dark }}>
+            <ShieldCheck size={18} style={{ color: C.teal }} />
+            <span>Security Requirements</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs font-medium">
+            {[
+              ["Minimum 8 characters", v.minLength],
+              ["Uppercase letter (A-Z)", v.hasUppercase],
+              ["At least one number (0-9)", v.hasNumber],
+              ["Special character (!@#$)", v.hasSpecial],
+            ].map(([text, isMet]) => (
+              <div key={text} className="flex items-center gap-2">
+                {isMet ? (
+                  <CheckCircle2 size={16} style={{ color: C.green }} className="shrink-0" />
+                ) : (
+                  <XCircle size={16} style={{ color: `${C.dark}30` }} className="shrink-0" />
+                )}
+                <span style={{ color: isMet ? C.dark : `${C.dark}60` }}>{text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={loading || submitting}
+          className="flex items-center justify-center gap-2 px-8 py-3 rounded-full font-bold text-xs sm:text-sm text-white shadow-xs transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 cursor-pointer"
+          style={{ backgroundColor: C.coral }}
+        >
+          {submitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+          <span>{submitting ? "Updating..." : "Update Password"}</span>
+        </button>
+      </form>
     </div>
   );
-
-  return <div>
-    <h2 className="text-2xl font-bold mb-6">Change Password</h2>
-    {errorMessage && <div className="mb-4 text-red-600">{errorMessage}</div>}
-    {successMessage && <div className="mb-4 text-green-600">{successMessage}</div>}
-    <form onSubmit={submit} className="space-y-5">
-      <Field
-        label="Current Password"
-        name="currentPassword"
-        showKey="c"
-        placeholder="Enter current password"
-      />
-      <Field
-        label="New Password"
-        name="newPassword"
-        showKey="n"
-        placeholder="Enter new password"
-      />
-      <Field
-        label="Confirm Password"
-        name="confirmPassword"
-        showKey="f"
-        placeholder="Confirm password"
-      />
-      {form.newPassword && <div><div className="flex justify-between text-sm"><span>Strength</span><span>{labels[strength]}</span></div><div className="h-2 bg-gray-200 rounded"><div className={colors[strength] + " h-2"} style={{ width: `${(strength + 1) * 20}%` }}></div></div></div>}
-      <div className="border p-4 rounded"><div className="flex gap-2 items-center mb-2"><ShieldCheck size={18} /><b>Requirements</b></div>
-        {[["Minimum 8 characters", v.minLength], ["Uppercase letter", v.hasUppercase], ["Number", v.hasNumber], ["Special character", v.hasSpecial]].map(([t, ok]) => <div key={t} className="flex gap-2">{ok ? <CheckCircle2 size={16} /> : <XCircle size={16} />}<span>{t}</span></div>)}
-      </div>
-      <button disabled={loading || submitting} className="flex items-center gap-2 px-6 py-3 rounded bg-[var(--primary)] text-[var(--primary-foreground)]"><Save size={18} />{submitting
-
-        ? "Updating..."
-
-        : "Update Password"
-
-      }</button>
-    </form></div>;
 };
+
 export default PasswordTab;

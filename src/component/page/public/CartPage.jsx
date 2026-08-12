@@ -8,7 +8,7 @@ import {
   ShieldCheck,
   ArrowLeft
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -25,19 +25,13 @@ import { C } from "../../../constants/theme";
 
 export default function CartPage() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
-  const cartItems =
-    useSelector(
-      selectCartItems
-    );
+  const cartItems = useSelector(selectCartItems);
 
   useEffect(() => {
-    dispatch(
-      fetchCart()
-    );
-  }, [
-    dispatch,
-  ]);
+    dispatch(fetchCart());
+  }, [dispatch]);
 
   const removeFromCart = async (productId) => {
     await dispatch(removeProductFromCart(productId));
@@ -57,25 +51,23 @@ export default function CartPage() {
     dispatch(fetchCart());
   };
 
+  // Checkout navigation handler
+  const handleProceedToCheckout = () => {
+    navigate("/checkout");
+  };
+
   // Derived State Calculations
-  const subtotal =
-    (cartItems || []).reduce(
-      (acc, item) =>
-        acc +
-        (
-          (item.price || 0) *
-          (item.quantity || 1)
-        ),
-      0
-    );
+  const subtotal = (cartItems || []).reduce(
+    (acc, item) =>
+      acc + ((item.price || 0) * (item.quantity || 1)),
+    0
+  );
   const tax = subtotal * 0.18; // 18% GST example
   const shipping = subtotal > 2000 ? 0 : 150; // Free shipping above ₹2000
   const grandTotal = subtotal + tax + shipping;
 
   // Render Empty State
-  if (
-    !cartItems?.length
-  ) {
+  if (!cartItems?.length) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center px-4" style={{ background: C.ivory }}>
         <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full flex items-center justify-center mb-6 shadow-sm" style={{ background: C.paleCoral }}>
@@ -158,7 +150,7 @@ export default function CartPage() {
                             item.quantity - 1
                           )
                         }
-                        className="px-3 py-1.5 hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-3ila disabled:cursor-not-allowed"
+                        className="px-3 py-1.5 hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                         disabled={item.quantity <= 1}
                         aria-label="Decrease quantity"
                       >
@@ -255,6 +247,8 @@ export default function CartPage() {
             </div>
 
             <button 
+              type="button"
+              onClick={handleProceedToCheckout}
               className="w-full text-white py-4 rounded-2xl font-bold text-base sm:text-lg flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg hover:opacity-95 active:scale-[0.99]"
               style={{ background: C.coral }}
             >
