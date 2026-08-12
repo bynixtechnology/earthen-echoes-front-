@@ -621,7 +621,7 @@ const Footer = () => {
               />
 
               <span>
-                +91-98765-43210
+                +91-9772790222
               </span>
 
             </div>
@@ -646,7 +646,7 @@ const Footer = () => {
               />
 
               <span>
-                info@earthenechoes.com
+                info@earthenechoes.in
               </span>
 
             </div>
@@ -671,7 +671,7 @@ const Footer = () => {
               />
 
               <span>
-                Mon - Sat:
+                Mon - Sunday:
                 9:00 AM - 6:00 PM IST
               </span>
 

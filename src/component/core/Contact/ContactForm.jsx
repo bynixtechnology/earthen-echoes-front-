@@ -75,7 +75,7 @@ const ContactForm = () => {
                                     Our Address
                                 </h4>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                    Artisan Block, Mansarovar, Jaipur, Rajasthan 302020, India
+                                   A-457, Nemi Nagar Extension, Block A, Vaishali Nagar, Jaipur, Rajasthan 302021
                                 </p>
                             </div>
                         </div>
@@ -88,7 +88,7 @@ const ContactForm = () => {
                                     Phone &amp; WhatsApp
                                 </h4>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                    +91-98765-43210 (Support) / +91-98765-43211 (Bulk Orders)
+                                   +91-9772790222
                                 </p>
                             </div>
                         </div>
@@ -101,7 +101,7 @@ const ContactForm = () => {
                                     Email Address
                                 </h4>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                    heritage@earthenechoes.com (Inquiries) / sales@earthenechoes.com
+                                    info@earthenechoes.in (Inquiries) / sales@earthenechoes.in
                                     (Wholesale)
                                 </p>
                             </div>
@@ -115,8 +115,7 @@ const ContactForm = () => {
                                     Working Hours
                                 </h4>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                    Monday - Saturday: 9:00 AM - 6:00 PM IST (Closed Sundays &amp;
-                                    Festivals)
+                                    Monday - Sunday: 9:00 AM - 6:00 PM IST 
                                 </p>
                             </div>
                         </div>

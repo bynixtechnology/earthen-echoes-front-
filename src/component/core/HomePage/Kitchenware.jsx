@@ -44,38 +44,43 @@ const Kitchenware = () => {
     let isMounted = true;
 
     const fetchKitchenware = async () => {
-      try {
-        setIsLoading(true);
-        setError("");
+  try {
+    setIsLoading(true);
+    setError("");
 
-        const response = await ProductService.getAll({
-          page: 1,
-          limit: 1000,
-          isActive: true,
-          categoryName: "Kitchen Ware",
-        });
+    const response = await ProductService.getAll({
+      page: 1,
+      limit: 1000,
+      isActive: true,
+      categoryName: "Kitchen Ware",
+    });
 
-        const productList = Array.isArray(response?.products)
-          ? response.products
-          : Array.isArray(response?.data)
-          ? response.data
-          : [];
+    const rawList = Array.isArray(response?.products)
+      ? response.products
+      : Array.isArray(response?.data)
+      ? response.data
+      : [];
 
-        if (isMounted) setProducts(productList);
-      } catch (error) {
-        console.error("FETCH KITCHENWARE ERROR:", error);
-        if (isMounted) {
-          setProducts([]);
-          setError(
-            error?.response?.data?.message ||
-              error?.message ||
-              "Unable to load kitchenware products."
-          );
-        }
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    };
+    // Filter products strictly for category "Kitchen Ware"
+    const kitchenwareProducts = rawList.filter(
+      (item) => item?.category?.name?.toLowerCase() === "kitchen ware"
+    );
+
+    if (isMounted) setProducts(kitchenwareProducts);
+  } catch (error) {
+    console.error("FETCH KITCHENWARE ERROR:", error);
+    if (isMounted) {
+      setProducts([]);
+      setError(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to load kitchenware products."
+      );
+    }
+  } finally {
+    if (isMounted) setIsLoading(false);
+  }
+};
 
     dispatch(getWishlist());
     fetchKitchenware();

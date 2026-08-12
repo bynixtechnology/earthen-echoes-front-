@@ -410,7 +410,7 @@ const ProductCard = () => {
   }
 
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-background">
+    <section className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-5 py-12 bg-background">
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-8">
         {/* Breadcrumb */}

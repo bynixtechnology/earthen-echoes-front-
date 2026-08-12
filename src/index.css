@@ -139,8 +139,6 @@ body {
   animation: fadeSlideUp 0.8s ease forwards;
 }
 
-input::placeholder {
-  color: rgba(255, 255, 255, 0.65);
-}
+
 
 
