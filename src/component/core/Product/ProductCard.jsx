@@ -416,7 +416,6 @@ const ProductCard = () => {
         {/* Breadcrumb */}
         <div className="flex items-center gap-3 mb-6">
           <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-full px-5 py-3 shadow-sm">
-           
             <span className="text-gray-600 font-medium">Home</span>
           </div>
           <span className="text-gray-300 text-xl">›</span>
@@ -736,7 +735,7 @@ const ProductCard = () => {
               <div
                 className={`grid ${productGridClass} gap-3 sm:gap-6 lg:gap-8`}
               >
-                {/* First 9 Products */}
+                {/* First 6 Products */}
                 {products.slice(0, 6).map((product) => (
                   <ProductGallery
                     key={product._id}
@@ -1097,8 +1096,11 @@ const Stars = ({ rating }) => {
   );
 };
 
-
-
+/*
+|--------------------------------------------------------------------------
+| Product Gallery Component (With Fixed Image Extraction for Variants)
+|--------------------------------------------------------------------------
+*/
 const ProductGallery = ({
   product,
   onAddToCart,
@@ -1106,15 +1108,31 @@ const ProductGallery = ({
   onWishlist,
 }) => {
   const [hovered, setHovered] = useState(false);
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
 
-  // Extract Primary Image
-  const image1 =
-    product?.images?.[0]?.url ||
-    product?.images?.[0]?.secure_url ||
-    (typeof product?.images?.[0] === "string"
-      ? product.images[0]
-      : null) ||
-    "/placeholder.png";
+  // Helper function to extract valid image URL string
+  const getImageUrl = (imageObj) => {
+    if (!imageObj) return null;
+    if (typeof imageObj === "string") return imageObj;
+    return imageObj.url || imageObj.secure_url || null;
+  };
+
+  // Image Fallback Logic: Variant Images -> Main Images -> Placeholder
+  const image1 = useMemo(() => {
+    // 1. If product has variants, check selected variant images
+    if (product?.hasVariants && Array.isArray(product?.variants) && product.variants.length > 0) {
+      const activeVariant = product.variants[selectedVariantIndex] || product.variants[0];
+      const variantImg = getImageUrl(activeVariant?.images?.[0]);
+      if (variantImg) return variantImg;
+    }
+
+    // 2. Check main product images
+    const mainImg = getImageUrl(product?.images?.[0]);
+    if (mainImg) return mainImg;
+
+    // 3. Fallback placeholder
+    return "/placeholder.png";
+  }, [product, selectedVariantIndex]);
 
   const isWishlisted = wishlistItems?.some((item) => {
     return (
@@ -1124,7 +1142,6 @@ const ProductGallery = ({
     );
   });
 
-  // Dynamic Tag Style Generator based on Pill UI Design
   const getTagStyle = (tagName = "") => {
     const lowerName = tagName.toLowerCase();
 
@@ -1162,7 +1179,6 @@ const ProductGallery = ({
       };
     }
 
-    // Default Fallback pill style
     return {
       bg: "bg-[#F3F4F6]",
       text: "text-[#374151]",
@@ -1190,7 +1206,6 @@ const ProductGallery = ({
           flex
           flex-col
           justify-between
-          
         "
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -1208,7 +1223,7 @@ const ProductGallery = ({
               bg-[#FBF6F2]
             "
           >
-            {/* Primary Product Image */}
+            {/* Product Image */}
             <img
               src={image1}
               alt={product?.title || "Product"}
@@ -1216,7 +1231,9 @@ const ProductGallery = ({
                 w-full
                 h-full
                 object-cover
-                
+                transition-transform
+                duration-500
+                group-hover:scale-105
               "
             />
 
@@ -1484,6 +1501,31 @@ const ProductGallery = ({
               {product?.title || "Product"}
             </h3>
 
+            {/* COLOR VARIANTS SWATCHES */}
+            {product?.hasVariants &&
+              Array.isArray(product?.variants) &&
+              product.variants.length > 0 && (
+                <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                  {product.variants.map((v, idx) => (
+                    <button
+                      key={v.sku || idx}
+                      type="button"
+                      title={v.colorName}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedVariantIndex(idx);
+                      }}
+                      className={`
+                        w-4 h-4 rounded-full border border-gray-300 transition-transform
+                        ${selectedVariantIndex === idx ? "scale-125 ring-2 ring-primary ring-offset-1" : "hover:scale-110"}
+                      `}
+                      style={{ backgroundColor: v.colorCode || "#CCC" }}
+                    />
+                  ))}
+                </div>
+              )}
+
             {/* PRICE */}
             <div className="mt-3 flex flex-wrap items-end gap-2">
               <span className="text-[14px] font-bold text-[#F16937]">
@@ -1507,7 +1549,7 @@ const ProductGallery = ({
               </p>
             )}
 
-            {/* DYNAMIC PRODUCT TAGS - Compact & Responsive Layout Fix */}
+            {/* DYNAMIC PRODUCT TAGS */}
             {Array.isArray(product?.productTags) &&
               product.productTags.length > 0 && (
                 <div className="mt-3 flex items-center gap-1.5 flex-wrap max-w-full">
@@ -1603,6 +1645,5 @@ const ProductGallery = ({
     </Link>
   );
 };
-
 
 export default ProductCard;

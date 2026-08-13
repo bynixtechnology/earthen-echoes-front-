@@ -1,47 +1,40 @@
 import React from "react";
-import {
-  Navigate,
-  Outlet,
-} from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 const GuestRoute = () => {
-  // Read correct localStorage keys
-  const token = localStorage.getItem("userToken");
-  const savedUser = localStorage.getItem("userData");
+  // Read state from Redux (if available) with localStorage fallback
+  const reduxToken = useSelector((state) => state.auth?.token);
+  const reduxUser = useSelector((state) => state.auth?.user);
 
-  // Not logged in -> allow login/register pages
-  if (!token || !savedUser) {
-    return <Outlet />;
-  }
+  const token = reduxToken || localStorage.getItem("userToken");
+  const savedUserData = localStorage.getItem("userData");
 
-  try {
-    const user = JSON.parse(savedUser);
+  let user = reduxUser;
 
-    // Admin user
-    if (user?.role === "admin") {
-      return (
-        <Navigate
-          to="/admin/product"
-          replace
-        />
-      );
+  // Fallback to localStorage if user object not in Redux state
+  if (!user && savedUserData) {
+    try {
+      user = JSON.parse(savedUserData);
+    } catch (error) {
+      console.error("Invalid user data in localStorage:", error);
+      localStorage.removeItem("userToken");
+      localStorage.removeItem("userData");
+      return <Outlet />;
     }
+  }
 
-    // Normal user
-    return (
-      <Navigate
-        to="/user/profile"
-        replace
-      />
-    );
-  } catch (error) {
-    console.error("Invalid user data:", error);
-
-    localStorage.removeItem("userToken");
-    localStorage.removeItem("userData");
-
+  // If user is not logged in -> Allow login/register pages
+  if (!token || !user) {
     return <Outlet />;
   }
+
+  // If already logged in -> Redirect based on role
+  if (user?.role === "admin") {
+    return <Navigate to="/admin/product" replace />;
+  }
+
+  return <Navigate to="/user/profile" replace />;
 };
 
 export default GuestRoute;

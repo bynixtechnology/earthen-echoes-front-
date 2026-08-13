@@ -6,7 +6,6 @@ import {
   ProductService,
 } from "../../services/productService";
 
-
 const getErrorMessage = (
   error,
   fallback
@@ -19,7 +18,6 @@ const getErrorMessage = (
     fallback
   );
 };
-
 
 const normalizeProducts = (
   response
@@ -37,7 +35,6 @@ const normalizeProducts = (
     ? products
     : [];
 };
-
 
 const normalizeProduct = (
   response
@@ -62,7 +59,6 @@ const normalizeProduct = (
   return product;
 };
 
-
 const getPaginationObject = (
   response
 ) => {
@@ -73,7 +69,6 @@ const getPaginationObject = (
     {}
   );
 };
-
 
 const normalizeProductsPayload = (
   response,
@@ -227,7 +222,11 @@ const normalizeProductsPayload = (
   };
 };
 
-
+/*
+|--------------------------------------------------------------------------
+| FETCH PUBLIC PRODUCTS (Catalogue & Home Page - Non-Auth)
+|--------------------------------------------------------------------------
+*/
 export const fetchProducts =
   createAsyncThunk(
     "products/fetchProducts",
@@ -253,8 +252,9 @@ export const fetchProducts =
           ...params,
         };
 
+        // 🟢 FIX: Public service hit karein taaki authentication required error na aaye
         const response =
-          await ProductService.getAll(
+          await ProductService.getPublic(
             requestParams
           );
 
@@ -277,7 +277,6 @@ export const fetchProducts =
       }
     }
   );
-
 
 export const fetchPublicProducts =
   createAsyncThunk(
@@ -329,7 +328,6 @@ export const fetchPublicProducts =
     }
   );
 
-
 export const fetchProductById =
   createAsyncThunk(
     "products/fetchProductById",
@@ -379,7 +377,6 @@ export const fetchProductById =
       }
     }
   );
-
 
 export const fetchProductBySlug =
   createAsyncThunk(
@@ -434,7 +431,6 @@ export const fetchProductBySlug =
     }
   );
 
-
 export const fetchProductsByCategory = createAsyncThunk(
   "products/fetchProductsByCategory",
 
@@ -448,14 +444,7 @@ export const fetchProductsByCategory = createAsyncThunk(
     }
   ) => {
     try {
-      console.log("======================================");
-      console.log("fetchProductsByCategory THUNK");
-      console.log("Received categoryId =>", categoryId);
-      console.log("Received params =>", params);
-
       if (!categoryId) {
-        console.error("Category ID is missing.");
-
         return rejectWithValue(
           "Category ID is required."
         );
@@ -471,22 +460,11 @@ export const fetchProductsByCategory = createAsyncThunk(
         ...params,
       };
 
-      console.log(
-        "Final Request Params =>",
-        requestParams
-      );
-
-      console.log(
-        "Calling ProductService.getByCategory..."
-      );
-
       const response =
         await ProductService.getByCategory(
           categoryId,
           requestParams
         );
-
-      console.log("API Response =>", response);
 
       return {
         categoryId,
@@ -511,7 +489,6 @@ export const fetchProductsByCategory = createAsyncThunk(
     }
   }
 );
-
 
 export const searchProducts =
   createAsyncThunk(
@@ -581,7 +558,6 @@ export const searchProducts =
     }
   );
 
-
 export const fetchFeaturedProducts =
   createAsyncThunk(
     "products/fetchFeaturedProducts",
@@ -609,7 +585,7 @@ export const fetchFeaturedProducts =
 
         const response =
           await ProductService
-            .getFeatured(
+            .getPublicFeatured(
               requestParams
             );
 
@@ -632,7 +608,6 @@ export const fetchFeaturedProducts =
       }
     }
   );
-
 
 export const fetchPublicFeaturedProducts =
   createAsyncThunk(
@@ -684,7 +659,6 @@ export const fetchPublicFeaturedProducts =
       }
     }
   );
-
 
 export const createProduct =
   createAsyncThunk(
@@ -753,7 +727,7 @@ export const createProduct =
     }
   );
 
-  export const importProductsExcel =
+export const importProductsExcel =
   createAsyncThunk(
     "products/importProductsExcel",
 
@@ -766,9 +740,7 @@ export const createProduct =
         rejectWithValue,
       }
     ) => {
-
       try {
-
         if (
           !formData ||
           !(
@@ -776,11 +748,9 @@ export const createProduct =
             FormData
           )
         ) {
-
           return rejectWithValue(
             "Excel file is required."
           );
-
         }
 
         const response =
@@ -798,21 +768,16 @@ export const createProduct =
             response?.data ||
             response,
         };
-
       } catch (error) {
-
         return rejectWithValue(
           getErrorMessage(
             error,
             "Unable to import products."
           )
         );
-
       }
-
     }
   );
-
 
 export const updateProduct =
   createAsyncThunk(
@@ -891,7 +856,6 @@ export const updateProduct =
     }
   );
 
-
 export const updateProductStatus =
   createAsyncThunk(
     "products/updateProductStatus",
@@ -967,7 +931,6 @@ export const updateProductStatus =
     }
   );
 
-
 export const updateProductFeatured =
   createAsyncThunk(
     "products/updateProductFeatured",
@@ -1042,7 +1005,6 @@ export const updateProductFeatured =
       }
     }
   );
-
 
 export const updateProductStock =
   createAsyncThunk(
@@ -1120,8 +1082,7 @@ export const updateProductStock =
     }
   );
 
-
-  export const exportProductsExcel =
+export const exportProductsExcel =
   createAsyncThunk(
     "products/exportProductsExcel",
 
@@ -1131,27 +1092,21 @@ export const updateProductStock =
         rejectWithValue,
       }
     ) => {
-
       try {
-
         const file =
           await ProductService.exportExcel(
             params
           );
 
         return file;
-
       } catch (error) {
-
         return rejectWithValue(
           getErrorMessage(
             error,
             "Unable to export products."
           )
         );
-
       }
-
     }
   );
 

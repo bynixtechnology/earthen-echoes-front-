@@ -10,6 +10,8 @@ import {
   ChevronRight,
   Download,
   Upload,
+  Layers,
+  CheckSquare,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
@@ -32,13 +34,21 @@ export default function Dashboard() {
 
   /*
   |--------------------------------------------------------------------------
+  | Bulk Action States
+  |--------------------------------------------------------------------------
+  */
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  /*
+  |--------------------------------------------------------------------------
   | Pagination & Filters
   |--------------------------------------------------------------------------
   */
   const [currentPage, setCurrentPage] = useState(() => {
-  const savedPage = sessionStorage.getItem("productsCurrentPage");
-  return savedPage ? Number(savedPage) : 1;
-});
+    const savedPage = sessionStorage.getItem("productsCurrentPage");
+    return savedPage ? Number(savedPage) : 1;
+  });
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
   const [limit, setLimit] = useState(10);
@@ -67,49 +77,42 @@ export default function Dashboard() {
 
   /*
   |--------------------------------------------------------------------------
-  | Fetch Products (Maintains Page State & Prioritizes Featured In Current Page)
+  | Checkbox Selection Handlers
   |--------------------------------------------------------------------------
   */
- const fetchProducts = async () => {
-  try {
-    setIsLoading(true);
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const visibleIds = products.map((item) => item._id || item.id);
+      // Current page ke saare unique IDs Add karein
+      setSelectedProductIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+    } else {
+      const visibleIds = products.map((item) => item._id || item.id);
+      // Current page ke items deselect karein
+      setSelectedProductIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+    }
+  };
 
-    // 1. First request: total pages ka pata lagao
-    const firstResponse = await ProductService.getAll({
-      page: 1,
-      limit: 100,
-      search,
-      category: categoryFilter,
-      minPrice,
-      maxPrice,
-    });
-
-    const firstProducts =
-      firstResponse?.data?.products ||
-      firstResponse?.products ||
-      (Array.isArray(firstResponse?.data)
-        ? firstResponse.data
-        : Array.isArray(firstResponse)
-        ? firstResponse
-        : []);
-
-    const firstPagination =
-      firstResponse?.data?.pagination ||
-      firstResponse?.pagination ||
-      {};
-
-    const serverTotalPages = Math.max(
-      Number(firstPagination?.totalPages || 1),
-      1
+  const handleSelectOne = (id) => {
+    setSelectedProductIds((prev) =>
+      prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]
     );
+  };
 
-    // 2. Saare matching products collect karo
-    let fetchedProducts = [...firstProducts];
+  const isAllSelectedOnPage =
+    products.length > 0 &&
+    products.every((p) => selectedProductIds.includes(p._id || p.id));
 
-    // 3. Agar multiple pages hain to baaki pages bhi fetch karo
-    for (let page = 2; page <= serverTotalPages; page++) {
-      const response = await ProductService.getAll({
-        page,
+  /*
+  |--------------------------------------------------------------------------
+  | Fetch Products
+  |--------------------------------------------------------------------------
+  */
+  const fetchProducts = async () => {
+    try {
+      setIsLoading(true);
+
+      const firstResponse = await ProductService.getAll({
+        page: 1,
         limit: 100,
         search,
         category: categoryFilter,
@@ -117,70 +120,84 @@ export default function Dashboard() {
         maxPrice,
       });
 
-      const pageProducts =
-        response?.data?.products ||
-        response?.products ||
-        (Array.isArray(response?.data)
-          ? response.data
-          : Array.isArray(response)
-          ? response
+      const firstProducts =
+        firstResponse?.data?.products ||
+        firstResponse?.products ||
+        (Array.isArray(firstResponse?.data)
+          ? firstResponse.data
+          : Array.isArray(firstResponse)
+          ? firstResponse
           : []);
 
-      fetchedProducts = [
-        ...fetchedProducts,
-        ...pageProducts,
-      ];
+      const firstPagination =
+        firstResponse?.data?.pagination ||
+        firstResponse?.pagination ||
+        {};
+
+      const serverTotalPages = Math.max(
+        Number(firstPagination?.totalPages || 1),
+        1
+      );
+
+      let fetchedProducts = [...firstProducts];
+
+      for (let page = 2; page <= serverTotalPages; page++) {
+        const response = await ProductService.getAll({
+          page,
+          limit: 100,
+          search,
+          category: categoryFilter,
+          minPrice,
+          maxPrice,
+        });
+
+        const pageProducts =
+          response?.data?.products ||
+          response?.products ||
+          (Array.isArray(response?.data)
+            ? response.data
+            : Array.isArray(response)
+            ? response
+            : []);
+
+        fetchedProducts = [...fetchedProducts, ...pageProducts];
+      }
+
+      // GLOBAL FEATURED FIRST SORT
+      const sortedProducts = [...fetchedProducts].sort(
+        (a, b) =>
+          Number(Boolean(b.isFeatured)) - Number(Boolean(a.isFeatured))
+      );
+
+      setAllProducts(sortedProducts);
+      setTotalProducts(sortedProducts.length);
+
+      const startIndex = (currentPage - 1) * limit;
+      const endIndex = startIndex + limit;
+
+      const currentPageProducts = sortedProducts.slice(startIndex, endIndex);
+
+      setProducts(currentPageProducts);
+
+      const calculatedTotalPages = Math.max(
+        Math.ceil(sortedProducts.length / limit),
+        1
+      );
+
+      setTotalPages(calculatedTotalPages);
+    } catch (err) {
+      console.error("FETCH PRODUCTS ERROR:", err);
+      showToast.error(
+        FRONTEND_MESSAGES?.PRODUCT?.FETCH_FAILED || "Unable to fetch products."
+      );
+      setProducts([]);
+      setAllProducts([]);
+      setTotalProducts(0);
+      setTotalPages(1);
+    } finally {
+      setIsLoading(false);
     }
-
-    // 4. GLOBAL FEATURED FIRST SORT
-    const sortedProducts = [...fetchedProducts].sort(
-      (a, b) =>
-        Number(Boolean(b.isFeatured)) -
-        Number(Boolean(a.isFeatured))
-    );
-
-    // 5. Saare products state mein save karo
-    setAllProducts(sortedProducts);
-
-    // 6. Total products
-    setTotalProducts(sortedProducts.length);
-
-    // 7. Current page ke according products nikalo
-    const startIndex = (currentPage - 1) * limit;
-    const endIndex = startIndex + limit;
-
-    const currentPageProducts = sortedProducts.slice(
-      startIndex,
-      endIndex
-    );
-
-    // 8. Current page products show karo
-    setProducts(currentPageProducts);
-
-    // 9. Total pages calculate karo
-    const calculatedTotalPages = Math.max(
-      Math.ceil(sortedProducts.length / limit),
-      1
-    );
-
-    setTotalPages(calculatedTotalPages);
-
-  } catch (err) {
-    console.error("FETCH PRODUCTS ERROR:", err);
-
-    showToast.error(
-      FRONTEND_MESSAGES?.PRODUCT?.FETCH_FAILED ||
-        "Unable to fetch products."
-    );
-
-    setProducts([]);
-    setAllProducts([]);
-    setTotalProducts(0);
-    setTotalPages(1);
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   const fetchCategories = async () => {
     try {
@@ -188,10 +205,8 @@ export default function Dashboard() {
         page: 1,
         limit: 1000,
       });
-
       const list =
         res?.data?.categories || res?.categories || res?.data || [];
-
       setCategories(Array.isArray(list) ? list : []);
     } catch (err) {
       console.error(err);
@@ -208,66 +223,144 @@ export default function Dashboard() {
     }
   };
 
+  /*
+  |--------------------------------------------------------------------------
+  | Bulk Delete Operation
+  |--------------------------------------------------------------------------
+  */
+  const handleBulkDelete = async () => {
+    if (selectedProductIds.length === 0) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${selectedProductIds.length} selected product(s)?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsBulkDeleting(true);
+
+      // agar aapke backend mein single bulk delete API hai jaise ProductService.bulkDelete(selectedProductIds)
+      // toh aap pass kar sakte hain. Warna standard loop approach:
+      if (typeof ProductService.bulkDelete === "function") {
+        await ProductService.bulkDelete(selectedProductIds);
+      } else {
+        await Promise.all(
+          selectedProductIds.map((id) => ProductService.delete(id))
+        );
+      }
+
+      showToast.success(
+        `${selectedProductIds.length} products deleted successfully.`
+      );
+      setSelectedProductIds([]);
+
+      // Reset Current page logic if deleting whole page
+      const remainingItems = products.length - selectedProductIds.length;
+      const targetPage = remainingItems <= 0 && currentPage > 1 ? currentPage - 1 : currentPage;
+      
+      sessionStorage.setItem("productsCurrentPage", String(targetPage));
+      setCurrentPage(targetPage);
+      await fetchProducts();
+    } catch (err) {
+      console.error("BULK DELETE ERROR:", err);
+      showToast.error(
+        err?.response?.data?.message || "Unable to delete selected products."
+      );
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | Excel Template & Export/Import Logic
+  |--------------------------------------------------------------------------
+  */
   const handleDownloadTemplate = () => {
     const templateData = [
       {
-        "Numerical ID": 2001,
-        SKU: "SKU-2001",
-        "Product Title": "Bamboo Basket",
+        ID: 2001,
+        Title: "Handcrafted Terracotta Vase",
         Collection: "Premium Collection",
-        Category: "Home & Kitchen",
-        "Product Tags": "Best Seller, Eco Friendly",
-        "Sale Price": 1500,
-        "Original Price": 1800,
-        "Discount %": 20,
-        Stock: 100,
-        Description: "Premium bamboo basket for home use.",
-        "Long Description":
-          "High quality bamboo basket made from natural bamboo. Perfect for storage, decoration and everyday use.",
-        "Long Description 1":
-          "Suitable for kitchen, bedroom, living room and gifting purpose.",
+        MainSKU: "EE-VASE-2001",
+        VariantSKU: "EE-VASE-RED",
+        Category: "Pottery & Clay",
+        ProductTags: "Best Seller, Eco Friendly",
+        ColorName: "Terracotta Red",
+        ColorCode: "#C85A32",
+        Price: 1500,
+        OriginalPrice: 1800,
+        Stock: 50,
         Dimensions: "20 x 15 x 10 cm",
         Weight: "1.2 kg",
-        Composition: "Natural Bamboo",
-        Placement: "Indoor",
-        Finish: "Matte",
-        Status: "Active",
+        Composition: "100% natural red clay",
+        Placement: "Indoor / Outdoor",
+        Finish: "Matte terracotta body",
+        Description: "Premium handcrafted terracotta vase for home decor.",
+        LongDescription: "Handcrafted from 100% natural clay. Elegant finish and organic design.",
+        Active: "Yes",
         Featured: "No",
-        "Product Image URL": "https://picsum.photos/seed/product1/800/800",
+        Images: "https://picsum.photos/seed/vase1/800/800, https://picsum.photos/seed/vase2/800/800",
+      },
+      {
+        ID: 2001,
+        Title: "Handcrafted Terracotta Vase",
+        Collection: "Premium Collection",
+        MainSKU: "EE-VASE-2001",
+        VariantSKU: "EE-VASE-BLK",
+        Category: "Pottery & Clay",
+        ProductTags: "Best Seller, Eco Friendly",
+        ColorName: "Black Clay",
+        ColorCode: "#1F1F1F",
+        Price: 1600,
+        OriginalPrice: 1900,
+        Stock: 30,
+        Dimensions: "20 x 15 x 10 cm",
+        Weight: "1.3 kg",
+        Composition: "100% natural black clay",
+        Placement: "Indoor / Outdoor",
+        Finish: "Smoked matte finish",
+        Description: "Premium handcrafted terracotta vase for home decor.",
+        LongDescription: "Handcrafted from 100% natural clay. Elegant finish and organic design.",
+        Active: "Yes",
+        Featured: "No",
+        Images: "https://picsum.photos/seed/vase3/800/800",
       },
     ];
 
     const worksheet = XLSX.utils.json_to_sheet(templateData);
 
     worksheet["!cols"] = [
-      { wch: 15 },
+      { wch: 10 },
+      { wch: 30 },
       { wch: 20 },
-      { wch: 35 },
-      { wch: 25 },
-      { wch: 25 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 20 },
       { wch: 25 },
       { wch: 15 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 10 },
       { wch: 18 },
       { wch: 12 },
-      { wch: 10 },
-      { wch: 45 },
-      { wch: 70 },
-      { wch: 70 },
-      { wch: 22 },
-      { wch: 15 },
       { wch: 25 },
       { wch: 20 },
-      { wch: 20 },
-      { wch: 12 },
-      { wch: 12 },
+      { wch: 25 },
+      { wch: 35 },
+      { wch: 50 },
+      { wch: 10 },
+      { wch: 10 },
       { wch: 70 },
     ];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
-    XLSX.writeFile(workbook, "product-import-template.xlsx");
+    XLSX.writeFile(workbook, "product-variants-import-template.xlsx");
 
-    showToast.success("Product Excel template downloaded successfully.");
+    showToast.success("Product Variants Excel template downloaded.");
   };
 
   const getAllProductsForExport = async () => {
@@ -286,7 +379,7 @@ export default function Dashboard() {
 
     const totalPagesToFetch = Number(pagination?.totalPages || 1) || 1;
 
-    let allProducts = [...firstProducts];
+    let allProductsList = [...firstProducts];
 
     for (let page = 2; page <= totalPagesToFetch; page++) {
       const response = await ProductService.getAll({
@@ -299,74 +392,107 @@ export default function Dashboard() {
         response?.products ||
         (Array.isArray(response?.data) ? response.data : []);
 
-      allProducts = [...allProducts, ...pageProducts];
+      allProductsList = [...allProductsList, ...pageProducts];
     }
 
-    return allProducts;
+    return allProductsList;
   };
 
   const handleExportProducts = async () => {
     try {
       setIsExporting(true);
 
-      const allProducts = await getAllProductsForExport();
+      const allProductsList = await getAllProductsForExport();
 
-      if (!Array.isArray(allProducts) || allProducts.length === 0) {
+      if (!Array.isArray(allProductsList) || allProductsList.length === 0) {
         showToast.error("No products available to export.");
         return;
       }
 
-      const excelData = allProducts.map((product, index) => ({
-        "S.No": index + 1,
-        "Numerical ID":
-          product.numericalId || product.numericId || product.id || "",
-        "Product Title": product.title || "",
-        SKU: product.sku || "",
-        Collection: product.collectionName || "",
-        "Category ID": product.category?._id || product.category || "",
-        "Category Name": product.category?.name || "",
-        "Product Tags": (product.productTags || [])
-          .map((tag) => tag.name || tag)
-          .join(", "),
-        "Sale Price": Number(product.price || 0),
-        "Original Price": Number(product.originalPrice || 0),
-        "Discount %": Number(product.discountPercentage || 0),
-        Stock: Number(product.stock || 0),
-        Status: product.isActive ? "Active" : "Inactive",
-        Featured: product.isFeatured ? "Yes" : "No",
-        "Short Description": product.description || "",
-        "Long Description": product.longDescription || "",
-        Dimensions: product.specifications?.dimensions || "",
-        Weight: product.specifications?.weight || "",
-        Composition: product.specifications?.composition || "",
-        Placement: product.specifications?.placement || "",
-        Finish: product.specifications?.finish || "",
-      }));
+      const excelRows = [];
 
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      allProductsList.forEach((product) => {
+        if (product.hasVariants && product.variants?.length > 0) {
+          product.variants.forEach((variant) => {
+            excelRows.push({
+              ID: product.id,
+              Title: product.title || "",
+              Collection: product.collectionName || "",
+              MainSKU: product.sku || "",
+              VariantSKU: variant.sku || "",
+              Category: product.category?.name || "",
+              ProductTags: (product.productTags || [])
+                .map((tag) => tag.name || tag)
+                .join(", "),
+              ColorName: variant.colorName || "",
+              ColorCode: variant.colorCode || "",
+              Price: Number(variant.price || product.price || 0),
+              OriginalPrice: Number(variant.originalPrice || product.originalPrice || 0),
+              Stock: Number(variant.stock || 0),
+              Dimensions: variant.specifications?.dimensions || "",
+              Weight: variant.specifications?.weight || "",
+              Composition: variant.specifications?.composition || "",
+              Placement: variant.specifications?.placement || "",
+              Finish: variant.specifications?.finish || "",
+              Description: product.description || "",
+              Active: product.isActive ? "Yes" : "No",
+              Featured: product.isFeatured ? "Yes" : "No",
+              Images: (variant.images || []).map((img) => img.url).join(", "),
+            });
+          });
+        } else {
+          excelRows.push({
+            ID: product.id,
+            Title: product.title || "",
+            Collection: product.collectionName || "",
+            MainSKU: product.sku || "",
+            VariantSKU: product.sku || "",
+            Category: product.category?.name || "",
+            ProductTags: (product.productTags || [])
+              .map((tag) => tag.name || tag)
+              .join(", "),
+            ColorName: "Standard",
+            ColorCode: "#C85A32",
+            Price: Number(product.price || 0),
+            OriginalPrice: Number(product.originalPrice || 0),
+            Stock: Number(product.stock || 0),
+            Dimensions: product.specifications?.dimensions || "",
+            Weight: product.specifications?.weight || "",
+            Composition: product.specifications?.composition || "",
+            Placement: product.specifications?.placement || "",
+            Finish: product.specifications?.finish || "",
+            Description: product.description || "",
+            Active: product.isActive ? "Yes" : "No",
+            Featured: product.isFeatured ? "Yes" : "No",
+            Images: (product.images || []).map((img) => img.url).join(", "),
+          });
+        }
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(excelRows);
 
       worksheet["!cols"] = [
-        { wch: 8 },
-        { wch: 15 },
-        { wch: 35 },
-        { wch: 18 },
-        { wch: 25 },
-        { wch: 25 },
-        { wch: 25 },
-        { wch: 25 },
-        { wch: 15 },
-        { wch: 15 },
-        { wch: 12 },
         { wch: 10 },
-        { wch: 12 },
-        { wch: 12 },
-        { wch: 45 },
-        { wch: 60 },
+        { wch: 30 },
         { wch: 20 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 20 },
+        { wch: 25 },
         { wch: 15 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 15 },
+        { wch: 10 },
+        { wch: 18 },
+        { wch: 12 },
         { wch: 25 },
         { wch: 20 },
-        { wch: 20 },
+        { wch: 25 },
+        { wch: 35 },
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 70 },
       ];
 
       const workbook = XLSX.utils.book_new();
@@ -375,7 +501,7 @@ export default function Dashboard() {
       const date = new Date().toISOString().split("T")[0];
       XLSX.writeFile(workbook, `products-${date}.xlsx`);
 
-      showToast.success(`${allProducts.length} products exported successfully.`);
+      showToast.success(`${allProductsList.length} products exported successfully.`);
     } catch (error) {
       console.error("EXPORT PRODUCTS ERROR:", error);
       showToast.error(
@@ -434,7 +560,7 @@ export default function Dashboard() {
         response?.message || "Products imported successfully."
       );
 
-      await fetchProducts(1, limit);
+      await fetchProducts();
       setCurrentPage(1);
     } catch (error) {
       console.error("IMPORT EXCEL ERROR:", error);
@@ -454,20 +580,16 @@ export default function Dashboard() {
   |--------------------------------------------------------------------------
   */
   useEffect(() => {
-  sessionStorage.setItem(
-    "productsCurrentPage",
-    String(currentPage)
-  );
-
-  fetchProducts();
-}, [
-  currentPage,
-  limit,
-  search,
-  categoryFilter,
-  minPrice,
-  maxPrice,
-]);
+    sessionStorage.setItem("productsCurrentPage", String(currentPage));
+    fetchProducts();
+  }, [
+    currentPage,
+    limit,
+    search,
+    categoryFilter,
+    minPrice,
+    maxPrice,
+  ]);
 
   useEffect(() => {
     fetchCategories();
@@ -476,7 +598,7 @@ export default function Dashboard() {
 
   /*
   |--------------------------------------------------------------------------
-  | Delete Product (Fix: Retains Current Page After Deletion)
+  | Single Delete Product
   |--------------------------------------------------------------------------
   */
   const handleDelete = async (targetId) => {
@@ -496,24 +618,19 @@ export default function Dashboard() {
           "Product deleted successfully."
       );
 
-      // Calculate logic: Jab page ka last single item delete ho tab hi page back minus karo
-     const isLastItemOnPage =
-  products.length === 1 && currentPage > 1;
+      // Selected ID list se bhi remove karein agar wo check tha
+      setSelectedProductIds((prev) => prev.filter((id) => id !== targetId));
 
-const targetPage = isLastItemOnPage
-  ? currentPage - 1
-  : currentPage;
+      const isLastItemOnPage = products.length === 1 && currentPage > 1;
+      const targetPage = isLastItemOnPage ? currentPage - 1 : currentPage;
 
-sessionStorage.setItem(
-  "productsCurrentPage",
-  String(targetPage)
-);
+      sessionStorage.setItem("productsCurrentPage", String(targetPage));
 
-if (isLastItemOnPage) {
-  setCurrentPage(targetPage);
-} else {
-  await fetchProducts(targetPage, limit);
-}
+      if (isLastItemOnPage) {
+        setCurrentPage(targetPage);
+      } else {
+        await fetchProducts();
+      }
     } catch (err) {
       console.error("DELETE PRODUCT ERROR:", err);
       showToast.error(
@@ -528,7 +645,7 @@ if (isLastItemOnPage) {
 
   /*
   |--------------------------------------------------------------------------
-  | Product Status Toggle (In-Memory Updates: Retains Current Page)
+  | Status & Featured Toggles
   |--------------------------------------------------------------------------
   */
   const handleStatusToggle = async (product) => {
@@ -540,7 +657,6 @@ if (isLastItemOnPage) {
 
       const response = await ProductService.updateStatus(productId, newStatus);
 
-      // Full list refetch karne se bachne ke liye React state directly mutate karo
       setProducts((prev) =>
         prev.map((item) => {
           const itemId = item._id || item.id;
@@ -569,11 +685,6 @@ if (isLastItemOnPage) {
     }
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | Featured Toggle (In-Memory Re-Sort: Featured stays on Top of current Page)
-  |--------------------------------------------------------------------------
-  */
   const handleFeaturedToggle = async (product) => {
     const productId = product._id || product.id;
     const newStatus = !product.isFeatured;
@@ -583,7 +694,6 @@ if (isLastItemOnPage) {
 
       const response = await ProductService.updateFeatured(productId, newStatus);
 
-      // React State Modify with Re-sort to show Star items on top instantly
       setProducts((prev) => {
         const updatedList = prev.map((item) => {
           const itemId = item._id || item.id;
@@ -616,16 +726,11 @@ if (isLastItemOnPage) {
     }
   };
 
- const handleEditRedirect = (product) => {
-  const productId = product._id || product.id;
-
-  sessionStorage.setItem(
-    "productsCurrentPage",
-    String(currentPage)
-  );
-
-  navigate(`/admin/edit-product/${productId}`);
-};
+  const handleEditRedirect = (product) => {
+    const productId = product._id || product.id;
+    sessionStorage.setItem("productsCurrentPage", String(currentPage));
+    navigate(`/admin/edit-product/${productId}`);
+  };
 
   const getVisiblePages = () => {
     const pages = [];
@@ -643,24 +748,40 @@ if (isLastItemOnPage) {
 
   const visiblePages = getVisiblePages();
 
-  const startItem =
-    totalProducts === 0 ? 0 : (currentPage - 1) * limit + 1;
+  const startItem = totalProducts === 0 ? 0 : (currentPage - 1) * limit + 1;
   const endItem = Math.min(currentPage * limit, totalProducts);
 
   return (
-    <div className="max-w-7xl mx-auto w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-7xl mx-auto w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
       {/* Header */}
       <div className="flex flex-col gap-6">
-        <div>
-          <h2 className="text-3xl md:text-4xl font-bold text-slate-800 tracking-tight font-heading leading-tight">
-            Products Catalog Management
-          </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-800 tracking-tight font-heading leading-tight">
+              Products Catalog Management
+            </h2>
+            <p className="text-sm text-slate-500 mt-2 font-medium">
+              Total Inventory:{" "}
+              <span className="text-slate-900 font-bold">{totalProducts}</span> items
+            </p>
+          </div>
 
-          <p className="text-sm text-slate-500 mt-2 font-medium">
-            Total Inventory:{" "}
-            <span className="text-slate-900 font-bold">{totalProducts}</span>{" "}
-            items
-          </p>
+          {/* Bulk Delete Button Header View */}
+          {selectedProductIds.length > 0 && (
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+              className="h-12 inline-flex items-center justify-center gap-2 px-5 bg-red-600 text-white rounded-xl text-sm font-semibold shadow-sm hover:bg-red-700 transition-all disabled:opacity-50 whitespace-nowrap"
+            >
+              {isBulkDeleting ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <Trash2 size={18} />
+              )}
+              Delete Selected ({selectedProductIds.length})
+            </button>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -728,7 +849,7 @@ if (isLastItemOnPage) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <input
               type="text"
-              placeholder="Search Product..."
+              placeholder="Search Product / Color..."
               value={search}
               onChange={(e) => {
                 setCurrentPage(1);
@@ -778,17 +899,12 @@ if (isLastItemOnPage) {
             <button
               type="button"
               onClick={() => {
-               setSearch("");
-setCategoryFilter("");
-setMinPrice("");
-setMaxPrice("");
-
-sessionStorage.setItem(
-  "productsCurrentPage",
-  "1"
-);
-
-setCurrentPage(1);
+                setSearch("");
+                setCategoryFilter("");
+                setMinPrice("");
+                setMaxPrice("");
+                sessionStorage.setItem("productsCurrentPage", "1");
+                setCurrentPage(1);
               }}
               className="h-11 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800"
             >
@@ -837,13 +953,24 @@ setCurrentPage(1);
       )}
 
       {/* Table Card */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
         <div className="overflow-x-auto">
           <table className="w-full min-w-3xl text-left border-collapse whitespace-nowrap">
             <thead className="bg-slate-50/80 text-slate-500 uppercase text-[11px] tracking-wider font-bold border-b border-slate-200">
               <tr>
-                <th className="p-4 pl-6">Preview</th>
+                {/* Header Checkbox */}
+                <th className="p-4 pl-6 w-10">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelectedOnPage}
+                    onChange={handleSelectAll}
+                    disabled={isLoading || products.length === 0}
+                    className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+                  />
+                </th>
+                <th className="p-4">Preview</th>
                 <th className="p-4">Product</th>
+                <th className="p-4">Variants / Colors</th>
                 <th className="p-4">SKU</th>
                 <th className="p-4">Price</th>
                 <th className="p-4">Stock</th>
@@ -856,7 +983,7 @@ setCurrentPage(1);
             <tbody className="divide-y divide-slate-100 text-slate-700 text-sm">
               {isLoading ? (
                 <tr>
-                  <td colSpan="8" className="p-16 text-center text-slate-400">
+                  <td colSpan="10" className="p-16 text-center text-slate-400">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2
                         size={28}
@@ -870,7 +997,7 @@ setCurrentPage(1);
                 </tr>
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="p-12 text-center">
+                  <td colSpan="10" className="p-12 text-center">
                     <div className="inline-flex flex-col items-center justify-center p-6 bg-slate-50 rounded-2xl border border-slate-100 border-dashed">
                       <PlusCircle
                         size={28}
@@ -885,18 +1012,41 @@ setCurrentPage(1);
               ) : (
                 products.map((product) => {
                   const currentId = product._id || product.id;
+                  const isSelected = selectedProductIds.includes(currentId);
+
+                  // Extract main preview image (variant first or main image)
+                  const previewImageUrl = product.hasVariants && product.variants?.[0]?.images?.[0]?.url
+                    ? product.variants[0].images[0].url
+                    : product.images?.[0]?.url;
+
+                  // Calculate total aggregated stock
+                  const totalStock = product.hasVariants && product.variants?.length > 0
+                    ? product.variants.reduce((acc, v) => acc + (v.stock || 0), 0)
+                    : product.stock || 0;
 
                   return (
                     <tr
                       key={currentId}
-                      className="hover:bg-slate-50/60 transition-colors group"
+                      className={`hover:bg-slate-50/60 transition-colors group ${
+                        isSelected ? "bg-amber-50/40" : ""
+                      }`}
                     >
-                      {/* Image */}
+                      {/* Row Checkbox */}
                       <td className="p-4 pl-6">
-                        <div className="w-12 h-12 rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
-                          {product.images?.[0]?.url ? (
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleSelectOne(currentId)}
+                          className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+                        />
+                      </td>
+
+                      {/* Image Preview */}
+                      <td className="p-4">
+                        <div className="w-12 h-12 rounded-xl border border-slate-200 overflow-hidden bg-slate-50 relative">
+                          {previewImageUrl ? (
                             <img
-                              src={product.images[0].url}
+                              src={previewImageUrl}
                               alt={product.title}
                               className="w-full h-full object-cover transition-transform group-hover:scale-110"
                               onError={(e) => {
@@ -911,9 +1061,9 @@ setCurrentPage(1);
                         </div>
                       </td>
 
-                      {/* Product Title */}
+                      {/* Product Title & Category */}
                       <td className="p-4">
-                        <div className="max-w-[240px]">
+                        <div className="max-w-[220px]">
                           <p className="font-semibold text-slate-800 truncate">
                             {product.title}
                           </p>
@@ -921,6 +1071,34 @@ setCurrentPage(1);
                             {product.category?.name || "No category"}
                           </p>
                         </div>
+                      </td>
+
+                      {/* Color Variants Dots */}
+                      <td className="p-4">
+                        {product.hasVariants && product.variants?.length > 0 ? (
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5">
+                              {product.variants.slice(0, 4).map((v, i) => (
+                                <span
+                                  key={v._id || i}
+                                  className="w-3.5 h-3.5 rounded-full border border-slate-300 shadow-xs"
+                                  style={{ backgroundColor: v.colorCode || "#C85A32" }}
+                                  title={v.colorName}
+                                />
+                              ))}
+                              {product.variants.length > 4 && (
+                                <span className="text-[10px] font-bold text-slate-500">
+                                  +{product.variants.length - 4}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[11px] font-medium text-slate-500 flex items-center gap-1">
+                              <Layers size={11} /> {product.variants.length} Colors
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">Single Color</span>
+                        )}
                       </td>
 
                       {/* SKU */}
@@ -940,13 +1118,13 @@ setCurrentPage(1);
                       <td className="p-4">
                         <span
                           className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                            product.stock > 0
+                            totalStock > 0
                               ? "bg-blue-50 text-blue-700"
                               : "bg-red-50 text-red-600"
                           }`}
                         >
-                          {product.stock > 0
-                            ? `${product.stock} in stock`
+                          {totalStock > 0
+                            ? `${totalStock} in stock`
                             : "Out of stock"}
                         </span>
                       </td>
@@ -1056,7 +1234,6 @@ setCurrentPage(1);
         {/* Pagination */}
         {!isLoading && totalProducts > 0 && (
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 border-t border-slate-200 bg-slate-50/40">
-            {/* Results + Limit */}
             <div className="flex flex-wrap items-center gap-4">
               <p className="text-sm text-slate-500">
                 Showing <span className="font-bold text-slate-800">{startItem}</span> to{" "}
@@ -1068,15 +1245,11 @@ setCurrentPage(1);
                 <span className="text-xs font-semibold text-slate-500">Show</span>
                 <select
                   value={limit}
-                 onChange={(e) => {
-  sessionStorage.setItem(
-    "productsCurrentPage",
-    "1"
-  );
-
-  setCurrentPage(1);
-  setLimit(Number(e.target.value));
-}}
+                  onChange={(e) => {
+                    sessionStorage.setItem("productsCurrentPage", "1");
+                    setCurrentPage(1);
+                    setLimit(Number(e.target.value));
+                  }}
                   className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 outline-none cursor-pointer focus:border-slate-400"
                 >
                   <option value={5}>5</option>
@@ -1088,23 +1261,17 @@ setCurrentPage(1);
               </div>
             </div>
 
-            {/* Page Buttons */}
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 disabled={currentPage <= 1 || isLoading}
                 onClick={() => {
-  setCurrentPage((prev) => {
-    const previousPage = Math.max(prev - 1, 1);
-
-    sessionStorage.setItem(
-      "productsCurrentPage",
-      String(previousPage)
-    );
-
-    return previousPage;
-  });
-}}
+                  setCurrentPage((prev) => {
+                    const previousPage = Math.max(prev - 1, 1);
+                    sessionStorage.setItem("productsCurrentPage", String(previousPage));
+                    return previousPage;
+                  });
+                }}
                 className="inline-flex items-center gap-1 px-3 h-10 border border-slate-200 rounded-lg bg-white text-sm font-semibold text-slate-600 hover:bg-slate-100 transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <ChevronLeft size={17} />
@@ -1123,13 +1290,9 @@ setCurrentPage(1);
                     <button
                       type="button"
                       onClick={() => {
-  sessionStorage.setItem(
-    "productsCurrentPage",
-    String(page)
-  );
-
-  setCurrentPage(page);
-}}
+                        sessionStorage.setItem("productsCurrentPage", String(page));
+                        setCurrentPage(page);
+                      }}
                       disabled={isLoading}
                       className={`min-w-10 h-10 px-3 rounded-lg text-sm font-bold border transition ${
                         currentPage === page
@@ -1146,18 +1309,13 @@ setCurrentPage(1);
               <button
                 type="button"
                 disabled={currentPage >= totalPages || isLoading}
-               onClick={() => {
-  setCurrentPage((prev) => {
-    const nextPage = Math.min(prev + 1, totalPages);
-
-    sessionStorage.setItem(
-      "productsCurrentPage",
-      String(nextPage)
-    );
-
-    return nextPage;
-  });
-}}
+                onClick={() => {
+                  setCurrentPage((prev) => {
+                    const nextPage = Math.min(prev + 1, totalPages);
+                    sessionStorage.setItem("productsCurrentPage", String(nextPage));
+                    return nextPage;
+                  });
+                }}
                 className="inline-flex items-center gap-1 px-3 h-10 border border-slate-200 rounded-lg bg-white text-sm font-semibold text-slate-600 hover:bg-slate-100 transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Next
@@ -1167,6 +1325,42 @@ setCurrentPage(1);
           </div>
         )}
       </div>
+
+      {/* Floating Sticky Bar when items are selected */}
+      {selectedProductIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-6 border border-slate-800 animate-in fade-in slide-in-from-bottom-5">
+          <div className="flex items-center gap-2">
+            <CheckSquare className="text-amber-400" size={20} />
+            <span className="text-sm font-medium">
+              <strong className="text-white">{selectedProductIds.length}</strong> items selected
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setSelectedProductIds([])}
+              className="text-xs font-semibold text-slate-400 hover:text-white transition"
+            >
+              Clear Selection
+            </button>
+
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 disabled:opacity-50"
+            >
+              {isBulkDeleting ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Trash2 size={14} />
+              )}
+              Delete Selected
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,19 +1,6 @@
-
-import {
-  useEffect,
-  useState,
-} from "react";
-
-import {
-  Link,
-  useNavigate,
-} from "react-router-dom";
-
-import {
-  useDispatch,
-  useSelector,
-} from "react-redux";
-
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import {
   Mail,
   LockKeyhole,
@@ -23,18 +10,12 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-
-import {
-  GoogleLogin,
-} from "@react-oauth/google";
-
+import { GoogleLogin } from "@react-oauth/google";
 import toast from "react-hot-toast";
 
-import {
-  loginUser,
-  googleLoginUser,
-} from "../../../redux/thunks/userAuthThunk";
-
+import { loginUser, googleLoginUser } from "../../../redux/thunks/userAuthThunk";
+import { mergeGuestCartThunk, fetchCart } from "../../../redux/thunks/cartThunk";
+import { mergeGuestWishlistThunk, getWishlist } from "../../../redux/thunks/wishlistThunk";
 import {
   clearUserAuthError,
   selectUser,
@@ -45,37 +26,30 @@ import {
 
 import { C } from "../../../constants/theme";
 
-
 const UserLogin = () => {
-
   /*
   |--------------------------------------------------------------------------
   | Hooks
   |--------------------------------------------------------------------------
   */
-
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
 
   /*
   |--------------------------------------------------------------------------
   | Redux State
   |--------------------------------------------------------------------------
   */
-
   const user = useSelector(selectUser);
   const isAuthenticated = useSelector(selectUserAuthenticated);
   const loading = useSelector(selectUserAuthLoading);
   const googleLoading = useSelector(selectGoogleAuthLoading);
-
 
   /*
   |--------------------------------------------------------------------------
   | Form State
   |--------------------------------------------------------------------------
   */
-
   const [formData, setFormData] = useState({
     email: localStorage.getItem("rememberUserEmail") || "",
     password: "",
@@ -83,38 +57,42 @@ const UserLogin = () => {
   });
 
   const [showPassword, setShowPassword] = useState(false);
-
+  const [isLoginProcessing, setIsLoginProcessing] = useState(false);
 
   /*
   |--------------------------------------------------------------------------
   | Redirect Logged-In User
   |--------------------------------------------------------------------------
   */
-
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (
+      isAuthenticated &&
+      user &&
+      !isLoginProcessing
+    ) {
       navigate("/", { replace: true });
     }
-  }, [isAuthenticated, user, navigate]);
-
+  }, [
+    isAuthenticated,
+    user,
+    isLoginProcessing,
+    navigate,
+  ]);
 
   /*
   |--------------------------------------------------------------------------
   | Clear Old Authentication Error
   |--------------------------------------------------------------------------
   */
-
   useEffect(() => {
     dispatch(clearUserAuthError());
   }, [dispatch]);
-
 
   /*
   |--------------------------------------------------------------------------
   | Handle Input Change
   |--------------------------------------------------------------------------
   */
-
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -123,17 +101,48 @@ const UserLogin = () => {
     }));
   };
 
+  /*
+  |--------------------------------------------------------------------------
+  | Helper: Merge & Sync Cart + Wishlist After Login
+  |--------------------------------------------------------------------------
+  */
+  const syncCartAndWishlistOnLogin = async () => {
+    try {
+      await Promise.allSettled([
+        dispatch(mergeGuestCartThunk()).unwrap(),
+        dispatch(mergeGuestWishlistThunk()).unwrap(),
+      ]);
+      console.log("Cart and Wishlist merged successfully.");
+    } catch (mergeError) {
+      console.log("Guest session merge skipped/failed:", mergeError);
+    }
+
+    try {
+      await Promise.allSettled([
+        dispatch(fetchCart()).unwrap(),
+        dispatch(getWishlist()).unwrap(),
+      ]);
+      console.log("Final Cart & Wishlist fetched successfully.");
+    } catch (fetchError) {
+      console.error("Cart/Wishlist fetch error:", fetchError);
+    }
+  };
 
   /*
   |--------------------------------------------------------------------------
   | Email / Password Login
   |--------------------------------------------------------------------------
   */
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (loading || googleLoading) return;
+    if (
+      loading ||
+      googleLoading ||
+      isLoginProcessing
+    ) {
+      return;
+    }
 
     const email = formData.email.trim().toLowerCase();
     const password = formData.password;
@@ -143,7 +152,7 @@ const UserLogin = () => {
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
     if (!emailRegex.test(email)) {
       toast.error("Please enter a valid email address.");
       return;
@@ -155,45 +164,66 @@ const UserLogin = () => {
     }
 
     dispatch(clearUserAuthError());
+    setIsLoginProcessing(true);
 
     try {
+      /* STEP 1: LOGIN */
       const result = await dispatch(
-        loginUser({ email, password })
+        loginUser({
+          email,
+          password,
+        })
       ).unwrap();
 
+      /* STEP 2: Remember Email */
       if (formData.rememberMe) {
         localStorage.setItem("rememberUserEmail", email);
       } else {
         localStorage.removeItem("rememberUserEmail");
       }
 
+      /* STEP 3 & 4: MERGE & SYNC CART & WISHLIST */
+      await syncCartAndWishlistOnLogin();
+
+      /* STEP 5: Notify Other Components */
       window.dispatchEvent(new Event("userAuthChanged"));
 
+      /* STEP 6: Success Message */
       toast.success(
         result?.message ||
-        `Welcome back${result?.user?.name ? `, ${result.user.name}` : ""}!`
+          `Welcome back${
+            result?.user?.name ? `, ${result.user.name}` : ""
+          }!`
       );
 
+      /* STEP 7: Navigate */
       navigate("/", { replace: true });
     } catch (error) {
       console.error("USER LOGIN ERROR:", error);
+
       toast.error(
         typeof error === "string"
           ? error
           : error?.message || "Unable to login. Please try again."
       );
+    } finally {
+      setIsLoginProcessing(false);
     }
   };
-
 
   /*
   |--------------------------------------------------------------------------
   | Google Login Success
   |--------------------------------------------------------------------------
   */
-
   const handleGoogleSuccess = async (credentialResponse) => {
-    if (googleLoading || loading) return;
+    if (
+      googleLoading ||
+      loading ||
+      isLoginProcessing
+    ) {
+      return;
+    }
 
     const credential = credentialResponse?.credential;
     if (!credential) {
@@ -202,49 +232,58 @@ const UserLogin = () => {
     }
 
     dispatch(clearUserAuthError());
+    setIsLoginProcessing(true);
 
     try {
+      /* STEP 1: GOOGLE LOGIN */
       const result = await dispatch(
         googleLoginUser(credential)
       ).unwrap();
 
+      /* STEP 2 & 3: MERGE & SYNC CART & WISHLIST */
+      await syncCartAndWishlistOnLogin();
+
+      /* STEP 4: Storage & Event Cleanup */
       localStorage.setItem("googleSignupPromptClosed", "true");
       window.dispatchEvent(new Event("userAuthChanged"));
 
+      /* STEP 5: Success */
       toast.success(
         result?.message ||
-        `Welcome${result?.user?.name ? `, ${result.user.name}` : ""}!`
+          `Welcome${
+            result?.user?.name ? `, ${result.user.name}` : ""
+          }!`
       );
 
+      /* STEP 6: Navigate After Sync */
       navigate("/", { replace: true });
     } catch (error) {
       console.error("GOOGLE LOGIN ERROR:", error);
+
       toast.error(
         typeof error === "string"
           ? error
           : error?.message || "Unable to continue with Google."
       );
+    } finally {
+      setIsLoginProcessing(false);
     }
   };
-
 
   /*
   |--------------------------------------------------------------------------
   | Google Login Error
   |--------------------------------------------------------------------------
   */
-
   const handleGoogleError = () => {
     toast.error("Google sign-in failed. Please try again.");
   };
 
-
   /*
   |--------------------------------------------------------------------------
-  | UI
+  | UI Render
   |--------------------------------------------------------------------------
   */
-
   return (
     <section
       className="relative min-h-[calc(100vh-80px)] overflow-hidden px-4 py-12 flex items-center justify-center sm:px-6 sm:py-16 lg:px-8"
@@ -403,11 +442,11 @@ const UserLogin = () => {
                     placeholder="name@example.com"
                     className="h-12 w-full rounded-xl border-2 pl-12 pr-4 text-sm outline-none transition-all duration-300 focus:ring-2"
                     style={{
-  background: C.ivory,
-  color: C.dark,
-  border: `2px solid ${C.paleCoral}`,
-  boxShadow: "0 2px 8px rgba(0,0,0,.03)",
-}}
+                      background: C.ivory,
+                      color: C.dark,
+                      border: `2px solid ${C.paleCoral}`,
+                      boxShadow: "0 2px 8px rgba(0,0,0,.03)",
+                    }}
                   />
                 </div>
               </div>
@@ -447,12 +486,12 @@ const UserLogin = () => {
                     onChange={handleChange}
                     placeholder="••••••••"
                     className="h-12 w-full rounded-xl border-2 pl-12 pr-12 text-sm outline-none transition-all duration-300 focus:ring-2"
-                   style={{
-  background: C.ivory,
-  color: C.dark,
-  border: `2px solid ${C.paleCoral}`,
-  boxShadow: "0 2px 8px rgba(0,0,0,.03)",
-}}
+                    style={{
+                      background: C.ivory,
+                      color: C.dark,
+                      border: `2px solid ${C.paleCoral}`,
+                      boxShadow: "0 2px 8px rgba(0,0,0,.03)",
+                    }}
                   />
 
                   <button
@@ -481,16 +520,14 @@ const UserLogin = () => {
               {/* Login Button */}
               <button
                 type="submit"
-                disabled={loading || googleLoading}
+                disabled={loading || googleLoading || isLoginProcessing}
                 className="group flex h-12 w-full items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold shadow-md transition-all hover:opacity-95 hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
                 style={{ background: C.coral, color: C.ivory }}
               >
-                {loading ? (
+                {loading || isLoginProcessing ? (
                   <>
-                    <span
-                      className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
-                    />
-                    Signing In...
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                    {isLoginProcessing ? "Syncing Account..." : "Signing In..."}
                   </>
                 ) : (
                   <>
@@ -515,15 +552,13 @@ const UserLogin = () => {
 
             {/* Google Login */}
             <div className="flex min-h-[52px] w-full items-center justify-center">
-              {googleLoading ? (
+              {googleLoading || isLoginProcessing ? (
                 <div
                   className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-neutral-200 text-sm font-medium"
                   style={{ background: C.ivory, color: C.dark }}
                 >
-                  <span
-                    className="h-5 w-5 animate-spin rounded-full border-2 border-neutral-300 border-t-[#F16937]"
-                  />
-                  Signing in with Google...
+                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-neutral-300 border-t-[#F16937]" />
+                  {isLoginProcessing ? "Syncing Account..." : "Signing in with Google..."}
                 </div>
               ) : (
                 <div className="flex w-full justify-center overflow-hidden rounded-xl">

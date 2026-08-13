@@ -141,12 +141,10 @@ const ProductTreasure = ({
   */
 
   useEffect(() => {
-
     if (!categoryId) {
       dispatch(clearCategoryProducts());
       return;
     }
-
 
     dispatch(
       fetchProductsByCategory({
@@ -154,6 +152,7 @@ const ProductTreasure = ({
       })
     );
   }, [categoryId, dispatch]);
+
   /*
   |--------------------------------------------------------------------------
   | Add To Cart
@@ -162,31 +161,20 @@ const ProductTreasure = ({
 
   const handleAddToCart = (
     e,
-    product
+    product,
+    selectedVariant = null
   ) => {
-    /*
-    |--------------------------------------------------------------------------
-    | Prevent Product Details Navigation
-    |--------------------------------------------------------------------------
-    */
-
     e.preventDefault();
-
     e.stopPropagation();
 
     if (!product?._id) {
       return;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | CartContext Handles Cart
-    |--------------------------------------------------------------------------
-    */
-
     addToCart(
       product,
-      1
+      1,
+      selectedVariant ? selectedVariant : undefined
     );
   };
 
@@ -270,8 +258,6 @@ const ProductTreasure = ({
                     categoryId
                   )
                 )
-
-
               }
               className="
                 mt-4
@@ -394,11 +380,6 @@ const ProductTreasure = ({
           </Link>
         </div>
 
-        {/* Automatic Product Slider
-            Desktop: 4 cards visible
-            Tablet: 2 cards visible
-            Mobile: ~1.4 cards visible
-            Hovering any card/slider pauses autoplay. */}
         <div
           ref={sliderRef}
           onMouseEnter={() => setIsSliderPaused(true)}
@@ -450,11 +431,8 @@ const ProductTreasure = ({
   );
 };
 
-
 /* ============================================================================
-   RESPONSIVE PRODUCT GALLERY
-   Desktop: hover image swap + bottom action tray
-   Mobile: always-visible floating wishlist/cart actions
+    RESPONSIVE PRODUCT GALLERY WITH VARIANT SUPPORT
 ============================================================================ */
 
 const ProductGallery = ({
@@ -463,6 +441,17 @@ const ProductGallery = ({
 }) => {
   const [hovered, setHovered] = useState(false);
   const [wishlisted, setWishlisted] = useState(false);
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
+
+  const hasVariants = Boolean(
+    product?.hasVariants &&
+      Array.isArray(product?.variants) &&
+      product.variants.length > 0
+  );
+
+  const activeVariant = hasVariants
+    ? product.variants[selectedVariantIndex] || product.variants[0]
+    : null;
 
   const resolveImage = (image) => {
     if (!image) return null;
@@ -470,21 +459,24 @@ const ProductGallery = ({
     return image?.url || image?.secure_url || null;
   };
 
+  const imagesSource =
+    hasVariants && activeVariant?.images?.length > 0
+      ? activeVariant.images
+      : product?.images;
+
   const image1 =
-    resolveImage(product?.images?.[0]) ||
+    resolveImage(imagesSource?.[0]) ||
     resolveImage(product?.image) ||
     "/placeholder.png";
 
   const image2 =
-    resolveImage(product?.images?.[1]) ||
+    resolveImage(imagesSource?.[1]) ||
     image1;
 
-  const price = Number(product?.price || 0);
-  const originalPrice = Number(product?.originalPrice || 0);
-  const stock = Number(product?.stock || 0);
+  const price = Number(activeVariant?.price ?? product?.price ?? 0);
+  const originalPrice = Number(activeVariant?.originalPrice ?? product?.originalPrice ?? 0);
+  const stock = Number(activeVariant?.stock ?? product?.stock ?? 0);
   const discount = Number(product?.discountPercentage || 0);
-  const rating = Number(product?.rating || 0);
-  const reviews = Number(product?.reviewsCount || 0);
 
   const handleWishlist = (event) => {
     event.preventDefault();
@@ -498,7 +490,7 @@ const ProductGallery = ({
 
     if (stock <= 0) return;
 
-    onAddToCart(event, product);
+    onAddToCart(event, product, activeVariant);
   };
 
   return (
@@ -815,7 +807,31 @@ const ProductGallery = ({
             {product?.title || "Product"}
           </h3>
 
-         
+          {/* COLOR VARIANTS SWATCHES */}
+          {hasVariants && (
+            <div
+              className="mt-2 flex items-center gap-1.5 flex-wrap"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+            >
+              {product.variants.map((v, idx) => (
+                <button
+                  key={v.sku || idx}
+                  type="button"
+                  title={v.colorName}
+                  onClick={() => setSelectedVariantIndex(idx)}
+                  className={`w-3.5 h-3.5 rounded-full border border-gray-300 transition-transform ${
+                    selectedVariantIndex === idx
+                      ? "scale-125 ring-1 ring-[#F16937] ring-offset-1"
+                      : "hover:scale-110"
+                  }`}
+                  style={{ backgroundColor: v.colorCode || "#CCC" }}
+                />
+              ))}
+            </div>
+          )}
 
           <div
             className="

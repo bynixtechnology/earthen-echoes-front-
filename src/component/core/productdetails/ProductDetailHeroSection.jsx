@@ -36,8 +36,9 @@ import {
   selectProductDetailsLoading,
   selectProductError,
 } from "../../../redux/slices/productSlice";
-import { addProductToCart } from "../../../redux/thunks/cartThunk";
-import { selectCartAdding } from "../../../redux/slices/cartSlice";
+import { addProductToCart, fetchCart } from "../../../redux/thunks/cartThunk";
+// 🟢 FIXED: Safe selector import to prevent runtime import crash
+import { selectCartLoading } from "../../../redux/slices/cartSlice";
 import { selectWishlistItems } from "../../../redux/slices/wishlistSlice";
 import {
   getWishlist,
@@ -55,10 +56,11 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
   const product = useSelector(selectSelectedProduct);
   const loading = useSelector(selectProductDetailsLoading);
   const error = useSelector(selectProductError);
-  const isAdding = useSelector(selectCartAdding);
+  const isAdding = useSelector(selectCartLoading);
   const wishlistItems = useSelector(selectWishlistItems) || [];
 
   const [quantity, setQuantity] = useState(1);
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
   const [selectedImage, setSelectedImage] = useState("");
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [zoomed, setZoomed] = useState(false);
@@ -86,16 +88,35 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
     };
   }, [dispatch, id]);
 
-  const productImages = useMemo(() => {
-    if (!Array.isArray(product?.images)) return [];
+  // Handle active variant resolution
+  const hasVariants = Boolean(
+    product?.hasVariants &&
+      Array.isArray(product?.variants) &&
+      product.variants.length > 0
+  );
 
-    return product.images
+  const activeVariant = useMemo(() => {
+    if (!hasVariants) return null;
+    return product.variants[selectedVariantIndex] || product.variants[0];
+  }, [hasVariants, product?.variants, selectedVariantIndex]);
+
+  // Dynamic Image extraction logic
+  const productImages = useMemo(() => {
+    let imagesSource = [];
+
+    if (hasVariants && activeVariant?.images?.length > 0) {
+      imagesSource = activeVariant.images;
+    } else if (Array.isArray(product?.images) && product.images.length > 0) {
+      imagesSource = product.images;
+    }
+
+    return imagesSource
       .map((image) => {
         if (typeof image === "string") return image;
         return image?.url || image?.secure_url || "";
       })
       .filter(Boolean);
-  }, [product?.images]);
+  }, [hasVariants, activeVariant, product?.images]);
 
   useEffect(() => {
     const firstImage = productImages[0] || "/placeholder.png";
@@ -116,6 +137,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
 
   useEffect(() => {
     setQuantity(1);
+    setSelectedVariantIndex(0);
     setActiveTab("description");
     setPincode("");
     setPincodeMsg("");
@@ -136,9 +158,15 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
     });
   }, [wishlistItems, product?._id]);
 
-  const stock = Number(product?.stock ?? product?.quantity ?? 0);
-  const price = Number(product?.price || 0);
-  const originalPrice = Number(product?.originalPrice || product?.mrp || 0);
+  // Dynamic pricing, stock, sku based on active variant or main product
+  const stock = Number(
+    activeVariant?.stock ?? product?.stock ?? product?.quantity ?? 0
+  );
+  const price = Number(activeVariant?.price ?? product?.price ?? 0);
+  const originalPrice = Number(
+    activeVariant?.originalPrice ?? product?.originalPrice ?? product?.mrp ?? 0
+  );
+  const sku = activeVariant?.sku || product?.sku || "N/A";
 
   const categoryName =
     typeof product?.category === "object"
@@ -160,13 +188,9 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
   );
 
   const discountPercentage = useMemo(() => {
-    const apiDiscount = Number(product?.discountPercentage);
-    if (Number.isFinite(apiDiscount) && apiDiscount > 0) {
-      return Math.round(apiDiscount);
-    }
     if (!originalPrice || originalPrice <= price) return 0;
     return Math.round(((originalPrice - price) / originalPrice) * 100);
-  }, [product?.discountPercentage, originalPrice, price]);
+  }, [originalPrice, price]);
 
   const formatPrice = (value) =>
     Number(value || 0).toLocaleString("en-IN");
@@ -203,14 +227,16 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
     }
 
     try {
-      await dispatch(
+      const response = await dispatch(
         addProductToCart({
           productId: product._id,
           quantity,
+          variant: activeVariant ? activeVariant : undefined,
         })
       ).unwrap();
 
-      showToast?.success?.("Product added to cart.");
+      showToast?.success?.(response?.message || "Product added to cart.");
+      dispatch(fetchCart());
     } catch (cartError) {
       showToast?.error?.(
         typeof cartError === "string"
@@ -231,13 +257,13 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
       return;
     }
 
-    // Direct Buy Now Item context pass to Checkout Route
     navigate("/checkout", {
       state: {
         buyNowItem: {
           product: product,
           quantity: quantity,
           price: price,
+          selectedVariant: activeVariant,
         },
       },
     });
@@ -315,53 +341,42 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
     selectImage(productImages[nextIndex], nextIndex);
   };
 
+  const currentSpecs = activeVariant?.specifications || product?.specifications || {};
+
   const specifications = [
     {
       icon: Ruler,
       title: "Dimensions",
-      value:
-        product?.specifications?.dimensions ||
-        product?.dimensions ||
-        "Not specified",
+      value: currentSpecs.dimensions || product?.dimensions || "Not specified",
     },
     {
       icon: Leaf,
-      title: "Material",
+      title: "Material / Composition",
       value:
-        product?.specifications?.composition ||
-        product?.specifications?.material ||
+        currentSpecs.composition ||
+        currentSpecs.material ||
         product?.composition ||
-        product?.material ||
         "Not specified",
     },
     {
       icon: Sun,
       title: "Placement",
-      value: product?.specifications?.placement || "Not specified",
+      value: currentSpecs.placement || "Not specified",
     },
     {
       icon: Box,
       title: "Weight",
-      value:
-        product?.specifications?.weight ||
-        product?.weight ||
-        "Not specified",
+      value: currentSpecs.weight || product?.weight || "Not specified",
     },
     {
       icon: Sparkles,
       title: "Finish",
-      value:
-        product?.specifications?.finish ||
-        product?.finish ||
-        "Not specified",
+      value: currentSpecs.finish || product?.finish || "Not specified",
     },
     {
       icon: Trees,
       title: "Usage",
-      value:
-        product?.specifications?.usage ||
-        product?.usage ||
-        "Indoor / Outdoor",
+      value: currentSpecs.usage || product?.usage || "Indoor / Outdoor",
     },
   ];
 
@@ -568,6 +583,46 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
               )}
             </div>
 
+            {/* COLOR VARIANTS SELECTOR */}
+            {hasVariants && (
+              <div className="space-y-2 border-y border-[rgba(28,25,23,0.12)]/60 py-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs sm:text-sm font-bold text-[#1C1917]">
+                    Color Variant:{" "}
+                    <span className="text-[#F16937]">
+                      {activeVariant?.colorName || "Standard"}
+                    </span>
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {product.variants.map((variant, index) => {
+                    const isSelected = selectedVariantIndex === index;
+                    return (
+                      <button
+                        key={variant.sku || index}
+                        type="button"
+                        onClick={() => setSelectedVariantIndex(index)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all cursor-pointer ${
+                          isSelected
+                            ? "border-[#F16937] bg-[#FEF1EC] text-[#F16937] ring-1 ring-[#F16937]"
+                            : "border-[rgba(28,25,23,0.15)] bg-white text-[#78716C] hover:border-[#F16937]"
+                        }`}
+                      >
+                        <span
+                          className="w-4 h-4 rounded-full border border-black/10 shrink-0"
+                          style={{
+                            backgroundColor: variant.colorCode || "#CCC",
+                          }}
+                        />
+                        <span>{variant.colorName}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="flex items-end gap-3 flex-wrap">
               <span className="font-heading text-3xl sm:text-4xl font-bold text-[#F16937]">
                 ₹{formatPrice(price)}
@@ -620,7 +675,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
                 <span className="block uppercase tracking-wider text-[#78716C] mb-1 text-[10px] sm:text-xs">
                   SKU
                 </span>
-                <span className="font-bold">{product?.sku || "N/A"}</span>
+                <span className="font-bold">{sku}</span>
               </div>
               <div>
                 <span className="block uppercase tracking-wider text-[#78716C] mb-1 text-[10px] sm:text-xs">
@@ -767,7 +822,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
         </div>
       </section>
 
-      {/* Product Details */}
+      {/* Product Details Tabs */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-14">
         <div className="border-b border-[rgba(28,25,23,0.12)]/70 overflow-x-auto">
           <nav className="flex min-w-max gap-1 sm:gap-3">
@@ -825,7 +880,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
 
               <div className="rounded-[22px] sm:rounded-[28px] overflow-hidden bg-[#F5F0E8] ">
                 <img
-                  src={productImages[2] || productImages[0] || "/placeholder.png"}
+                  src={productImages[1] || productImages[0] || "/placeholder.png"}
                   alt={productName}
                   className="w-full h-[650px] object-cover"
                 />

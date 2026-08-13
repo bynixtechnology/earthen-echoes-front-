@@ -14,9 +14,9 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 
-import { fetchCart } from "../../redux/thunks/cartThunk";
-import { getWishlist } from "../../redux/thunks/wishlistThunk";
-import { clearCart, selectCartCount } from "../../redux/slices/cartSlice";
+import { fetchCart, prepareCartForLogoutThunk } from "../../redux/thunks/cartThunk";
+import { getWishlist, prepareWishlistForLogoutThunk } from "../../redux/thunks/wishlistThunk";
+import { selectCartItems } from "../../redux/slices/cartSlice";
 import {
   logoutUser,
   selectUser,
@@ -58,9 +58,9 @@ export default function Header() {
   */
   const user = useSelector(selectUser);
   const isAuthenticated = useSelector(selectUserAuthenticated);
-  const cartCount = useSelector(selectCartCount);
-  const wishlistItems = useSelector(selectWishlistItems);
-  const wishlistCount = wishlistItems?.length || 0;
+  const cartItems = useSelector(selectCartItems) || [];
+  const reduxWishlistItems = useSelector(selectWishlistItems) || [];
+  const wishlistCount = reduxWishlistItems.length;
 
   /*
   |--------------------------------------------------------------------------
@@ -77,15 +77,40 @@ export default function Header() {
 
   /*
   |--------------------------------------------------------------------------
-  | Effects
+  | CART + WISHLIST SYNC
   |--------------------------------------------------------------------------
   */
   useEffect(() => {
-    if (isAuthenticated) {
+    dispatch(fetchCart());
+    dispatch(getWishlist());
+  }, [dispatch, isAuthenticated, location.pathname]);
+
+  useEffect(() => {
+    const handleStorageUpdate = () => {
       dispatch(fetchCart());
       dispatch(getWishlist());
-    }
-  }, [dispatch, isAuthenticated]);
+    };
+
+    window.addEventListener("guestStorageUpdated", handleStorageUpdate);
+    window.addEventListener("cartUpdated", handleStorageUpdate);
+    window.addEventListener("wishlistUpdated", handleStorageUpdate);
+
+    return () => {
+      window.removeEventListener("guestStorageUpdated", handleStorageUpdate);
+      window.removeEventListener("cartUpdated", handleStorageUpdate);
+      window.removeEventListener("wishlistUpdated", handleStorageUpdate);
+    };
+  }, [dispatch]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | CART COUNT
+  |--------------------------------------------------------------------------
+  */
+  const cartCount = cartItems.reduce(
+    (total, item) => total + (Number(item?.quantity) || 1),
+    0
+  );
 
   // Close menus on route change
   useEffect(() => {
@@ -105,20 +130,6 @@ export default function Header() {
     };
   }, [mobileMenu]);
 
-  // Close menus on Escape key press
-  useEffect(() => {
-    const handleEscape = (event) => {
-      if (event.key === "Escape") {
-        setMobileMenu(false);
-        setProfileMenu(false);
-      }
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, []);
-
   // Close profile dropdown on outside click
   useEffect(() => {
     const handleOutsideClick = (event) => {
@@ -137,19 +148,40 @@ export default function Header() {
 
   /*
   |--------------------------------------------------------------------------
-  | Handlers
+  | Handlers - PRESERVE CART & WISHLIST ON LOGOUT
   |--------------------------------------------------------------------------
   */
-  const handleLogout = () => {
-    dispatch(logoutUser());
-    dispatch(clearCart());
-    setProfileMenu(false);
-    setMobileMenu(false);
+  const handleLogout = async () => {
+    try {
+      // 🟢 1. Save user cart & wishlist to Guest session cookies before logging out
+      try {
+        await Promise.all([
+          dispatch(prepareCartForLogoutThunk()).unwrap(),
+          dispatch(prepareWishlistForLogoutThunk()).unwrap(),
+        ]);
+      } catch (prepareErr) {
+        console.warn("Prepare logout session warning:", prepareErr);
+      }
 
-    window.dispatchEvent(new Event("userAuthChanged"));
-    toast.success("Logged out successfully.");
+      // 🟢 2. Clear Redux user auth state
+      dispatch(logoutUser());
+      setProfileMenu(false);
+      setMobileMenu(false);
 
-    navigate("/", { replace: true });
+      window.dispatchEvent(new Event("userAuthChanged"));
+
+      // 🟢 3. Re-fetch Guest Cart & Wishlist via Cookies
+      await Promise.all([
+        dispatch(fetchCart()),
+        dispatch(getWishlist()),
+      ]);
+
+      toast.success("Logged out successfully.");
+      navigate("/", { replace: true });
+    } catch (error) {
+      console.error("LOGOUT ERROR:", error);
+      toast.error("Logout failed.");
+    }
   };
 
   /*
@@ -198,13 +230,13 @@ export default function Header() {
             
             {/* WISHLIST */}
             <Link
-              to={isAuthenticated ? "/user/wishlist" : "/user/login"}
+              to="/user/wishlist"
               aria-label="Wishlist"
               className="relative p-1 text-foreground/80 hover:text-primary transition-colors"
             >
               <Heart size={22} />
               {wishlistCount > 0 && (
-                <span className="absolute -top-1 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                <span className="absolute -top-1 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
                   {wishlistCount > 99 ? "99+" : wishlistCount}
                 </span>
               )}

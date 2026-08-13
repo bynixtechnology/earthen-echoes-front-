@@ -1,61 +1,58 @@
-import MainLayout from "../MainLayout";
-import GuestRoute from "./GuestRoute";
-import UserProtectedRoute from "./UserProtectedRoute";
+import MainLayout from "../MainLayout"; 
+import GuestRoute from "./GuestRoute"; 
+import UserProtectedRoute from "./UserProtectedRoute"; 
 
-import UserLogin from "../../component/page/user/UserLogin";
-import UserRegister from "../../component/page/user/UserRegister";
+import UserLogin from "../../component/page/user/UserLogin"; 
+import UserRegister from "../../component/page/user/UserRegister"; 
 
-import UserProfile from "../../component/page/user/Profile";
-import UserOrders from "../../component/page/user/Orders";
-import UserWishlist from "../../component/page/user/WishlistPage";
-import CheckoutPage from "../../component/page/user/CheckoutPage";
+import UserProfile from "../../component/page/user/Profile"; 
+import UserOrders from "../../component/page/user/Orders"; 
+import CheckoutPage from "../../component/page/user/CheckoutPage"; 
 
-const userRoutes = [
-  {
-    element: <GuestRoute />,
-    children: [
-      {
-        element: <MainLayout />,
-        children: [
-          {
-            path: "/user/login",
-            element: <UserLogin />,
-          },
-          {
-            path: "/user/register",
-            element: <UserRegister />,
-          },
-        ],
-      },
-    ],
-  },
+const userRoutes = [ 
+  /* Guest-only auth pages (Login / Register) */
+  { 
+    element: <GuestRoute />, 
+    children: [ 
+      { 
+        element: <MainLayout />, 
+        children: [ 
+          { 
+            path: "user/login", 
+            element: <UserLogin />, 
+          }, 
+          { 
+            path: "user/register", 
+            element: <UserRegister />, 
+          }, 
+        ], 
+      }, 
+    ], 
+  }, 
 
-  {
-    element: <UserProtectedRoute />,
-    children: [
-      {
-        element: <MainLayout />,
-        children: [
-          {
-            path: "/user/profile",
-            element: <UserProfile />,
-          },
-          {
-            path: "/user/orders",
-            element: <UserOrders />,
-          },
-          {
-            path: "/user/wishlist",
-            element: <UserWishlist />,
-          },
-          {
-            path: "/checkout",
-            element: <CheckoutPage />,
-          },
-        ],
-      },
-    ],
-  },
-];
+  /* Protected pages (Profile / Orders / Checkout) */
+  { 
+    element: <UserProtectedRoute />, 
+    children: [ 
+      { 
+        element: <MainLayout />, 
+        children: [ 
+          { 
+            path: "user/profile", 
+            element: <UserProfile />, 
+          }, 
+          { 
+            path: "user/orders", 
+            element: <UserOrders />, 
+          }, 
+          { 
+            path: "checkout", 
+            element: <CheckoutPage />, 
+          }, 
+        ], 
+      }, 
+    ], 
+  }, 
+]; 
 
 export default userRoutes;

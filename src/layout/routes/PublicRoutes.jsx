@@ -1,98 +1,54 @@
-import MainLayout from "../MainLayout";
+// src/routes/PublicRoutes.js
 
-import Home from "../../component/page/public/Home";
-import About from "../../component/page/public/About";
-import Contact from "../../component/page/public/Contact";
-import Product from "../../component/page/public/Product";
-import ProductDetails from "../../component/page/public/ProductDetails";
-import CartPage from "../../component/page/public/CartPage"
-import WishlistPage from "../../component/page/user/WishlistPage";
+import MainLayout from "../MainLayout"; 
 
-const publicRoutes = [
-  {
-    element: <MainLayout />,
+import Home from "../../component/page/public/Home"; 
+import About from "../../component/page/public/About"; 
+import Contact from "../../component/page/public/Contact"; 
+import Product from "../../component/page/public/Product"; 
+import ProductDetails from "../../component/page/public/ProductDetails"; 
+import CartPage from "../../component/page/public/CartPage"; 
+import WishlistPage from "../../component/page/user/WishlistPage"; 
 
-    children: [
-
-      /*
-      |--------------------------------------------------------------------------
-      | Home
-      |--------------------------------------------------------------------------
-      */
-
-      {
-        index: true,
-        element: <Home />,
-      },
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | About
-      |--------------------------------------------------------------------------
-      */
-
-      {
-        path: "about",
-        element: <About />,
-      },
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | Contact
-      |--------------------------------------------------------------------------
-      */
-
-      {
-        path: "contact",
-        element: <Contact />,
-      },
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | Products
-      |--------------------------------------------------------------------------
-      */
-
-      {
-        path: "products",
-        element: <Product />,
-      },
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | Product Details
-      |--------------------------------------------------------------------------
-      */
-
-      {
-        path: "products/:id",
-        element: <ProductDetails />,
-      },
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | Cart
-      |--------------------------------------------------------------------------
-      */
-
-      {
-        path: "cart",
-        element: <CartPage />,
-      },
-
-       {
-        path: "wishlist",
-        element: <WishlistPage />,
-      },
-
-    ],
-  },
-];
-
+const publicRoutes = [ 
+  { 
+    element: <MainLayout />, 
+    children: [ 
+      { 
+        index: true, 
+        element: <Home />, 
+      }, 
+      { 
+        path: "about", 
+        element: <About />, 
+      }, 
+      { 
+        path: "contact", 
+        element: <Contact />, 
+      }, 
+      { 
+        path: "products", 
+        element: <Product />, 
+      }, 
+      { 
+        path: "products/:id", 
+        element: <ProductDetails />, 
+      }, 
+      { 
+        path: "cart", 
+        element: <CartPage />, 
+      }, 
+      { 
+        path: "wishlist", 
+        element: <WishlistPage />, 
+      }, 
+      /* 🟢 ADD THIS LINE TO FIX /user/wishlist URL MATCH */
+      { 
+        path: "user/wishlist", 
+        element: <WishlistPage />, 
+      }, 
+    ], 
+  }, 
+]; 
 
 export default publicRoutes;

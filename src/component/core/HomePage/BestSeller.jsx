@@ -10,18 +10,14 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { ProductService } from "../../../services/productService";
 import { useDispatch, useSelector } from "react-redux";
-import { addProductToCart } from "../../../redux/thunks/cartThunk";
+import { addProductToCart, fetchCart } from "../../../redux/thunks/cartThunk";
 import { getWishlist, toggleWishlist } from "../../../redux/thunks/wishlistThunk";
-import { selectCartAdding } from "../../../redux/slices/cartSlice";
+// 🟢 FIXED IMPORT: selectCartAdding ki jagah selectCartLoading use karein
+import { selectCartLoading } from "../../../redux/slices/cartSlice";
 import { selectWishlistItems } from "../../../redux/slices/wishlistSlice";
 import { showToast } from "../../../config/toast";
 
 const BestSeller = () => {
-  /*
-  |--------------------------------------------------------------------------
-  | State
-  |--------------------------------------------------------------------------
-  */
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -33,15 +29,10 @@ const BestSeller = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  /*
-  |--------------------------------------------------------------------------
-  | Hooks
-  |--------------------------------------------------------------------------
-  */
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const adding = useSelector(selectCartAdding);
-  const wishlistItems = useSelector(selectWishlistItems);
+  const adding = useSelector(selectCartLoading); // 🟢 Selector Updated
+  const wishlistItems = useSelector(selectWishlistItems) || [];
   const scrollRef = useRef(null);
 
   const scroll = (dir) => {
@@ -50,11 +41,6 @@ const BestSeller = () => {
     }
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | Fetch Best Sellers
-  |--------------------------------------------------------------------------
-  */
   useEffect(() => {
     let isMounted = true;
 
@@ -63,10 +49,9 @@ const BestSeller = () => {
         setIsLoading(true);
         setError("");
 
-        const response = await ProductService.getAll({
+        const response = await ProductService.getPublic({
           page: 1,
-          limit: 1000,
-          isActive: true,
+          limit: 12,
           isFeatured: true,
         });
 
@@ -74,6 +59,8 @@ const BestSeller = () => {
           ? response.products
           : Array.isArray(response?.data)
           ? response.data
+          : Array.isArray(response)
+          ? response
           : [];
 
         if (isMounted) {
@@ -104,18 +91,14 @@ const BestSeller = () => {
     };
   }, [dispatch]);
 
-  /*
-  |--------------------------------------------------------------------------
-  | Handlers
-  |--------------------------------------------------------------------------
-  */
   const handleProductClick = (productId) => {
     if (!productId) return;
     navigate(`/products/${productId}`);
   };
 
-  const handleAddToCart = async (event, productId) => {
+  const handleAddToCart = async (event, product, activeVariant) => {
     event.stopPropagation();
+    const productId = product?._id || product?.id;
     if (!productId) return;
 
     try {
@@ -123,10 +106,12 @@ const BestSeller = () => {
         addProductToCart({
           productId,
           quantity: 1,
+          variant: activeVariant ? activeVariant : undefined,
         })
       ).unwrap();
 
       showToast.success(response?.message || "Product added to cart.");
+      dispatch(fetchCart());
     } catch (error) {
       showToast.error(error?.message || error || "Unable to add product.");
     }
@@ -154,7 +139,6 @@ const BestSeller = () => {
       }}
     >
       <div className="max-w-[1240px] mx-auto px-4 md:px-8">
-        {/* ================= HEADER ================= */}
         <div
           style={{
             display: "flex",
@@ -235,16 +219,6 @@ const BestSeller = () => {
                     justifyContent: "center",
                     transition: ".3s ease",
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = C.coral;
-                    e.currentTarget.style.color = "#fff";
-                    e.currentTarget.style.borderColor = C.coral;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "#fff";
-                    e.currentTarget.style.color = C.dark;
-                    e.currentTarget.style.borderColor = "#D9D2CC";
-                  }}
                 >
                   ←
                 </button>
@@ -263,16 +237,6 @@ const BestSeller = () => {
                     justifyContent: "center",
                     transition: ".3s ease",
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = C.coral;
-                    e.currentTarget.style.color = "#fff";
-                    e.currentTarget.style.borderColor = C.coral;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "#fff";
-                    e.currentTarget.style.color = C.dark;
-                    e.currentTarget.style.borderColor = "#D9D2CC";
-                  }}
                 >
                   →
                 </button>
@@ -281,7 +245,6 @@ const BestSeller = () => {
           </div>
         </div>
 
-        {/* ================= LOADER / ERROR / GRID ================= */}
         {isLoading ? (
           <div
             style={{
@@ -319,7 +282,7 @@ const BestSeller = () => {
               fontSize: 18,
             }}
           >
-            No products found.
+            No best sellers found.
           </div>
         ) : (
           <div
@@ -336,326 +299,215 @@ const BestSeller = () => {
               padding: isMobile ? "4px" : "12px 4px 20px 4px",
             }}
           >
-            {displayedProducts.map((product, index) => {
-              const productId = product?._id || product?.id;
-
-              const image =
-                typeof product?.images?.[0] === "string"
-                  ? product.images[0]
-                  : product?.images?.[0]?.url ||
-                    product?.image?.url ||
-                    product?.image ||
-                    "/placeholder.png";
-
-              const isWishlisted = wishlistItems.some(
-                (item) =>
-                  item.productId?._id === productId || item.product === productId
-              );
-
-              const badge =
-                [
-                  { text: "Best Seller", color: C.coral },
-                  { text: "Trending", color: C.teal },
-                  { text: "Editor's Pick", color: C.raspberry },
-                  { text: "New", color: C.green },
-                ][index % 4];
-
-              const discount =
-                product?.originalPrice || product?.mrp
-                  ? Math.round(
-                      (1 -
-                        product.price /
-                          (product.originalPrice || product.mrp)) *
-                        100
-                    )
-                  : 20;
-
-              const mobileRadiusProfiles = [
-                "20px 12px 20px 12px",
-                "12px 20px 12px 20px",
-                "18px 18px 8px 20px",
-                "8px 20px 18px 18px",
-              ];
-              const cardRadius = isMobile
-                ? mobileRadiusProfiles[index % mobileRadiusProfiles.length]
-                : 24;
-
-              return (
-                <div
-                  key={productId || index}
-                  className="group transition-all duration-300 hover:-translate-y-2"
-                  onClick={() => handleProductClick(productId)}
-                  style={{
-                    width: "100%",
-                    background: "#fff",
-                    borderRadius: cardRadius,
-                    overflow: "hidden",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "space-between",
-                    cursor: "pointer",
-                    border: "1px solid rgba(28,18,8,.08)",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.03)",
-                  }}
-                >
-                  {/* IMAGE CONTAINER */}
-                  <div
-                    style={{
-                      position: "relative",
-                      aspectRatio: isMobile ? "4/5" : "auto",
-                      height: isMobile ? "auto" : 260,
-                      overflow: "hidden",
-                      background: "#F4EFEA",
-                    }}
-                  >
-                    <img
-                      src={image}
-                      alt={product.title || product.name}
-                      className="w-full h-full object-cover "
-                    />
-
-                    {/* Gradient Overlay */}
-                    <div
-                      style={{
-                        position: "absolute",
-                        inset: 0,
-                        background:
-                          "linear-gradient(180deg, rgba(0,0,0,0.15) 0%, transparent 40%)",
-                        pointerEvents: "none",
-                      }}
-                    />
-
-                    {/* Discount */}
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: isMobile ? 10 : 14,
-                        right: isMobile ? 10 : 14,
-                        background: C.raspberry,
-                        color: "#fff",
-                        padding: isMobile ? "4px 8px" : "6px 12px",
-                        borderRadius: 50,
-                        fontSize: isMobile ? 10 : 11,
-                        fontWeight: 700,
-                        zIndex: 2,
-                      }}
-                    >
-                      -{discount}%
-                    </div>
-
-                    {/* Wishlist Button */}
-                    <button
-                      onClick={(e) => handleWishlist(e, productId)}
-                      style={{
-                        position: "absolute",
-                        right: isMobile ? 10 : 14,
-                        bottom: isMobile ? 10 : 14,
-                        width: isMobile ? 34 : 40,
-                        height: isMobile ? 34 : 40,
-                        borderRadius: "50%",
-                        border: `1.5px solid ${
-                          isWishlisted ? C.raspberry : "rgba(28,18,8,.12)"
-                        }`,
-                        background: isWishlisted
-                          ? "rgba(228,69,135,.15)"
-                          : "rgba(255,255,255,.92)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        zIndex: 2,
-                        backdropFilter: "blur(4px)",
-                      }}
-                    >
-                      <Heart
-                        size={isMobile ? 14 : 18}
-                        className={
-                          isWishlisted ? "fill-red-500 text-red-500" : ""
-                        }
-                      />
-                    </button>
-
-                    {/* Quick Add (Desktop Hover) */}
-                    {!isMobile && (
-                      <div
-                        className="absolute inset-x-0 bottom-0 p-4 pt-6 bg-gradient-to-t from-black/60 to-transparent translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out"
-                      >
-                        <button
-                          onClick={(e) => handleAddToCart(e, productId)}
-                          style={{
-                            width: "100%",
-                            border: "none",
-                            borderRadius: 50,
-                            background: "#fff",
-                            color: badge.color,
-                            height: 42,
-                            fontWeight: 700,
-                            fontSize: 14,
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                          }}
-                        >
-                          {adding ? (
-                            <Loader2 size={16} className="animate-spin" />
-                          ) : (
-                            "+ Quick Add"
-                          )}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* CARD CONTENT */}
-                  <div
-                    style={{
-                      padding: isMobile ? "12px 12px 16px" : "18px 20px 22px",
-                      background: "#fff",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "space-between",
-                      flex: 1,
-                    }}
-                  >
-                    <div>
-                      {/* Rating */}
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 2,
-                          marginBottom: isMobile ? 6 : 8,
-                        }}
-                      >
-                        {[1, 2, 3, 4, 5].map((i) => (
-                          <Star
-                            key={i}
-                            size={isMobile ? 11 : 13}
-                            fill={
-                              i <= Math.round(product.rating || 4.8)
-                                ? "#F59E0B"
-                                : "#E5E7EB"
-                            }
-                            color={
-                              i <= Math.round(product.rating || 4.8)
-                                ? "#F59E0B"
-                                : "#E5E7EB"
-                            }
-                          />
-                        ))}
-
-                        <span
-                          style={{
-                            fontSize: isMobile ? 10 : 12,
-                            color: "#8A7A6E",
-                            marginLeft: 4,
-                          }}
-                        >
-                          ({product.reviewCount || product.reviews?.length || 127})
-                        </span>
-                      </div>
-
-                      {/* Product Name */}
-                      <h3
-                        style={{
-                          fontSize: isMobile ? 13 : 15,
-                          fontWeight: 600,
-                          color: C.dark,
-                          lineHeight: 1.35,
-                          margin: "0 0 12px",
-                          display: "-webkit-box",
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: "vertical",
-                          overflow: "hidden",
-                        }}
-                      >
-                        {product.title || product.name}
-                      </h3>
-                    </div>
-
-                    <div>
-                      {/* Price Section */}
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          flexWrap: "wrap",
-                          gap: 6,
-                          marginBottom: isMobile ? 10 : 0,
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "baseline",
-                            gap: 6,
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontFamily: "'Playfair Display', serif",
-                              fontSize: isMobile ? 16 : 20,
-                              fontWeight: 700,
-                              color: C.dark,
-                            }}
-                          >
-                            ₹{Number(product.price || 0).toLocaleString("en-IN")}
-                          </span>
-
-                          {(product.originalPrice || product.mrp) && (
-                            <span
-                              style={{
-                                fontSize: isMobile ? 11 : 13,
-                                color: "#B0A090",
-                                textDecoration: "line-through",
-                              }}
-                            >
-                              ₹
-                              {Number(
-                                product.originalPrice || product.mrp
-                              ).toLocaleString("en-IN")}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Mobile Add to Cart Button */}
-                      {isMobile && (
-                        <button
-                          onClick={(e) => handleAddToCart(e, productId)}
-                          style={{
-                            width: "100%",
-                            padding: "9px 12px",
-                            borderRadius: 12,
-                            background: "rgba(241, 105, 55, 0.08)",
-                            border: "1px solid rgba(241, 105, 55, 0.3)",
-                            color: C.coral,
-                            fontWeight: 700,
-                            fontSize: 12,
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 6,
-                            marginTop: 8,
-                          }}
-                        >
-                          <ShoppingCart size={13} />
-                          Add to Cart
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {displayedProducts.map((product, index) => (
+              <BestSellerCard
+                key={product._id || product.id || index}
+                product={product}
+                index={index}
+                isMobile={isMobile}
+                adding={adding}
+                wishlistItems={wishlistItems}
+                onProductClick={handleProductClick}
+                onAddToCart={handleAddToCart}
+                onWishlist={handleWishlist}
+              />
+            ))}
           </div>
         )}
       </div>
     </section>
+  );
+};
+
+const BestSellerCard = ({
+  product,
+  index,
+  isMobile,
+  adding,
+  wishlistItems,
+  onProductClick,
+  onAddToCart,
+  onWishlist,
+}) => {
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
+
+  const productId = product?._id || product?.id;
+
+  const hasVariants = Boolean(
+    product?.hasVariants &&
+      Array.isArray(product?.variants) &&
+      product.variants.length > 0
+  );
+
+  const activeVariant = hasVariants
+    ? product.variants[selectedVariantIndex] || product.variants[0]
+    : null;
+
+  const resolveImage = (imgObj) => {
+    if (!imgObj) return null;
+    if (typeof imgObj === "string") return imgObj;
+    return imgObj.url || imgObj.secure_url || null;
+  };
+
+  const imagesSource =
+    hasVariants && activeVariant?.images?.length > 0
+      ? activeVariant.images
+      : product?.images;
+
+  const image =
+    resolveImage(imagesSource?.[0]) ||
+    resolveImage(product?.image) ||
+    "/placeholder.png";
+
+  const isWishlisted = wishlistItems.some(
+    (item) =>
+      item.productId?._id === productId ||
+      item.product === productId ||
+      item._id === productId
+  );
+
+  const badge = [
+    { text: "Best Seller", color: C.coral },
+    { text: "Trending", color: C.teal },
+    { text: "Editor's Pick", color: C.raspberry },
+    { text: "New", color: C.green },
+  ][index % 4];
+
+  const price = Number(activeVariant?.price ?? product?.price ?? 0);
+  const originalPrice = Number(
+    activeVariant?.originalPrice ?? product?.originalPrice ?? product?.mrp ?? 0
+  );
+
+  const discount =
+    originalPrice > price
+      ? Math.round(((originalPrice - price) / originalPrice) * 100)
+      : product?.discountPercentage
+      ? Math.round(product.discountPercentage)
+      : 0;
+
+  return (
+    <div
+      className="group transition-all duration-300 hover:-translate-y-2"
+      onClick={() => onProductClick(productId)}
+      style={{
+        width: "100%",
+        background: "#fff",
+        borderRadius: 24,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        cursor: "pointer",
+        border: "1px solid rgba(28,18,8,.08)",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.03)",
+      }}
+    >
+      <div
+        style={{
+          position: "relative",
+          aspectRatio: isMobile ? "4/5" : "auto",
+          height: isMobile ? "auto" : 260,
+          overflow: "hidden",
+          background: "#F4EFEA",
+        }}
+      >
+        <img
+          src={image}
+          alt={product.title || product.name}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          onError={(e) => {
+            e.currentTarget.src = "/placeholder.png";
+          }}
+        />
+
+        <button
+          onClick={(e) => onWishlist(e, productId)}
+          style={{
+            position: "absolute",
+            right: 14,
+            bottom: 14,
+            width: 40,
+            height: 40,
+            borderRadius: "50%",
+            background: "rgba(255,255,255,.92)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            zIndex: 2,
+          }}
+        >
+          <Heart
+            size={18}
+            className={isWishlisted ? "fill-red-500 text-red-500" : ""}
+          />
+        </button>
+
+        {!isMobile && (
+          <div className="absolute inset-x-0 bottom-0 p-4 pt-6 bg-gradient-to-t from-black/60 to-transparent translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out">
+            <button
+              onClick={(e) => onAddToCart(e, product, activeVariant)}
+              style={{
+                width: "100%",
+                border: "none",
+                borderRadius: 50,
+                background: "#fff",
+                color: badge.color,
+                height: 42,
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {adding ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                "+ Quick Add"
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div
+        style={{
+          padding: "18px 20px 22px",
+          background: "#fff",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          flex: 1,
+        }}
+      >
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 2, marginBottom: 8 }}>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Star key={i} size={13} fill="#F59E0B" color="#F59E0B" />
+            ))}
+          </div>
+
+          <h3
+            style={{
+              fontSize: 15,
+              fontWeight: 600,
+              color: C.dark,
+              margin: "0 0 8px",
+            }}
+          >
+            {product.title || product.name}
+          </h3>
+        </div>
+
+        <div>
+          <span style={{ fontSize: 18, fontWeight: 700, color: C.dark }}>
+            ₹{price.toLocaleString("en-IN")}
+          </span>
+        </div>
+      </div>
+    </div>
   );
 };
 
