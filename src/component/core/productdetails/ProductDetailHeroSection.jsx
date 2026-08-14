@@ -5,25 +5,24 @@
  */
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Box,
   ChevronLeft,
   ChevronRight,
   CreditCard,
+  Droplets,
   Heart,
   Leaf,
   Loader2,
+  MapPin,
   Minus,
   PackageCheck,
   Plus,
   RefreshCw,
-  Ruler,
   Share2,
   ShieldCheck,
   ShoppingCart,
   Sparkles,
   Star,
   Sun,
-  Trees,
   Truck,
 } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
@@ -37,7 +36,6 @@ import {
   selectProductError,
 } from "../../../redux/slices/productSlice";
 import { addProductToCart, fetchCart } from "../../../redux/thunks/cartThunk";
-// 🟢 FIXED: Safe selector import to prevent runtime import crash
 import { selectCartLoading } from "../../../redux/slices/cartSlice";
 import { selectWishlistItems } from "../../../redux/slices/wishlistSlice";
 import {
@@ -343,40 +341,40 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
 
   const currentSpecs = activeVariant?.specifications || product?.specifications || {};
 
-  const specifications = [
-    {
-      icon: Ruler,
-      title: "Dimensions",
-      value: currentSpecs.dimensions || product?.dimensions || "Not specified",
-    },
+  // Pottery & Handcraft Quality Highlights
+  const potterySpecs = [
     {
       icon: Leaf,
       title: "Material / Composition",
       value:
         currentSpecs.composition ||
-        currentSpecs.material ||
         product?.composition ||
-        "Not specified",
-    },
-    {
-      icon: Sun,
-      title: "Placement",
-      value: currentSpecs.placement || "Not specified",
-    },
-    {
-      icon: Box,
-      title: "Weight",
-      value: currentSpecs.weight || product?.weight || "Not specified",
+        "100% Natural Red Clay",
     },
     {
       icon: Sparkles,
-      title: "Finish",
-      value: currentSpecs.finish || product?.finish || "Not specified",
+      title: "Craftsmanship",
+      value: "Hand-thrown on Traditional Wheel",
     },
     {
-      icon: Trees,
-      title: "Usage",
-      value: currentSpecs.usage || product?.usage || "Indoor / Outdoor",
+      icon: ShieldCheck,
+      title: "Eco Credentials",
+      value: "100% Biodegradable & Non-Toxic",
+    },
+    {
+      icon: Sun,
+      title: "Usage & Placement",
+      value: "Indoor / Covered Outdoor",
+    },
+    {
+      icon: Droplets,
+      title: "Care Instructions",
+      value: "Hand wash with clean water (Avoid soap)",
+    },
+    {
+      icon: MapPin,
+      title: "Artisan Origin",
+      value: "Handcrafted in India",
     },
   ];
 
@@ -553,7 +551,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
           <div className="flex flex-col gap-4 sm:gap-5 lg:pt-1">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <span className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.16em] text-[#1BACB1]">
-                {categoryName || product?.collectionName || "Premium Collection"}
+                {categoryName || "Premium Collection"}
               </span>
 
               <span
@@ -888,9 +886,10 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
             </div>
           )}
 
+          {/* 🌟 REPLACED: Pottery & Handcraft Quality Highlights */}
           {activeTab === "specifications" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-              {specifications.map((item) => (
+              {potterySpecs.map((item) => (
                 <SpecificationCard key={item.title} {...item} />
               ))}
             </div>
@@ -911,7 +910,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
                 title="Packaging"
                 text={
                   product?.packaging ||
-                  "Your product is securely packed to help protect it during transit."
+                  "Your product is securely packed with eco-safe cushioning to protect pottery during transit."
                 }
               />
               <DetailCard

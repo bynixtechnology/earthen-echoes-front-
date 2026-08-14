@@ -9,6 +9,8 @@ import Product from "../../component/page/public/Product";
 import ProductDetails from "../../component/page/public/ProductDetails"; 
 import CartPage from "../../component/page/public/CartPage"; 
 import WishlistPage from "../../component/page/user/WishlistPage"; 
+import TermsAndConditions from "../../component/page/public/TermsAndConditions"; 
+import PrivacyPolicy from "../../component/page/public/PrivacyPolicy"; 
 
 const publicRoutes = [ 
   { 
@@ -42,10 +44,19 @@ const publicRoutes = [
         path: "wishlist", 
         element: <WishlistPage />, 
       }, 
-      /* 🟢 ADD THIS LINE TO FIX /user/wishlist URL MATCH */
+      /* 🟢 FIX /user/wishlist URL MATCH */
       { 
         path: "user/wishlist", 
         element: <WishlistPage />, 
+      }, 
+      /* 🟢 POLICY ROUTES */
+      { 
+        path: "terms-and-conditions", 
+        element: <TermsAndConditions />, 
+      }, 
+      { 
+        path: "privacy-policy", 
+        element: <PrivacyPolicy />, 
       }, 
     ], 
   }, 

@@ -39,11 +39,6 @@ const Footer = () => {
         setIsLoadingCategories(true);
         const response = await CategoryService.getAll();
 
-        /*
-        |--------------------------------------------------------------------------
-        | Handle different API response structures
-        |--------------------------------------------------------------------------
-        */
         const categoryData =
           response?.data?.data || response?.data || response || [];
 
@@ -93,7 +88,6 @@ const Footer = () => {
               isMobile ? "justify-center sm:justify-start" : ""
             }`}
           >
-            {/* Instagram */}
             <a
               href="https://www.instagram.com/earthen.echoes.jaipur/"
               target="_blank"
@@ -104,7 +98,6 @@ const Footer = () => {
               <FaInstagram size={17} />
             </a>
 
-            {/* Facebook */}
             <a
               href="https://www.facebook.com/Earthen.Echoes.Jaipur/"
               target="_blank"
@@ -115,7 +108,6 @@ const Footer = () => {
               <FaFacebookF size={15} />
             </a>
 
-            {/* WhatsApp */}
             <a
               href="https://wa.me/919772790222"
               target="_blank"
@@ -126,7 +118,6 @@ const Footer = () => {
               <FaWhatsapp size={17} />
             </a>
 
-            {/* Phone Click-to-Call */}
             <a
               href="tel:+919772790222"
               aria-label="Call Us"
@@ -176,6 +167,23 @@ const Footer = () => {
                 className="hover:text-primary transition-colors inline-block"
               >
                 Contact Support
+              </Link>
+            </li>
+            {/* Added Policy Links in Quick Links */}
+            <li>
+              <Link
+                to="/terms-and-conditions"
+                className="hover:text-primary transition-colors inline-block"
+              >
+                Terms &amp; Conditions
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/privacy-policy"
+                className="hover:text-primary transition-colors inline-block"
+              >
+                Privacy Policy
               </Link>
             </li>
           </ul>
@@ -237,7 +245,6 @@ const Footer = () => {
               isMobile ? "flex flex-col items-center sm:items-start" : ""
             }`}
           >
-            {/* Address */}
             <div className="flex items-start gap-3">
               <MdLocationOn
                 size={19}
@@ -249,7 +256,6 @@ const Footer = () => {
               </span>
             </div>
 
-            {/* Phone Link */}
             <div className="flex items-center gap-3">
               <FaPhoneAlt size={14} className="text-primary shrink-0" />
               <a
@@ -260,7 +266,6 @@ const Footer = () => {
               </a>
             </div>
 
-            {/* Email Link */}
             <div className="flex items-center gap-3">
               <MdEmail size={18} className="text-primary shrink-0" />
               <a
@@ -271,7 +276,6 @@ const Footer = () => {
               </a>
             </div>
 
-            {/* Working Hours */}
             <div className="flex items-center gap-3">
               <IoTimeOutline size={19} className="text-primary shrink-0" />
               <span>Mon - Sunday: 9:00 AM - 6:00 PM IST</span>
@@ -285,9 +289,27 @@ const Footer = () => {
       ================================================================= */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-border/60 pt-8">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-          <p className="text-center sm:text-left">
-            © 2026 Earthen Echoes. Made with love in Jaipur. All rights reserved.
-          </p>
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
+            <p>
+              © 2026 Earthen Echoes. Made with love in Jaipur. All rights reserved.
+            </p>
+            {/* Added Links in Bottom Copyright Row */}
+            <div className="flex items-center gap-3 text-[11px]">
+              <Link
+                to="/terms-and-conditions"
+                className="hover:text-primary transition-colors"
+              >
+                Terms &amp; Conditions
+              </Link>
+              <span>•</span>
+              <Link
+                to="/privacy-policy"
+                className="hover:text-primary transition-colors"
+              >
+                Privacy Policy
+              </Link>
+            </div>
+          </div>
 
           <div className="flex items-center gap-3">
             <FaCreditCard

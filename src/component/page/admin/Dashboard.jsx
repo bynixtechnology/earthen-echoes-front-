@@ -4,7 +4,6 @@ import {
   Trash2,
   Edit,
   Loader2,
-  Power,
   Star,
   ChevronLeft,
   ChevronRight,
@@ -29,7 +28,6 @@ export default function Dashboard() {
   const [productTagsList, setProductTagsList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
-  const [statusLoading, setStatusLoading] = useState(null);
   const [featuredLoading, setFeaturedLoading] = useState(null);
 
   /*
@@ -83,11 +81,9 @@ export default function Dashboard() {
   const handleSelectAll = (e) => {
     if (e.target.checked) {
       const visibleIds = products.map((item) => item._id || item.id);
-      // Current page ke saare unique IDs Add karein
       setSelectedProductIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
     } else {
       const visibleIds = products.map((item) => item._id || item.id);
-      // Current page ke items deselect karein
       setSelectedProductIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
     }
   };
@@ -240,8 +236,6 @@ export default function Dashboard() {
     try {
       setIsBulkDeleting(true);
 
-      // agar aapke backend mein single bulk delete API hai jaise ProductService.bulkDelete(selectedProductIds)
-      // toh aap pass kar sakte hain. Warna standard loop approach:
       if (typeof ProductService.bulkDelete === "function") {
         await ProductService.bulkDelete(selectedProductIds);
       } else {
@@ -255,7 +249,6 @@ export default function Dashboard() {
       );
       setSelectedProductIds([]);
 
-      // Reset Current page logic if deleting whole page
       const remainingItems = products.length - selectedProductIds.length;
       const targetPage = remainingItems <= 0 && currentPage > 1 ? currentPage - 1 : currentPage;
       
@@ -282,7 +275,6 @@ export default function Dashboard() {
       {
         ID: 2001,
         Title: "Handcrafted Terracotta Vase",
-        Collection: "Premium Collection",
         MainSKU: "EE-VASE-2001",
         VariantSKU: "EE-VASE-RED",
         Category: "Pottery & Clay",
@@ -292,21 +284,14 @@ export default function Dashboard() {
         Price: 1500,
         OriginalPrice: 1800,
         Stock: 50,
-        Dimensions: "20 x 15 x 10 cm",
-        Weight: "1.2 kg",
         Composition: "100% natural red clay",
-        Placement: "Indoor / Outdoor",
-        Finish: "Matte terracotta body",
         Description: "Premium handcrafted terracotta vase for home decor.",
         LongDescription: "Handcrafted from 100% natural clay. Elegant finish and organic design.",
-        Active: "Yes",
-        Featured: "No",
         Images: "https://picsum.photos/seed/vase1/800/800, https://picsum.photos/seed/vase2/800/800",
       },
       {
         ID: 2001,
         Title: "Handcrafted Terracotta Vase",
-        Collection: "Premium Collection",
         MainSKU: "EE-VASE-2001",
         VariantSKU: "EE-VASE-BLK",
         Category: "Pottery & Clay",
@@ -316,15 +301,9 @@ export default function Dashboard() {
         Price: 1600,
         OriginalPrice: 1900,
         Stock: 30,
-        Dimensions: "20 x 15 x 10 cm",
-        Weight: "1.3 kg",
         Composition: "100% natural black clay",
-        Placement: "Indoor / Outdoor",
-        Finish: "Smoked matte finish",
         Description: "Premium handcrafted terracotta vase for home decor.",
         LongDescription: "Handcrafted from 100% natural clay. Elegant finish and organic design.",
-        Active: "Yes",
-        Featured: "No",
         Images: "https://picsum.photos/seed/vase3/800/800",
       },
     ];
@@ -332,35 +311,28 @@ export default function Dashboard() {
     const worksheet = XLSX.utils.json_to_sheet(templateData);
 
     worksheet["!cols"] = [
-      { wch: 10 },
-      { wch: 30 },
-      { wch: 20 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 20 },
-      { wch: 25 },
-      { wch: 15 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 15 },
-      { wch: 10 },
-      { wch: 18 },
-      { wch: 12 },
-      { wch: 25 },
-      { wch: 20 },
-      { wch: 25 },
-      { wch: 35 },
-      { wch: 50 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 70 },
+      { wch: 10 }, // ID
+      { wch: 30 }, // Title
+      { wch: 18 }, // MainSKU
+      { wch: 18 }, // VariantSKU
+      { wch: 20 }, // Category
+      { wch: 25 }, // ProductTags
+      { wch: 18 }, // ColorName
+      { wch: 12 }, // ColorCode
+      { wch: 12 }, // Price
+      { wch: 14 }, // OriginalPrice
+      { wch: 10 }, // Stock
+      { wch: 25 }, // Composition
+      { wch: 35 }, // Description
+      { wch: 50 }, // LongDescription
+      { wch: 70 }, // Images
     ];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
     XLSX.writeFile(workbook, "product-variants-import-template.xlsx");
 
-    showToast.success("Product Variants Excel template downloaded.");
+    showToast.success("Product Excel template downloaded.");
   };
 
   const getAllProductsForExport = async () => {
@@ -417,7 +389,6 @@ export default function Dashboard() {
             excelRows.push({
               ID: product.id,
               Title: product.title || "",
-              Collection: product.collectionName || "",
               MainSKU: product.sku || "",
               VariantSKU: variant.sku || "",
               Category: product.category?.name || "",
@@ -429,14 +400,8 @@ export default function Dashboard() {
               Price: Number(variant.price || product.price || 0),
               OriginalPrice: Number(variant.originalPrice || product.originalPrice || 0),
               Stock: Number(variant.stock || 0),
-              Dimensions: variant.specifications?.dimensions || "",
-              Weight: variant.specifications?.weight || "",
-              Composition: variant.specifications?.composition || "",
-              Placement: variant.specifications?.placement || "",
-              Finish: variant.specifications?.finish || "",
+              Composition: variant.specifications?.composition || "100% natural red clay",
               Description: product.description || "",
-              Active: product.isActive ? "Yes" : "No",
-              Featured: product.isFeatured ? "Yes" : "No",
               Images: (variant.images || []).map((img) => img.url).join(", "),
             });
           });
@@ -444,7 +409,6 @@ export default function Dashboard() {
           excelRows.push({
             ID: product.id,
             Title: product.title || "",
-            Collection: product.collectionName || "",
             MainSKU: product.sku || "",
             VariantSKU: product.sku || "",
             Category: product.category?.name || "",
@@ -456,14 +420,8 @@ export default function Dashboard() {
             Price: Number(product.price || 0),
             OriginalPrice: Number(product.originalPrice || 0),
             Stock: Number(product.stock || 0),
-            Dimensions: product.specifications?.dimensions || "",
-            Weight: product.specifications?.weight || "",
-            Composition: product.specifications?.composition || "",
-            Placement: product.specifications?.placement || "",
-            Finish: product.specifications?.finish || "",
+            Composition: product.specifications?.composition || "100% natural red clay",
             Description: product.description || "",
-            Active: product.isActive ? "Yes" : "No",
-            Featured: product.isFeatured ? "Yes" : "No",
             Images: (product.images || []).map((img) => img.url).join(", "),
           });
         }
@@ -474,24 +432,17 @@ export default function Dashboard() {
       worksheet["!cols"] = [
         { wch: 10 },
         { wch: 30 },
-        { wch: 20 },
         { wch: 18 },
         { wch: 18 },
         { wch: 20 },
         { wch: 25 },
-        { wch: 15 },
+        { wch: 18 },
         { wch: 12 },
         { wch: 12 },
-        { wch: 15 },
+        { wch: 14 },
         { wch: 10 },
-        { wch: 18 },
-        { wch: 12 },
-        { wch: 25 },
-        { wch: 20 },
         { wch: 25 },
         { wch: 35 },
-        { wch: 10 },
-        { wch: 10 },
         { wch: 70 },
       ];
 
@@ -618,7 +569,6 @@ export default function Dashboard() {
           "Product deleted successfully."
       );
 
-      // Selected ID list se bhi remove karein agar wo check tha
       setSelectedProductIds((prev) => prev.filter((id) => id !== targetId));
 
       const isLastItemOnPage = products.length === 1 && currentPage > 1;
@@ -645,46 +595,9 @@ export default function Dashboard() {
 
   /*
   |--------------------------------------------------------------------------
-  | Status & Featured Toggles
+  | Featured Toggle
   |--------------------------------------------------------------------------
   */
-  const handleStatusToggle = async (product) => {
-    const productId = product._id || product.id;
-    const newStatus = !product.isActive;
-
-    try {
-      setStatusLoading(productId);
-
-      const response = await ProductService.updateStatus(productId, newStatus);
-
-      setProducts((prev) =>
-        prev.map((item) => {
-          const itemId = item._id || item.id;
-          if (itemId !== productId) return item;
-
-          return {
-            ...item,
-            isActive: response?.data?.isActive ?? newStatus,
-          };
-        })
-      );
-
-      showToast.success(
-        response?.message ||
-          (newStatus
-            ? "Product activated successfully."
-            : "Product deactivated successfully.")
-      );
-    } catch (err) {
-      console.error("UPDATE STATUS ERROR:", err);
-      showToast.error(
-        err?.response?.data?.message || "Unable to update product status."
-      );
-    } finally {
-      setStatusLoading(null);
-    }
-  };
-
   const handleFeaturedToggle = async (product) => {
     const productId = product._id || product.id;
     const newStatus = !product.isFeatured;
@@ -766,7 +679,7 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {/* Bulk Delete Button Header View */}
+          {/* Bulk Delete Button */}
           {selectedProductIds.length > 0 && (
             <button
               type="button"
@@ -958,7 +871,6 @@ export default function Dashboard() {
           <table className="w-full min-w-3xl text-left border-collapse whitespace-nowrap">
             <thead className="bg-slate-50/80 text-slate-500 uppercase text-[11px] tracking-wider font-bold border-b border-slate-200">
               <tr>
-                {/* Header Checkbox */}
                 <th className="p-4 pl-6 w-10">
                   <input
                     type="checkbox"
@@ -975,7 +887,6 @@ export default function Dashboard() {
                 <th className="p-4">Price</th>
                 <th className="p-4">Stock</th>
                 <th className="p-4 text-center">Featured</th>
-                <th className="p-4 text-center">Status</th>
                 <th className="p-4 text-center">Actions</th>
               </tr>
             </thead>
@@ -983,7 +894,7 @@ export default function Dashboard() {
             <tbody className="divide-y divide-slate-100 text-slate-700 text-sm">
               {isLoading ? (
                 <tr>
-                  <td colSpan="10" className="p-16 text-center text-slate-400">
+                  <td colSpan="9" className="p-16 text-center text-slate-400">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2
                         size={28}
@@ -997,7 +908,7 @@ export default function Dashboard() {
                 </tr>
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="p-12 text-center">
+                  <td colSpan="9" className="p-12 text-center">
                     <div className="inline-flex flex-col items-center justify-center p-6 bg-slate-50 rounded-2xl border border-slate-100 border-dashed">
                       <PlusCircle
                         size={28}
@@ -1014,12 +925,10 @@ export default function Dashboard() {
                   const currentId = product._id || product.id;
                   const isSelected = selectedProductIds.includes(currentId);
 
-                  // Extract main preview image (variant first or main image)
                   const previewImageUrl = product.hasVariants && product.variants?.[0]?.images?.[0]?.url
                     ? product.variants[0].images[0].url
                     : product.images?.[0]?.url;
 
-                  // Calculate total aggregated stock
                   const totalStock = product.hasVariants && product.variants?.length > 0
                     ? product.variants.reduce((acc, v) => acc + (v.stock || 0), 0)
                     : product.stock || 0;
@@ -1031,7 +940,7 @@ export default function Dashboard() {
                         isSelected ? "bg-amber-50/40" : ""
                       }`}
                     >
-                      {/* Row Checkbox */}
+                      {/* Checkbox */}
                       <td className="p-4 pl-6">
                         <input
                           type="checkbox"
@@ -1073,7 +982,7 @@ export default function Dashboard() {
                         </div>
                       </td>
 
-                      {/* Color Variants Dots */}
+                      {/* Color Variants */}
                       <td className="p-4">
                         {product.hasVariants && product.variants?.length > 0 ? (
                           <div className="flex flex-col gap-1">
@@ -1161,19 +1070,6 @@ export default function Dashboard() {
                         </button>
                       </td>
 
-                      {/* Status */}
-                      <td className="p-4 text-center">
-                        <span
-                          className={`inline-flex items-center justify-center min-w-[76px] px-3 py-1.5 rounded-full text-xs font-bold ${
-                            product.isActive
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-red-100 text-red-600"
-                          }`}
-                        >
-                          {product.isActive ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-
                       {/* Actions */}
                       <td className="p-4">
                         <div className="flex justify-center gap-2">
@@ -1184,28 +1080,6 @@ export default function Dashboard() {
                             title="Edit Product"
                           >
                             <Edit size={18} />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleStatusToggle(product)}
-                            disabled={statusLoading === currentId}
-                            className={`w-10 h-10 flex items-center justify-center border rounded-xl transition disabled:opacity-50 ${
-                              product.isActive
-                                ? "border-slate-200 text-slate-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-                                : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                            }`}
-                            title={
-                              product.isActive
-                                ? "Deactivate Product"
-                                : "Activate Product"
-                            }
-                          >
-                            {statusLoading === currentId ? (
-                              <Loader2 size={18} className="animate-spin" />
-                            ) : (
-                              <Power size={18} />
-                            )}
                           </button>
 
                           <button

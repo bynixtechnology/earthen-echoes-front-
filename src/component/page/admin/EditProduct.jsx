@@ -88,7 +88,6 @@ export default function EditProduct() {
     numericalId: "",
     title: "",
     slug: "",
-    collectionName: "",
     category: "",
     productTags: [],
     sku: "",
@@ -99,13 +98,8 @@ export default function EditProduct() {
     originalPrice: "",
     discountPercentage: "",
     stock: "",
-    dimensions: "",
-    weight: "",
     composition: "100% natural red clay",
-    placement: "Indoor / Outdoor",
-    finish: "Matte terracotta body",
     suggestedProducts: [],
-    isActive: false,
   });
 
   // Variants State
@@ -118,11 +112,7 @@ export default function EditProduct() {
       originalPrice: "",
       stock: "",
       specifications: {
-        dimensions: "",
-        weight: "",
         composition: "100% natural red clay",
-        placement: "Indoor / Outdoor",
-        finish: "Matte terracotta body",
       },
       existingImages: [],
       newImages: [],
@@ -172,7 +162,6 @@ export default function EditProduct() {
           "",
         title: selectedProduct.title || "",
         slug: selectedProduct.slug || "",
-        collectionName: selectedProduct.collectionName || "",
         category: categoryId,
         productTags: mappedTags,
         sku: selectedProduct.sku || "",
@@ -183,17 +172,10 @@ export default function EditProduct() {
         originalPrice: selectedProduct.originalPrice ?? "",
         discountPercentage: selectedProduct.discountPercentage ?? "",
         stock: selectedProduct.stock ?? "",
-        dimensions: selectedProduct.specifications?.dimensions || "",
-        weight: selectedProduct.specifications?.weight || "",
         composition:
           selectedProduct.specifications?.composition ||
           "100% natural red clay",
-        placement:
-          selectedProduct.specifications?.placement || "Indoor / Outdoor",
-        finish:
-          selectedProduct.specifications?.finish || "Matte terracotta body",
         suggestedProducts: selectedProduct.suggestedProducts || [],
-        isActive: selectedProduct.isActive ?? false,
       });
 
       if (productHasVariants) {
@@ -205,12 +187,8 @@ export default function EditProduct() {
           originalPrice: v.originalPrice ?? selectedProduct.originalPrice ?? "",
           stock: v.stock ?? selectedProduct.stock ?? "",
           specifications: {
-            dimensions: v.specifications?.dimensions || "",
-            weight: v.specifications?.weight || "",
             composition:
               v.specifications?.composition || "100% natural red clay",
-            placement: v.specifications?.placement || "Indoor / Outdoor",
-            finish: v.specifications?.finish || "Matte terracotta body",
           },
           existingImages: v.images || [],
           newImages: [],
@@ -229,14 +207,6 @@ export default function EditProduct() {
   */
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-
-    if (name === "isActive") {
-      setFormData((prev) => ({
-        ...prev,
-        isActive: value === "true",
-      }));
-      return;
-    }
 
     setFormData((prev) => {
       const updated = {
@@ -324,11 +294,7 @@ export default function EditProduct() {
         originalPrice: formData.originalPrice || "",
         stock: formData.stock || "",
         specifications: {
-          dimensions: formData.dimensions || "",
-          weight: formData.weight || "",
           composition: formData.composition || "100% natural red clay",
-          placement: formData.placement || "Indoor / Outdoor",
-          finish: formData.finish || "Matte terracotta body",
         },
         existingImages: [],
         newImages: [],
@@ -439,15 +405,6 @@ export default function EditProduct() {
           showToast.error(`Color Name is required for variant #${i + 1}.`);
           return;
         }
-        if (
-          !v.specifications.dimensions.trim() ||
-          !v.specifications.weight.trim()
-        ) {
-          showToast.error(
-            `Dimensions and Weight are required for variant "${v.colorName || i + 1}".`
-          );
-          return;
-        }
         const totalImages =
           (v.existingImages?.length || 0) + (v.newImages?.length || 0);
         if (totalImages === 0) {
@@ -460,10 +417,6 @@ export default function EditProduct() {
     } else {
       if (existingImages.length === 0 && newImages.length === 0) {
         showToast.error("At least one product image is required.");
-        return;
-      }
-      if (!formData.dimensions.trim() || !formData.weight.trim()) {
-        showToast.error("Dimensions and Weight are required.");
         return;
       }
     }
@@ -484,7 +437,6 @@ export default function EditProduct() {
         .replace(/^-+|-+$/g, "");
 
     data.append("slug", productSlug);
-    data.append("collectionName", formData.collectionName.trim());
     data.append("category", formData.category);
     data.append("sku", formData.sku.trim());
     data.append("description", formData.description.trim());
@@ -503,7 +455,9 @@ export default function EditProduct() {
     }
 
     data.append("stock", Number(formData.stock || 0));
-    data.append("isActive", String(formData.isActive));
+    
+    // Status is always sent as active
+    data.append("isActive", "true");
     data.append("hasVariants", String(hasVariants));
 
     if (formData.productTags && formData.productTags.length > 0) {
@@ -522,13 +476,8 @@ export default function EditProduct() {
         stock: v.stock !== "" ? Number(v.stock) : Number(formData.stock) || 0,
         images: v.existingImages || [],
         specifications: {
-          dimensions: v.specifications.dimensions.trim(),
-          weight: v.specifications.weight.trim(),
           composition:
-            v.specifications.composition.trim() || "100% natural red clay",
-          placement:
-            v.specifications.placement.trim() || "Indoor / Outdoor",
-          finish: v.specifications.finish.trim() || "Matte terracotta body",
+            v.specifications?.composition?.trim() || "100% natural red clay",
         },
       }));
 
@@ -541,12 +490,8 @@ export default function EditProduct() {
       });
     } else {
       const specifications = {
-        dimensions: formData.dimensions.trim(),
-        weight: formData.weight.trim(),
         composition:
-          formData.composition.trim() || "100% natural red clay",
-        placement: formData.placement.trim() || "Indoor / Outdoor",
-        finish: formData.finish.trim() || "Matte terracotta body",
+          formData.composition?.trim() || "100% natural red clay",
       };
       data.append("specifications", JSON.stringify(specifications));
 
@@ -627,7 +572,7 @@ export default function EditProduct() {
             className="text-xs mt-0.5 font-medium"
             style={{ color: C.teal }}
           >
-            Update inventory, color variants and specifications.
+            Update inventory, color variants and details.
           </p>
         </div>
       </div>
@@ -690,7 +635,7 @@ export default function EditProduct() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label
                   className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
@@ -705,25 +650,6 @@ export default function EditProduct() {
                   value={formData.sku}
                   onChange={handleInputChange}
                   placeholder="EE-POT-01"
-                  className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
-                  style={{ borderColor: C.blush }}
-                />
-              </div>
-
-              <div>
-                <label
-                  className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-                  style={{ color: C.darkTeal }}
-                >
-                  Collection *
-                </label>
-                <input
-                  type="text"
-                  required
-                  name="collectionName"
-                  value={formData.collectionName}
-                  onChange={handleInputChange}
-                  placeholder="Summer Harvest"
                   className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
                   style={{ borderColor: C.blush }}
                 />
@@ -758,25 +684,6 @@ export default function EditProduct() {
                       {category.name || category.title}
                     </option>
                   ))}
-                </select>
-              </div>
-
-              <div>
-                <label
-                  className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-                  style={{ color: C.darkTeal }}
-                >
-                  Status
-                </label>
-                <select
-                  name="isActive"
-                  value={String(formData.isActive)}
-                  onChange={handleInputChange}
-                  className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
-                  style={{ borderColor: C.blush }}
-                >
-                  <option value="false">Inactive</option>
-                  <option value="true">Active</option>
                 </select>
               </div>
             </div>
@@ -1027,116 +934,26 @@ export default function EditProduct() {
                       </div>
                     </div>
 
-                    {/* All Specifications Dynamic per Variant */}
+                    {/* Composition Specification */}
                     <div className="space-y-3 pt-1 border-t">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Variant Specifications
-                      </span>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold mb-1">
-                            Dimensions *
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={variant.specifications.dimensions}
-                            onChange={(e) =>
-                              handleVariantSpecChange(
-                                index,
-                                "dimensions",
-                                e.target.value
-                              )
-                            }
-                            placeholder="10x12 inches"
-                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                            style={{ borderColor: C.blush }}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold mb-1">
-                            Weight *
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={variant.specifications.weight}
-                            onChange={(e) =>
-                              handleVariantSpecChange(
-                                index,
-                                "weight",
-                                e.target.value
-                              )
-                            }
-                            placeholder="1.5 kg"
-                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                            style={{ borderColor: C.blush }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold mb-1">
-                            Composition
-                          </label>
-                          <input
-                            type="text"
-                            value={variant.specifications.composition}
-                            onChange={(e) =>
-                              handleVariantSpecChange(
-                                index,
-                                "composition",
-                                e.target.value
-                              )
-                            }
-                            placeholder="100% natural red clay"
-                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                            style={{ borderColor: C.blush }}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold mb-1">
-                            Placement
-                          </label>
-                          <input
-                            type="text"
-                            value={variant.specifications.placement}
-                            onChange={(e) =>
-                              handleVariantSpecChange(
-                                index,
-                                "placement",
-                                e.target.value
-                              )
-                            }
-                            placeholder="Indoor / Outdoor"
-                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                            style={{ borderColor: C.blush }}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold mb-1">
-                            Finish
-                          </label>
-                          <input
-                            type="text"
-                            value={variant.specifications.finish}
-                            onChange={(e) =>
-                              handleVariantSpecChange(
-                                index,
-                                "finish",
-                                e.target.value
-                              )
-                            }
-                            placeholder="Matte terracotta body"
-                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                            style={{ borderColor: C.blush }}
-                          />
-                        </div>
+                      <div>
+                        <label className="block text-xs font-semibold mb-1">
+                          Composition
+                        </label>
+                        <input
+                          type="text"
+                          value={variant.specifications.composition}
+                          onChange={(e) =>
+                            handleVariantSpecChange(
+                              index,
+                              "composition",
+                              e.target.value
+                            )
+                          }
+                          placeholder="100% natural red clay"
+                          className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
+                          style={{ borderColor: C.blush }}
+                        />
                       </div>
                     </div>
 
@@ -1227,82 +1044,22 @@ export default function EditProduct() {
             ) : (
               /* SINGLE SPECIFICATIONS FALLBACK */
               <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label
-                      className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-                      style={{ color: C.darkTeal }}
-                    >
-                      Dimensions *
-                    </label>
-                    <input
-                      type="text"
-                      required={!hasVariants}
-                      name="dimensions"
-                      value={formData.dimensions}
-                      onChange={handleInputChange}
-                      placeholder="e.g. 10 x 5 x 5 inches"
-                      className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
-                      style={{ borderColor: C.blush }}
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-                      style={{ color: C.darkTeal }}
-                    >
-                      Weight *
-                    </label>
-                    <input
-                      type="text"
-                      required={!hasVariants}
-                      name="weight"
-                      value={formData.weight}
-                      onChange={handleInputChange}
-                      placeholder="e.g. 500g"
-                      className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
-                      style={{ borderColor: C.blush }}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {[
-                    {
-                      name: "composition",
-                      label: "Composition",
-                      placeholder: "e.g. Terracotta",
-                    },
-                    {
-                      name: "placement",
-                      label: "Placement",
-                      placeholder: "e.g. Indoor / Outdoor",
-                    },
-                    {
-                      name: "finish",
-                      label: "Finish",
-                      placeholder: "e.g. Matte Glaze",
-                    },
-                  ].map((field) => (
-                    <div key={field.name}>
-                      <label
-                        className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-                        style={{ color: C.darkTeal }}
-                      >
-                        {field.label}
-                      </label>
-                      <input
-                        type="text"
-                        name={field.name}
-                        value={formData[field.name]}
-                        onChange={handleInputChange}
-                        placeholder={field.placeholder}
-                        className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
-                        style={{ borderColor: C.blush }}
-                      />
-                    </div>
-                  ))}
+                <div>
+                  <label
+                    className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+                    style={{ color: C.darkTeal }}
+                  >
+                    Composition
+                  </label>
+                  <input
+                    type="text"
+                    name="composition"
+                    value={formData.composition}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 100% natural red clay"
+                    className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
+                    style={{ borderColor: C.blush }}
+                  />
                 </div>
               </div>
             )}
@@ -1320,7 +1077,7 @@ export default function EditProduct() {
               className="text-sm font-bold border-b pb-2"
               style={{ borderColor: C.blush, color: C.dark }}
             >
-              4. Product Description
+              3. Product Description
             </h3>
 
             <textarea
@@ -1366,7 +1123,7 @@ export default function EditProduct() {
                 className="text-sm font-bold border-b pb-2"
                 style={{ borderColor: C.blush, color: C.dark }}
               >
-                5. Product Images
+                4. Product Images
               </h3>
 
               <p className="text-xs" style={{ color: C.teal }}>
