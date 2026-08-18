@@ -25,3 +25,7 @@ export {
 export {
   PRODUCT_TAG_ENDPOINTS,
 } from "./productTagEndpoints";
+
+export {
+  PAYMENT_ENDPOINTS,
+} from "./paymentEndpoints";

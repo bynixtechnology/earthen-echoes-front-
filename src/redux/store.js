@@ -23,6 +23,9 @@ import wishlistReducer
 import productTagReducer
   from "./slices/productTagSlice";
 
+import paymentReducer
+  from "./slices/paymentSlice";
+
 export const store =
   configureStore({
 
@@ -76,6 +79,13 @@ export const store =
 
       wishlist:
         wishlistReducer,
+
+      /*
+      | Payment
+      */
+
+      payment:
+        paymentReducer,
 
     },
 

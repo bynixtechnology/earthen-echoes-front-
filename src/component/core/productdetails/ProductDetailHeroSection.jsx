@@ -25,7 +25,7 @@ import {
   Sun,
   Truck,
 } from "lucide-react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
 import { fetchProductById } from "../../../redux/thunks/productThunk";
@@ -42,6 +42,10 @@ import {
   getWishlist,
   toggleWishlist as toggleWishlistThunk,
 } from "../../../redux/thunks/wishlistThunk";
+import {
+  createPaymentOrder,
+  verifyPayment,
+} from "../../../redux/thunks/paymentThunk";
 import { showToast } from "../../../config/toast";
 
 const TABS = ["description", "specifications", "shipping", "reviews"];
@@ -50,12 +54,18 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
   const { id } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const product = useSelector(selectSelectedProduct);
   const loading = useSelector(selectProductDetailsLoading);
   const error = useSelector(selectProductError);
   const isAdding = useSelector(selectCartLoading);
   const wishlistItems = useSelector(selectWishlistItems) || [];
+
+  // Redux user auth check
+  const user = useSelector(
+    (state) => state.userAuth?.user || state.userAuth?.data || null
+  );
 
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
@@ -67,6 +77,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
   const [pincode, setPincode] = useState("");
   const [pincodeMsg, setPincodeMsg] = useState("");
   const [isMobile, setIsMobile] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -244,7 +255,12 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
     }
   };
 
-  const handleBuyNow = async () => {
+  /*
+  |--------------------------------------------------------------------------
+  | BUY NOW HANDLER (Seamless Flow: Sends Item Directly to Checkout Page)
+  |--------------------------------------------------------------------------
+  */
+  const handleBuyNow = () => {
     if (!product?._id) {
       showToast?.error?.("Product not found.");
       return;
@@ -255,14 +271,42 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
       return;
     }
 
+    const token =
+      localStorage.getItem("token") ||
+      localStorage.getItem("userToken") ||
+      sessionStorage.getItem("token") ||
+      sessionStorage.getItem("userToken");
+
+    const isAuthenticated = Boolean(user && token);
+
+    const buyNowItemData = {
+      product: {
+        _id: product._id,
+        title: productName,
+        images: productImages,
+        price: price,
+      },
+      quantity,
+      price,
+      selectedVariant: activeVariant,
+    };
+
+    // 1. Force Login if user is not authorized
+    if (!isAuthenticated) {
+      showToast?.error?.("Please login to proceed with your order.");
+      navigate("/user/login", {
+        state: {
+          from: location.pathname,
+          buyNowItem: buyNowItemData,
+        },
+      });
+      return;
+    }
+
+    // 2. Navigate directly to full Checkout (Address + Razorpay / COD flow)
     navigate("/checkout", {
       state: {
-        buyNowItem: {
-          product: product,
-          quantity: quantity,
-          price: price,
-          selectedVariant: activeVariant,
-        },
+        buyNowItem: buyNowItemData,
       },
     });
   };
@@ -341,7 +385,6 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
 
   const currentSpecs = activeVariant?.specifications || product?.specifications || {};
 
-  // Pottery & Handcraft Quality Highlights
   const potterySpecs = [
     {
       icon: Leaf,
@@ -737,7 +780,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
               <button
                 type="button"
                 onClick={handleBuyNow}
-                disabled={stock <= 0}
+                disabled={stock <= 0 || isProcessingPayment}
                 className="min-h-12 sm:min-h-14 rounded-full bg-white text-[#F16937] border-2 border-[#F16937] text-sm sm:text-base font-bold flex items-center justify-center gap-2 transition-all hover:bg-[#FEF3EC] disabled:opacity-50 cursor-pointer"
               >
                 <CreditCard size={18} />
@@ -886,7 +929,6 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
             </div>
           )}
 
-          {/* 🌟 REPLACED: Pottery & Handcraft Quality Highlights */}
           {activeTab === "specifications" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
               {potterySpecs.map((item) => (
@@ -962,7 +1004,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
         </div>
       </section>
 
-      {/* Mobile Sticky Cart */}
+      {/* Mobile Sticky Cart & Payment */}
       <div className="fixed bottom-0 inset-x-0 z-40 lg:hidden border-t border-[rgba(28,25,23,0.12)]/60 bg-[#FFFDF9]/95 backdrop-blur-xl px-3 py-2.5 pb-[max(10px,env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.08)]">
         <div className="max-w-md mx-auto flex items-center gap-2.5">
           <button
@@ -994,6 +1036,16 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
               : isAdding
               ? "Adding..."
               : `Add to Cart · ₹${formatPrice(price)}`}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleBuyNow}
+            disabled={stock <= 0 || isProcessingPayment}
+            className="h-11 px-4 rounded-full bg-white text-[#F16937] border-2 border-[#F16937] text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+          >
+            <CreditCard size={16} />
+            Buy
           </button>
         </div>
       </div>

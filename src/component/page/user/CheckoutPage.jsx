@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useLocation, Link, useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import {
   ChevronRight,
   ShieldCheck,
@@ -11,8 +11,15 @@ import {
   ArrowLeft,
   Package,
   Receipt,
+  Loader2,
 } from "lucide-react";
 import { selectCartItems } from "../../../redux/slices/cartSlice";
+import {
+  createPaymentOrder,
+  verifyPayment,
+} from "../../../redux/thunks/paymentThunk";
+import { clearCart, fetchCart } from "../../../redux/thunks/cartThunk";
+import { showToast } from "../../../config/toast";
 
 const STEPS = [
   { id: 1, name: "Order", icon: Package },
@@ -23,20 +30,25 @@ const STEPS = [
 const CheckoutPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   // Buy Now item state passed via navigation
   const buyNowItem = location.state?.buyNowItem;
 
-  // Redux Cart State
+  // Redux Cart & User State
   const cartItems = useSelector(selectCartItems) || [];
+  const user = useSelector(
+    (state) => state.userAuth?.user || state.userAuth?.data || null
+  );
 
   // Active step state: 1 = Order Summary, 2 = Address, 3 = Payment
   const [currentStep, setCurrentStep] = useState(1);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  // Shipping Address Form state
+  // Shipping Address Form state (Prefill from user profile if available)
   const [shippingAddress, setShippingAddress] = useState({
-    fullName: "",
-    phone: "",
+    fullName: user?.name || user?.fullName || "",
+    phone: user?.phone || user?.mobile || "",
     pincode: "",
     street: "",
     city: "",
@@ -56,8 +68,8 @@ const CheckoutPage = () => {
     state: "",
   });
 
-  // Payment Method state
-  const [paymentMethod, setPaymentMethod] = useState("cod");
+  // Payment Method state (default to online Razorpay)
+  const [paymentMethod, setPaymentMethod] = useState("online");
 
   // Standardize checkout items structure for both Buy Now and Normal Cart
   const checkoutItems = buyNowItem
@@ -66,6 +78,7 @@ const CheckoutPage = () => {
           product: buyNowItem.product || buyNowItem,
           quantity: buyNowItem.quantity || 1,
           price: Number(buyNowItem.price || buyNowItem.product?.price || 0),
+          variant: buyNowItem.selectedVariant || null,
         },
       ]
     : cartItems.map((item) => {
@@ -74,6 +87,7 @@ const CheckoutPage = () => {
           product: prodObj,
           quantity: item.quantity || 1,
           price: Number(item.price || prodObj?.price || 0),
+          variant: item.variant || null,
         };
       });
 
@@ -103,7 +117,7 @@ const CheckoutPage = () => {
       !shippingAddress.pincode ||
       !shippingAddress.street
     ) {
-      alert("Please fill all required shipping address fields.");
+      showToast?.error?.("Please fill all required shipping address fields.");
       return;
     }
 
@@ -115,7 +129,7 @@ const CheckoutPage = () => {
         !billingAddress.pincode ||
         !billingAddress.street
       ) {
-        alert("Please fill all required billing address fields.");
+        showToast?.error?.("Please fill all required billing address fields.");
         return;
       }
     }
@@ -123,20 +137,156 @@ const CheckoutPage = () => {
     setCurrentStep(3);
   };
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
+    const finalShippingAddress = shippingAddress;
     const finalBillingAddress = sameAsShipping ? shippingAddress : billingAddress;
 
-    const orderPayload = {
-      items: checkoutItems,
-      shippingAddress,
-      billingAddress: finalBillingAddress,
-      paymentMethod,
-      totalAmount: grandTotal,
-    };
+    // Standardize items payload for Backend verification and order email creation
+    const formattedItems = checkoutItems.map((item) => {
+      const prod = item.product || {};
+      const img =
+        Array.isArray(prod.images) && prod.images.length > 0
+          ? typeof prod.images[0] === "string"
+            ? prod.images[0]
+            : prod.images[0]?.url || prod.images[0]?.secure_url
+          : "/placeholder.png";
 
-    console.log("Final Order Payload =>", orderPayload);
-    alert("Order Placed Successfully!");
-    navigate("/user/orders");
+      return {
+        productId: prod._id || prod.id || null,
+        title: prod.title || prod.name || "Handcrafted Pottery",
+        image: img,
+        price: Number(item.price || 0),
+        quantity: Number(item.quantity || 1),
+        variant: item.variant || null,
+      };
+    });
+
+    // 1. ONLINE PAYMENT VIA RAZORPAY
+    if (paymentMethod === "online") {
+      if (typeof window === "undefined" || !window.Razorpay) {
+        showToast?.error?.("Razorpay SDK not loaded. Please refresh the page.");
+        return;
+      }
+
+      try {
+        setIsProcessingPayment(true);
+        const amountInPaise = Math.round(grandTotal * 100);
+
+        // Create Razorpay Order on Backend
+        const orderResponse = await dispatch(
+          createPaymentOrder(amountInPaise)
+        ).unwrap();
+
+        if (!orderResponse?.order_id) {
+          throw new Error(orderResponse?.message || "Order initialization failed.");
+        }
+
+        const razorpayKey =
+          import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_TRB1OMxRjSoAaP";
+
+        const options = {
+          key: razorpayKey,
+          amount: orderResponse.amount,
+          currency: orderResponse.currency || "INR",
+          name: "Earthen Echoes",
+          description: `Order payment for ${checkoutItems.length} item(s)`,
+          order_id: orderResponse.order_id,
+          prefill: {
+            name: shippingAddress.fullName || user?.name || "",
+            email: user?.email || "",
+            contact: shippingAddress.phone || user?.phone || "",
+          },
+          theme: {
+            color: "#F16937",
+          },
+          handler: async function (paymentResponse) {
+            try {
+              const verifyPayload = {
+                razorpay_order_id: paymentResponse.razorpay_order_id,
+                razorpay_payment_id: paymentResponse.razorpay_payment_id,
+                razorpay_signature: paymentResponse.razorpay_signature,
+                totalAmount: grandTotal,
+                items: formattedItems,
+                shippingAddress: finalShippingAddress,
+                billingAddress: finalBillingAddress,
+              };
+
+              const verificationResult = await dispatch(
+                verifyPayment(verifyPayload)
+              ).unwrap();
+
+              if (verificationResult?.verified || verificationResult?.success) {
+                // Clear user cart if order was placed from normal cart flow
+                if (!buyNowItem) {
+                  await dispatch(clearCart());
+                  await dispatch(fetchCart());
+                }
+
+                showToast?.success?.("Order placed successfully!");
+
+                // Navigate to Thank You Page (which will auto-redirect to My Orders after 35s)
+                navigate("/thank-you", {
+                  replace: true,
+                  state: {
+                    order: verificationResult.order,
+                    orderId: paymentResponse.razorpay_order_id,
+                    paymentId: paymentResponse.razorpay_payment_id,
+                    amount: grandTotal,
+                  },
+                });
+              } else {
+                showToast?.error?.("Payment verification failed.");
+              }
+            } catch (verifyErr) {
+              showToast?.error?.(
+                typeof verifyErr === "string"
+                  ? verifyErr
+                  : verifyErr?.message || "Payment verification failed."
+              );
+            } finally {
+              setIsProcessingPayment(false);
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              setIsProcessingPayment(false);
+              showToast?.info?.("Payment process was cancelled.");
+            },
+          },
+        };
+
+        const razorpayInstance = new window.Razorpay(options);
+
+        razorpayInstance.on("payment.failed", function (failResponse) {
+          setIsProcessingPayment(false);
+          showToast?.error?.(
+            failResponse?.error?.description || "Payment transaction failed."
+          );
+        });
+
+        razorpayInstance.open();
+      } catch (err) {
+        setIsProcessingPayment(false);
+        showToast?.error?.(
+          typeof err === "string"
+            ? err
+            : err?.message || "Unable to initiate payment."
+        );
+      }
+    } else {
+      // 2. CASH ON DELIVERY (COD)
+      if (!buyNowItem) {
+        await dispatch(clearCart());
+        await dispatch(fetchCart());
+      }
+      showToast?.success?.("COD Order placed successfully!");
+      navigate("/thank-you", {
+        replace: true,
+        state: {
+          amount: grandTotal,
+        },
+      });
+    }
   };
 
   const handleTopBackClick = () => {
@@ -158,7 +308,8 @@ const CheckoutPage = () => {
           onClick={handleTopBackClick}
           className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-[#78716C] hover:text-[#F16937] transition-colors mb-6 cursor-pointer"
         >
-          <ArrowLeft size={16} /> {currentStep > 1 ? "Back to previous step" : "Back to Cart"}
+          <ArrowLeft size={16} />{" "}
+          {currentStep > 1 ? "Back to previous step" : "Back to Cart"}
         </button>
 
         {/* STEP PROGRESS BAR */}
@@ -267,6 +418,11 @@ const CheckoutPage = () => {
                               <h3 className="font-bold text-sm sm:text-base leading-snug">
                                 {prod.title || "Untitled Product"}
                               </h3>
+                              {item.variant?.colorName && (
+                                <p className="text-xs text-[#78716C] mt-0.5">
+                                  Color: <span className="font-medium text-[#1C1917]">{item.variant.colorName}</span>
+                                </p>
+                              )}
                               <p className="text-xs text-[#78716C] mt-1">
                                 Qty: <span className="font-bold">{item.quantity}</span>
                               </p>
@@ -295,13 +451,12 @@ const CheckoutPage = () => {
               </div>
             )}
 
-            {/* STEP 2: ADDRESSES (SHIPPING & BILLING) */}
+            {/* STEP 2: ADDRESSES */}
             {currentStep === 2 && (
               <form
                 onSubmit={handleAddressSubmit}
                 className="bg-white rounded-3xl p-5 sm:p-7 border border-[rgba(28,25,23,0.1)] shadow-sm space-y-6"
               >
-                {/* --- SECTION A: SHIPPING ADDRESS --- */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-3 border-b border-[rgba(28,25,23,0.08)]">
                     <Truck size={20} className="text-[#F16937]" />
@@ -321,7 +476,7 @@ const CheckoutPage = () => {
                         value={shippingAddress.fullName}
                         onChange={handleShippingChange}
                         required
-                        placeholder="Ravinder Kumar"
+                        placeholder="Full Name"
                         className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
                       />
                     </div>
@@ -336,7 +491,7 @@ const CheckoutPage = () => {
                         value={shippingAddress.phone}
                         onChange={handleShippingChange}
                         required
-                        placeholder="9876543210"
+                        placeholder="Mobile Number"
                         className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
                       />
                     </div>
@@ -354,7 +509,7 @@ const CheckoutPage = () => {
                         value={shippingAddress.pincode}
                         onChange={handleShippingChange}
                         required
-                        placeholder="302001"
+                        placeholder="PIN Code"
                         className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
                       />
                     </div>
@@ -369,7 +524,7 @@ const CheckoutPage = () => {
                         value={shippingAddress.city}
                         onChange={handleShippingChange}
                         required
-                        placeholder="Jaipur"
+                        placeholder="City"
                         className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
                       />
                     </div>
@@ -384,7 +539,7 @@ const CheckoutPage = () => {
                         value={shippingAddress.state}
                         onChange={handleShippingChange}
                         required
-                        placeholder="Rajasthan"
+                        placeholder="State"
                         className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
                       />
                     </div>
@@ -406,7 +561,7 @@ const CheckoutPage = () => {
                   </div>
                 </div>
 
-                {/* --- SECTION B: BILLING ADDRESS --- */}
+                {/* --- BILLING ADDRESS --- */}
                 <div className="space-y-4 pt-4 border-t border-[rgba(28,25,23,0.08)]">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -427,7 +582,6 @@ const CheckoutPage = () => {
                     </label>
                   </div>
 
-                  {/* SEPARATE BILLING FORM IF SAME IS UNCHECKED */}
                   {!sameAsShipping && (
                     <div className="space-y-4 pt-2">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -441,7 +595,7 @@ const CheckoutPage = () => {
                             value={billingAddress.fullName}
                             onChange={handleBillingChange}
                             required={!sameAsShipping}
-                            placeholder="Ravinder Kumar"
+                            placeholder="Full Name"
                             className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
                           />
                         </div>
@@ -456,7 +610,7 @@ const CheckoutPage = () => {
                             value={billingAddress.phone}
                             onChange={handleBillingChange}
                             required={!sameAsShipping}
-                            placeholder="9876543210"
+                            placeholder="Mobile Number"
                             className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
                           />
                         </div>
@@ -474,7 +628,7 @@ const CheckoutPage = () => {
                             value={billingAddress.pincode}
                             onChange={handleBillingChange}
                             required={!sameAsShipping}
-                            placeholder="302001"
+                            placeholder="PIN Code"
                             className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
                           />
                         </div>
@@ -489,7 +643,7 @@ const CheckoutPage = () => {
                             value={billingAddress.city}
                             onChange={handleBillingChange}
                             required={!sameAsShipping}
-                            placeholder="Jaipur"
+                            placeholder="City"
                             className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
                           />
                         </div>
@@ -504,7 +658,7 @@ const CheckoutPage = () => {
                             value={billingAddress.state}
                             onChange={handleBillingChange}
                             required={!sameAsShipping}
-                            placeholder="Rajasthan"
+                            placeholder="State"
                             className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
                           />
                         </div>
@@ -558,8 +712,16 @@ const CheckoutPage = () => {
 
                 <div className="space-y-3">
                   {[
-                    { id: "cod", label: "Cash on Delivery (COD)", desc: "Pay when package arrives" },
-                    { id: "online", label: "UPI / Credit / Debit Card", desc: "Instant secure payment via Razorpay / Stripe" },
+                    {
+                      id: "online",
+                      label: "UPI / Credit / Debit Card / NetBanking",
+                      desc: "Instant secure payment via Razorpay Gateway",
+                    },
+                    {
+                      id: "cod",
+                      label: "Cash on Delivery (COD)",
+                      desc: "Pay in cash when your order arrives",
+                    },
                   ].map((method) => (
                     <label
                       key={method.id}
@@ -589,7 +751,8 @@ const CheckoutPage = () => {
                   <button
                     type="button"
                     onClick={() => setCurrentStep(2)}
-                    className="px-6 py-3 border border-[rgba(28,25,23,0.2)] font-bold text-xs sm:text-sm rounded-full hover:bg-[#F5F0E8] cursor-pointer"
+                    disabled={isProcessingPayment}
+                    className="px-6 py-3 border border-[rgba(28,25,23,0.2)] font-bold text-xs sm:text-sm rounded-full hover:bg-[#F5F0E8] cursor-pointer disabled:opacity-40"
                   >
                     Back
                   </button>
@@ -597,9 +760,17 @@ const CheckoutPage = () => {
                   <button
                     type="button"
                     onClick={handlePlaceOrder}
-                    className="flex-1 py-3.5 bg-[#F16937] text-white font-bold text-sm rounded-full shadow-lg shadow-[#F16937]/20 hover:opacity-90 cursor-pointer"
+                    disabled={isProcessingPayment}
+                    className="flex-1 py-3.5 bg-[#F16937] text-white font-bold text-sm rounded-full shadow-lg shadow-[#F16937]/20 hover:opacity-90 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
-                    Confirm & Place Order · ₹{formatPrice(grandTotal)}
+                    {isProcessingPayment ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Processing Payment...
+                      </>
+                    ) : (
+                      <>Confirm & Place Order · ₹{formatPrice(grandTotal)}</>
+                    )}
                   </button>
                 </div>
               </div>

@@ -8,6 +8,7 @@ import UserRegister from "../../component/page/user/UserRegister";
 import UserProfile from "../../component/page/user/Profile"; 
 import UserOrders from "../../component/page/user/Orders"; 
 import CheckoutPage from "../../component/page/user/CheckoutPage"; 
+import ThankYouPage from "../../component/page/user/ThankYouPage"; 
 
 const userRoutes = [ 
   /* Guest-only auth pages (Login / Register) */
@@ -30,7 +31,7 @@ const userRoutes = [
     ], 
   }, 
 
-  /* Protected pages (Profile / Orders / Checkout) */
+  /* Protected pages (Profile / Orders / Checkout / Thank You) */
   { 
     element: <UserProtectedRoute />, 
     children: [ 
@@ -48,6 +49,10 @@ const userRoutes = [
           { 
             path: "checkout", 
             element: <CheckoutPage />, 
+          }, 
+          { 
+            path: "thank-you", 
+            element: <ThankYouPage />, 
           }, 
         ], 
       }, 

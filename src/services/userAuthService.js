@@ -95,4 +95,34 @@ export const UserAuthService = {
 
     return response.data;
   },
+
+  /*
+  |--------------------------------------------------------------------------
+  | Get User Orders
+  |--------------------------------------------------------------------------
+  */
+
+  getMyOrders: async () => {
+    const response = await axiosInstance.get(
+      USER_AUTH_ENDPOINTS.ORDERS
+    );
+
+    return response.data;
+  },
+
+  /*
+  |--------------------------------------------------------------------------
+  | Get Single Order Details
+  |--------------------------------------------------------------------------
+  */
+
+  getOrderDetails: async (id) => {
+    const response = await axiosInstance.get(
+      typeof USER_AUTH_ENDPOINTS.ORDER_DETAILS === "function"
+        ? USER_AUTH_ENDPOINTS.ORDER_DETAILS(id)
+        : `${USER_AUTH_ENDPOINTS.ORDERS}/${id}`
+    );
+
+    return response.data;
+  },
 };

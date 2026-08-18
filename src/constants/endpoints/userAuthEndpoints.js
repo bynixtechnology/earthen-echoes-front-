@@ -9,11 +9,15 @@ export const USER_AUTH_ENDPOINTS = {
   // User Profile
   PROFILE: "/user/profile",
 
-  //Update Profile
-  UPDATE_PROFILE :"/user/profile",
+  // Update Profile
+  UPDATE_PROFILE: "/user/profile",
 
   // Change Password
   CHANGE_PASSWORD: "/user/change-password",
+
+  // Orders
+  ORDERS: "/user/orders",
+  ORDER_DETAILS: (id) => `/user/orders/${id}`,
 
   // Cart
   CART: "/user/cart",

@@ -9,8 +9,12 @@ import Product from "../../component/page/public/Product";
 import ProductDetails from "../../component/page/public/ProductDetails"; 
 import CartPage from "../../component/page/public/CartPage"; 
 import WishlistPage from "../../component/page/user/WishlistPage"; 
+
+// 🟢 Policy Pages Imports
 import TermsAndConditions from "../../component/page/public/TermsAndConditions"; 
 import PrivacyPolicy from "../../component/page/public/PrivacyPolicy"; 
+import ShippingPolicy from "../../component/page/public/ShippingPolicy"; 
+import RefundPolicy from "../../component/page/public/RefundPolicy"; 
 
 const publicRoutes = [ 
   { 
@@ -44,12 +48,12 @@ const publicRoutes = [
         path: "wishlist", 
         element: <WishlistPage />, 
       }, 
-      /* 🟢 FIX /user/wishlist URL MATCH */
       { 
         path: "user/wishlist", 
         element: <WishlistPage />, 
       }, 
-      /* 🟢 POLICY ROUTES */
+
+      /* 🟢 MANDATORY PAYMENT GATEWAY POLICY ROUTES */
       { 
         path: "terms-and-conditions", 
         element: <TermsAndConditions />, 
@@ -57,6 +61,14 @@ const publicRoutes = [
       { 
         path: "privacy-policy", 
         element: <PrivacyPolicy />, 
+      }, 
+      { 
+        path: "shipping-policy", 
+        element: <ShippingPolicy />, 
+      }, 
+      { 
+        path: "refund-policy", 
+        element: <RefundPolicy />, 
       }, 
     ], 
   }, 

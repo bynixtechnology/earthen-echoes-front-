@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-
 import {
   Trash2,
   Plus,
@@ -8,17 +7,10 @@ import {
   ArrowRight,
   ShieldCheck,
   ArrowLeft,
+  Loader2,
 } from "lucide-react";
-
-import {
-  Link,
-  useNavigate,
-} from "react-router-dom";
-
-import {
-  useDispatch,
-  useSelector,
-} from "react-redux";
+import { Link, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 
 import {
   fetchCart,
@@ -37,9 +29,7 @@ import {
 } from "../../../redux/slices/cartSlice";
 
 import { selectUserAuthenticated } from "../../../redux/slices/userAuthSlice";
-
 import { C } from "../../../constants/theme";
-
 import { showToast } from "../../../config/toast";
 
 /*
@@ -57,7 +47,6 @@ export default function CartPage() {
   | Redux State
   |--------------------------------------------------------------------------
   */
-
   const cartItems = useSelector(selectCartItems) || [];
   const loading = useSelector(selectCartLoading);
   const adding = useSelector(selectCartAdding);
@@ -71,10 +60,6 @@ export default function CartPage() {
   |--------------------------------------------------------------------------
   | Optimistic Removed Items Set
   |--------------------------------------------------------------------------
-  |
-  | Prevent deleted row from re-rendering on screen during API fetch.
-  |
-  |--------------------------------------------------------------------------
   */
   const [removedItemKeys, setRemovedItemKeys] = useState(() => new Set());
 
@@ -83,7 +68,6 @@ export default function CartPage() {
   | CART ITEM KEY HELPER
   |--------------------------------------------------------------------------
   */
-
   const getCartItemKey = (item) => {
     const productId =
       typeof item?.productId === "object" && item?.productId !== null
@@ -91,9 +75,7 @@ export default function CartPage() {
         : item?.productId || item?._id || item?.id || "";
 
     const sku = String(
-      item?.variant?.sku ||
-      item?.variantSku ||
-      ""
+      item?.variant?.sku || item?.variantSku || ""
     ).trim();
 
     return `${String(productId)}::${sku}`;
@@ -104,7 +86,6 @@ export default function CartPage() {
   | FETCH CART ON MOUNT & AUTH CHANGE
   |--------------------------------------------------------------------------
   */
-
   useEffect(() => {
     dispatch(fetchCart());
   }, [dispatch, isAuthenticated]);
@@ -114,7 +95,6 @@ export default function CartPage() {
   | FILTER VISIBLE ITEMS (STRICT DELETE MASK)
   |--------------------------------------------------------------------------
   */
-
   const visibleCartItems = cartItems.filter(
     (item) => !removedItemKeys.has(getCartItemKey(item))
   );
@@ -124,7 +104,6 @@ export default function CartPage() {
   | DELETE CART ITEM (INSTANT MASK + REDUX DISPATCH)
   |--------------------------------------------------------------------------
   */
-
   const removeFromCart = async (event, item) => {
     if (event) {
       event.preventDefault();
@@ -137,9 +116,7 @@ export default function CartPage() {
         : item?.productId || item?._id || item?.id;
 
     const targetSku = String(
-      item?.variant?.sku ||
-      item?.variantSku ||
-      ""
+      item?.variant?.sku || item?.variantSku || ""
     ).trim();
 
     if (!targetProductId) {
@@ -149,7 +126,7 @@ export default function CartPage() {
 
     const removedKey = getCartItemKey(item);
 
-    // 🟢 1. IMMEDIATELY HIDE FROM SCREEN
+    // 1. Immediately hide from UI
     setRemovedItemKeys((previous) => {
       const next = new Set(previous);
       next.add(removedKey);
@@ -157,7 +134,7 @@ export default function CartPage() {
     });
 
     try {
-      // 🟢 2. DISPATCH REDUX REMOVE ACTION
+      // 2. Dispatch removal
       await dispatch(
         removeProductFromCart({
           productId: targetProductId,
@@ -165,14 +142,13 @@ export default function CartPage() {
         })
       ).unwrap();
 
-      // 🟢 3. FETCH FRESH CART FROM SERVER
+      // 3. Fetch fresh cart
       await dispatch(fetchCart()).unwrap();
-
       showToast.success("Item removed from cart.");
     } catch (error) {
       console.error("REMOVE ITEM ERROR:", error);
 
-      // 🔴 RESTORE ITEM IF API FAILS
+      // Restore if failed
       setRemovedItemKeys((previous) => {
         const next = new Set(previous);
         next.delete(removedKey);
@@ -198,7 +174,6 @@ export default function CartPage() {
   | UPDATE QUANTITY
   |--------------------------------------------------------------------------
   */
-
   const updateQuantity = async (event, item, delta) => {
     if (event) {
       event.preventDefault();
@@ -208,9 +183,7 @@ export default function CartPage() {
     const currentQty = Number(item?.quantity) || 1;
     const newQuantity = currentQty + delta;
 
-    if (newQuantity < 1) {
-      return;
-    }
+    if (newQuantity < 1) return;
 
     const targetProductId =
       typeof item?.productId === "object" && item?.productId !== null
@@ -218,9 +191,7 @@ export default function CartPage() {
         : item?.productId || item?._id || item?.id;
 
     const targetSku = String(
-      item?.variant?.sku ||
-      item?.variantSku ||
-      ""
+      item?.variant?.sku || item?.variantSku || ""
     ).trim();
 
     if (!targetProductId) {
@@ -261,11 +232,12 @@ export default function CartPage() {
   | CHECKOUT NAVIGATION
   |--------------------------------------------------------------------------
   */
-
   const handleProceedToCheckout = () => {
     if (!isAuthenticated) {
       showToast.error("Please login to proceed to checkout.");
-      navigate("/user/login");
+      navigate("/user/login", {
+        state: { from: "/cart" },
+      });
       return;
     }
 
@@ -282,7 +254,6 @@ export default function CartPage() {
   | HELPERS - TITLE, PRICE & IMAGE RESOLUTION
   |--------------------------------------------------------------------------
   */
-
   const getItemTitle = (item) => {
     if (typeof item?.productId === "object" && item?.productId !== null) {
       return (
@@ -290,10 +261,10 @@ export default function CartPage() {
         item.productId.name ||
         item.title ||
         item.name ||
-        "Product"
+        "Handcrafted Pottery"
       );
     }
-    return item?.title || item?.name || "Product";
+    return item?.title || item?.name || "Handcrafted Pottery";
   };
 
   const getItemPrice = (item) => {
@@ -317,9 +288,7 @@ export default function CartPage() {
       return img.url || img.secure_url || img.path || null;
     };
 
-    if (item?.image) {
-      return resolve(item.image);
-    }
+    if (item?.image) return resolve(item.image);
 
     if (item?.variant?.images?.length) {
       const variantImage = resolve(item.variant.images[0]);
@@ -348,16 +317,14 @@ export default function CartPage() {
   | CALCULATIONS
   |--------------------------------------------------------------------------
   */
-
   const subtotal = visibleCartItems.reduce((acc, item) => {
     const price = getItemPrice(item);
     const quantity = Number(item?.quantity) || 1;
     return acc + price * quantity;
   }, 0);
 
-  const tax = subtotal * 0.18;
-  const shipping = subtotal > 2000 || subtotal === 0 ? 0 : 150;
-  const grandTotal = subtotal + tax + shipping;
+  const shipping = subtotal > 999 || subtotal === 0 ? 0 : 99;
+  const grandTotal = subtotal + shipping;
 
   const cartBusy =
     loading || adding || removing || updating || merging;
@@ -367,14 +334,13 @@ export default function CartPage() {
   | INITIAL LOADING VIEW
   |--------------------------------------------------------------------------
   */
-
   if (loading && !cartItems.length) {
     return (
       <div
         className="min-h-[70vh] flex flex-col items-center justify-center px-4"
         style={{ background: C.ivory }}
       >
-        <div className="w-16 h-16 rounded-full border-4 border-gray-200 border-t-[#F16937] animate-spin mb-5" />
+        <Loader2 size={40} className="animate-spin text-[#F16937] mb-4" />
         <p className="text-sm text-gray-500">Loading your cart...</p>
       </div>
     );
@@ -385,7 +351,6 @@ export default function CartPage() {
   | EMPTY CART VIEW
   |--------------------------------------------------------------------------
   */
-
   if (!loading && !visibleCartItems.length) {
     return (
       <div
@@ -407,7 +372,7 @@ export default function CartPage() {
         </h2>
 
         <p className="text-gray-500 mb-8 text-center max-w-md text-sm sm:text-base">
-          Looks like you haven't added any products to your cart yet. Let's get you started!
+          Looks like you haven't added any products to your cart yet. Explore our handcrafted collections!
         </p>
 
         <Link
@@ -427,7 +392,6 @@ export default function CartPage() {
   | MAIN CART VIEW
   |--------------------------------------------------------------------------
   */
-
   return (
     <div
       className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12"
@@ -463,12 +427,12 @@ export default function CartPage() {
         </span>
       </div>
 
-      {/* Merge Loading Notification */}
+      {/* Syncing Notification */}
       {merging && (
         <div className="mb-5 rounded-2xl bg-[#FEF1EC] border border-[#F16937]/20 px-4 py-3 flex items-center gap-3">
           <div className="w-4 h-4 rounded-full border-2 border-[#F16937]/30 border-t-[#F16937] animate-spin" />
           <span className="text-sm font-medium text-[#F16937]">
-            Syncing your previous cart...
+            Syncing your cart...
           </span>
         </div>
       )}
@@ -509,7 +473,8 @@ export default function CartPage() {
 
                 const quantity = Number(item?.quantity) || 1;
 
-                const itemKey = item?._id || `${itemProductId}-${variantSku || "default"}-${index}`;
+                const itemKey =
+                  item?._id || `${itemProductId}-${variantSku || "default"}-${index}`;
 
                 return (
                   <div
@@ -672,16 +637,6 @@ export default function CartPage() {
               </div>
 
               <div className="flex justify-between text-gray-600">
-                <span>Estimated Tax (18%)</span>
-                <span className="font-medium text-gray-900">
-                  ₹
-                  {tax.toLocaleString("en-IN", {
-                    minimumFractionDigits: 2,
-                  })}
-                </span>
-              </div>
-
-              <div className="flex justify-between text-gray-600">
                 <span>Shipping</span>
                 {shipping === 0 ? (
                   <span className="font-semibold" style={{ color: C.green }}>
@@ -725,7 +680,7 @@ export default function CartPage() {
             >
               {merging ? (
                 <>
-                  <span className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  <Loader2 size={20} className="animate-spin" />
                   Syncing Cart...
                 </>
               ) : (
