@@ -47,6 +47,26 @@ const normalizeAuthResponse = (response) => {
 
 /*
 |--------------------------------------------------------------------------
+| Fetch All Users (Admin / User List)
+|--------------------------------------------------------------------------
+*/
+export const fetchAllUsers = createAsyncThunk(
+  "userAuth/fetchAllUsers",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await UserAuthService.getAllUsers();
+      const data = response?.data || response;
+      return data.users || [];
+    } catch (error) {
+      return rejectWithValue(
+        getErrorMessage(error, "Unable to fetch users list.")
+      );
+    }
+  }
+);
+
+/*
+|--------------------------------------------------------------------------
 | Register User
 |--------------------------------------------------------------------------
 */

@@ -7,6 +7,7 @@ import {
   getUserProfile,
   updateUserProfile,
   changePassword,
+  fetchAllUsers, // 👈 Imported fetchAllUsers
 } from "../thunks/userAuthThunk";
 
 /*
@@ -87,6 +88,11 @@ const initialState = {
   googleLoading: false,
   authInitialized: true,
   error: null,
+
+  // All Users List State
+  allUsers: [],
+  usersLoading: false,
+  usersError: null,
 };
 
 /*
@@ -162,8 +168,15 @@ const userAuthSlice = createSlice({
       state.error = null;
     },
 
+    clearUsersError: (state) => {
+      state.usersError = null;
+    },
+
     logoutUser: (state) => {
       resetAuthState(state);
+      state.allUsers = [];
+      state.usersLoading = false;
+      state.usersError = null;
       state.authInitialized = true;
       clearStoredUserAuth();
 
@@ -321,6 +334,28 @@ const userAuthSlice = createSlice({
           action.payload ||
           action.error?.message ||
           "Unable to change password.";
+      })
+
+      /*
+      |--------------------------------------------------------------------------
+      | FETCH ALL USERS (ADMIN / USER LIST)
+      |--------------------------------------------------------------------------
+      */
+      .addCase(fetchAllUsers.pending, (state) => {
+        state.usersLoading = true;
+        state.usersError = null;
+      })
+      .addCase(fetchAllUsers.fulfilled, (state, action) => {
+        state.usersLoading = false;
+        state.allUsers = action.payload || [];
+        state.usersError = null;
+      })
+      .addCase(fetchAllUsers.rejected, (state, action) => {
+        state.usersLoading = false;
+        state.usersError =
+          action.payload ||
+          action.error?.message ||
+          "Failed to fetch users list.";
       });
   },
 });
@@ -333,6 +368,7 @@ const userAuthSlice = createSlice({
 
 export const {
   clearUserAuthError,
+  clearUsersError,
   logoutUser,
   setUserAuth,
   updateCurrentUser,
@@ -361,6 +397,13 @@ export const selectUserAuthInitialized = (state) =>
   state.userAuth?.authInitialized ?? true;
 
 export const selectUserAuthError = (state) => state.userAuth?.error || null;
+
+// All Users Selectors
+export const selectAllUsers = (state) => state.userAuth?.allUsers || [];
+export const selectAllUsersLoading = (state) =>
+  Boolean(state.userAuth?.usersLoading);
+export const selectAllUsersError = (state) =>
+  state.userAuth?.usersError || null;
 
 /*
 |--------------------------------------------------------------------------

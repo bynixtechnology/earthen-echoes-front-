@@ -12,7 +12,6 @@ import { ProductService } from "../../../services/productService";
 import { useDispatch, useSelector } from "react-redux";
 import { addProductToCart, fetchCart } from "../../../redux/thunks/cartThunk";
 import { getWishlist, toggleWishlist } from "../../../redux/thunks/wishlistThunk";
-// 🟢 FIXED: Safe selector import to prevent crash
 import { selectCartLoading } from "../../../redux/slices/cartSlice";
 import { selectWishlistItems } from "../../../redux/slices/wishlistSlice";
 import { showToast } from "../../../config/toast";
@@ -52,29 +51,46 @@ const Kitchenware = () => {
         const response = await ProductService.getPublic({
           page: 1,
           limit: 1000,
-          categoryName: "Kitchen Ware",
+          categoryName: "Traditional Kitchenware",
         });
 
         const rawList = Array.isArray(response?.products)
           ? response.products
+          : Array.isArray(response?.data?.products)
+          ? response.data.products
           : Array.isArray(response?.data)
           ? response.data
           : Array.isArray(response)
           ? response
           : [];
 
-        const kitchenwareProducts = rawList.filter(
-          (item) => item?.category?.name?.toLowerCase() === "kitchen ware"
-        );
+        // 🟢 FIX: Case-insensitive check on name, title, and slug
+        const targetCategory = "traditional kitchenware";
+        const kitchenwareProducts = rawList.filter((item) => {
+          const catName = item?.category?.name?.toLowerCase()?.trim();
+          const catTitle = item?.category?.title?.toLowerCase()?.trim();
+          const catSlug = item?.category?.slug?.toLowerCase()?.trim();
+          const directCat = typeof item?.category === "string" ? item.category.toLowerCase().trim() : "";
 
-        if (isMounted) setProducts(kitchenwareProducts);
-      } catch (error) {
-        console.error("FETCH KITCHENWARE ERROR:", error);
+          return (
+            catName === targetCategory ||
+            catTitle === targetCategory ||
+            catSlug === "traditional-kitchenware" ||
+            directCat === targetCategory
+          );
+        });
+
+        if (isMounted) {
+          // Fallback to rawList if API already pre-filtered the products
+          setProducts(kitchenwareProducts.length > 0 ? kitchenwareProducts : rawList);
+        }
+      } catch (err) {
+        console.error("FETCH KITCHENWARE ERROR:", err);
         if (isMounted) {
           setProducts([]);
           setError(
-            error?.response?.data?.message ||
-              error?.message ||
+            err?.response?.data?.message ||
+              err?.message ||
               "Unable to load kitchenware products."
           );
         }
@@ -112,8 +128,8 @@ const Kitchenware = () => {
 
       showToast.success(response?.message || "Product added to cart.");
       dispatch(fetchCart());
-    } catch (error) {
-      showToast.error(error?.message || error || "Unable to add product.");
+    } catch (err) {
+      showToast.error(err?.message || err || "Unable to add product.");
     }
   };
 
@@ -123,9 +139,9 @@ const Kitchenware = () => {
 
     try {
       const response = await dispatch(toggleWishlist(productId)).unwrap();
-      showToast.success(response.message);
-    } catch (error) {
-      showToast.error(error?.message || error);
+      showToast.success(response?.message || "Wishlist updated.");
+    } catch (err) {
+      showToast.error(err?.message || err || "Failed to update wishlist.");
     }
   };
 
@@ -157,7 +173,7 @@ const Kitchenware = () => {
                 fontFamily: "'Playfair Display', serif",
                 fontWeight: 700,
                 fontSize: "clamp(30px, 4vw, 52px)",
-                color: C.dark,
+                color: C?.dark || "#1C1208",
                 letterSpacing: "-1px",
                 lineHeight: 1.1,
               }}
@@ -176,10 +192,10 @@ const Kitchenware = () => {
             }}
           >
             <Link
-              to="/products?category=kitchenware"
+              to="/products?category=traditional-kitchenware"
               style={{
                 textDecoration: "none",
-                color: C.coral,
+                color: C?.coral || "#F16937",
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
@@ -208,13 +224,13 @@ const Kitchenware = () => {
                     transition: ".3s ease",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = C.coral;
+                    e.currentTarget.style.background = C?.coral || "#F16937";
                     e.currentTarget.style.color = "#fff";
-                    e.currentTarget.style.borderColor = C.coral;
+                    e.currentTarget.style.borderColor = C?.coral || "#F16937";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = "#fff";
-                    e.currentTarget.style.color = C.dark;
+                    e.currentTarget.style.color = C?.dark || "#1C1208";
                     e.currentTarget.style.borderColor = "#D9D2CC";
                   }}
                 >
@@ -236,13 +252,13 @@ const Kitchenware = () => {
                     transition: ".3s ease",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = C.coral;
+                    e.currentTarget.style.background = C?.coral || "#F16937";
                     e.currentTarget.style.color = "#fff";
-                    e.currentTarget.style.borderColor = C.coral;
+                    e.currentTarget.style.borderColor = C?.coral || "#F16937";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = "#fff";
-                    e.currentTarget.style.color = C.dark;
+                    e.currentTarget.style.color = C?.dark || "#1C1208";
                     e.currentTarget.style.borderColor = "#D9D2CC";
                   }}
                 >
@@ -263,7 +279,7 @@ const Kitchenware = () => {
               alignItems: "center",
             }}
           >
-            <Loader2 size={46} className="animate-spin" color={C.coral} />
+            <Loader2 size={46} className="animate-spin" color={C?.coral || "#F16937"} />
           </div>
         ) : error ? (
           <div
@@ -329,7 +345,7 @@ const Kitchenware = () => {
 };
 
 /* ============================================================================
-    KITCHENWARE CARD SUB-COMPONENT (WITH VARIANT IMAGE FALLBACK & SWATCHES)
+    KITCHENWARE CARD SUB-COMPONENT
 ============================================================================ */
 const KitchenwareCard = ({
   product,
@@ -373,9 +389,10 @@ const KitchenwareCard = ({
 
   const isWishlisted = wishlistItems.some(
     (item) =>
-      item.productId?._id === productId ||
-      item.product === productId ||
-      item._id === productId
+      item?.productId?._id === productId ||
+      item?.productId === productId ||
+      item?.product === productId ||
+      item?._id === productId
   );
 
   const price = Number(activeVariant?.price ?? product?.price ?? 0);
@@ -430,7 +447,7 @@ const KitchenwareCard = ({
       >
         <img
           src={image}
-          alt={product.title || product.name}
+          alt={product.title || product.name || "Kitchenware Product"}
           style={{
             width: "100%",
             height: "100%",
@@ -458,7 +475,7 @@ const KitchenwareCard = ({
               position: "absolute",
               top: isMobile ? 10 : 14,
               right: isMobile ? 10 : 14,
-              background: C.raspberry,
+              background: C?.raspberry || "#E11D48",
               color: "#fff",
               padding: isMobile ? "4px 8px" : "6px 12px",
               borderRadius: 50,
@@ -473,6 +490,7 @@ const KitchenwareCard = ({
 
         {/* Wishlist Button */}
         <button
+          type="button"
           onClick={(e) => onWishlist(e, productId)}
           style={{
             position: "absolute",
@@ -482,7 +500,7 @@ const KitchenwareCard = ({
             height: isMobile ? 34 : 40,
             borderRadius: "50%",
             border: `1.5px solid ${
-              isWishlisted ? C.raspberry : "rgba(28,18,8,.12)"
+              isWishlisted ? C?.raspberry || "#E11D48" : "rgba(28,18,8,.12)"
             }`,
             background: isWishlisted
               ? "rgba(228,69,135,.15)"
@@ -507,13 +525,14 @@ const KitchenwareCard = ({
         {!isMobile && (
           <div className="absolute inset-x-0 bottom-0 p-4 pt-6 bg-gradient-to-t from-black/60 to-transparent translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out">
             <button
+              type="button"
               onClick={(e) => onAddToCart(e, product, activeVariant)}
               style={{
                 width: "100%",
                 border: "none",
                 borderRadius: 50,
                 background: "#fff",
-                color: C.coral,
+                color: C?.coral || "#F16937",
                 height: 42,
                 fontWeight: 700,
                 fontSize: 14,
@@ -579,7 +598,7 @@ const KitchenwareCard = ({
                 marginLeft: 4,
               }}
             >
-              ({product.reviewsCount || product.reviews?.length || 127})
+              ({product.reviewsCount || product.reviews?.length || 0})
             </span>
           </div>
 
@@ -588,7 +607,7 @@ const KitchenwareCard = ({
             style={{
               fontSize: isMobile ? 13 : 15,
               fontWeight: 600,
-              color: C.dark,
+              color: C?.dark || "#1C1208",
               lineHeight: 1.35,
               margin: "0 0 8px",
               display: "-webkit-box",
@@ -610,9 +629,7 @@ const KitchenwareCard = ({
                 flexWrap: "wrap",
                 marginBottom: 10,
               }}
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
+              onClick={(e) => e.stopPropagation()}
             >
               {product.variants.map((v, idx) => (
                 <button
@@ -634,7 +651,7 @@ const KitchenwareCard = ({
                       selectedVariantIndex === idx ? "scale(1.25)" : "scale(1)",
                     outline:
                       selectedVariantIndex === idx
-                        ? `2px solid ${C.coral}`
+                        ? `2px solid ${C?.coral || "#F16937"}`
                         : "none",
                     outlineOffset: 1,
                   }}
@@ -668,7 +685,7 @@ const KitchenwareCard = ({
                   fontFamily: "'Playfair Display', serif",
                   fontSize: isMobile ? 16 : 20,
                   fontWeight: 700,
-                  color: C.dark,
+                  color: C?.dark || "#1C1208",
                 }}
               >
                 ₹{Number(price || 0).toLocaleString("en-IN")}
@@ -691,14 +708,15 @@ const KitchenwareCard = ({
           {/* Mobile Add to Cart Button */}
           {isMobile && (
             <button
-              onClick={(e) => handleAddToCart(e, product, activeVariant)}
+              type="button"
+              onClick={(e) => onAddToCart(e, product, activeVariant)}
               style={{
                 width: "100%",
                 padding: "9px 12px",
                 borderRadius: 12,
                 background: "rgba(241, 105, 55, 0.08)",
                 border: "1px solid rgba(241, 105, 55, 0.3)",
-                color: C.coral,
+                color: C?.coral || "#F16937",
                 fontWeight: 700,
                 fontSize: 12,
                 cursor: "pointer",

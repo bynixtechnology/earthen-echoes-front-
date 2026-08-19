@@ -15,7 +15,8 @@ import {
   selectUserAuthLoading,
 } from "../../../redux/slices/userAuthSlice";
 
-import { C } from "../../../constants/theme"; // Adjusted import path to match project structure
+import { C } from "../../../constants/theme";
+import { showToast } from "../../../config/toast";
 
 const Profile = () => {
   const dispatch = useDispatch();
@@ -32,7 +33,7 @@ const Profile = () => {
         setProfileData(data);
       })
       .catch((err) => {
-        console.log(err);
+        console.error("Profile Fetch Error:", err);
       });
   }, [dispatch]);
 
@@ -43,8 +44,14 @@ const Profile = () => {
     try {
       const updated = await dispatch(updateUserProfile(payload)).unwrap();
       setProfileData(updated);
+      showToast.success("Profile updated successfully!");
     } catch (err) {
-      console.log(err);
+      console.error("Profile Update Error:", err);
+      showToast.error(
+        typeof err === "string"
+          ? err
+          : err?.message || "Failed to update profile."
+      );
     }
   };
 
@@ -112,7 +119,7 @@ const Profile = () => {
           {/* Sidebar */}
           <div className="lg:col-span-1">
             <div
-              className="rounded-3xl border p-3 sm:p-4 shadow-xs sticky top-6 transition-all"
+              className="rounded-3xl border p-3 sm:p-4 shadow-sm sticky top-6 transition-all"
               style={{
                 backgroundColor: C.cream,
                 borderColor: `${C.dark}15`,
@@ -121,6 +128,7 @@ const Profile = () => {
               <ProfileSidebar
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
+                user={currentUser}
               />
             </div>
           </div>
@@ -128,7 +136,7 @@ const Profile = () => {
           {/* Dynamic Content Area */}
           <div className="lg:col-span-3">
             <div
-              className="rounded-3xl border shadow-xs transition-all duration-200 overflow-hidden"
+              className="rounded-3xl border shadow-sm transition-all duration-200 overflow-hidden"
               style={{
                 backgroundColor: C.cream,
                 borderColor: `${C.dark}15`,

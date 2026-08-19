@@ -314,7 +314,7 @@ export default function CartPage() {
 
   /*
   |--------------------------------------------------------------------------
-  | CALCULATIONS
+  | CALCULATIONS (Free Shipping)
   |--------------------------------------------------------------------------
   */
   const subtotal = visibleCartItems.reduce((acc, item) => {
@@ -323,7 +323,7 @@ export default function CartPage() {
     return acc + price * quantity;
   }, 0);
 
-  const shipping = subtotal > 999 || subtotal === 0 ? 0 : 99;
+  const shipping = 0; // Free shipping
   const grandTotal = subtotal + shipping;
 
   const cartBusy =
@@ -638,18 +638,9 @@ export default function CartPage() {
 
               <div className="flex justify-between text-gray-600">
                 <span>Shipping</span>
-                {shipping === 0 ? (
-                  <span className="font-semibold" style={{ color: C.green }}>
-                    Free
-                  </span>
-                ) : (
-                  <span className="font-medium text-gray-900">
-                    ₹
-                    {shipping.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </span>
-                )}
+                <span className="font-semibold" style={{ color: C.green }}>
+                  Free
+                </span>
               </div>
             </div>
 

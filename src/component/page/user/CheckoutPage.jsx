@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import {
@@ -13,6 +13,7 @@ import {
   Receipt,
   Loader2,
 } from "lucide-react";
+
 import { selectCartItems } from "../../../redux/slices/cartSlice";
 import {
   createPaymentOrder,
@@ -20,6 +21,7 @@ import {
 } from "../../../redux/thunks/paymentThunk";
 import { clearCart, fetchCart } from "../../../redux/thunks/cartThunk";
 import { showToast } from "../../../config/toast";
+import { C } from "../../../constants/theme";
 
 const STEPS = [
   { id: 1, name: "Order", icon: Package },
@@ -45,10 +47,10 @@ const CheckoutPage = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  // Shipping Address Form state (Prefill from user profile if available)
+  // Shipping Address Form state
   const [shippingAddress, setShippingAddress] = useState({
-    fullName: user?.name || user?.fullName || "",
-    phone: user?.phone || user?.mobile || "",
+    fullName: "",
+    phone: "",
     pincode: "",
     street: "",
     city: "",
@@ -68,10 +70,29 @@ const CheckoutPage = () => {
     state: "",
   });
 
+  // Prefill address from logged-in user profile
+  useEffect(() => {
+    if (user) {
+      const defaultAddr =
+        user.addresses?.find((a) => a.isDefault) ||
+        user.addresses?.[0] ||
+        {};
+
+      setShippingAddress({
+        fullName: defaultAddr.fullName || user.name || "",
+        phone: defaultAddr.phone || user.phone || "",
+        pincode: defaultAddr.zipCode || defaultAddr.pincode || "",
+        street: defaultAddr.street || "",
+        city: defaultAddr.city || "",
+        state: defaultAddr.state || "",
+      });
+    }
+  }, [user]);
+
   // Payment Method state (default to online Razorpay)
   const [paymentMethod, setPaymentMethod] = useState("online");
 
-  // Standardize checkout items structure for both Buy Now and Normal Cart
+  // Standardize checkout items structure
   const checkoutItems = buyNowItem
     ? [
         {
@@ -91,20 +112,25 @@ const CheckoutPage = () => {
         };
       });
 
-  // Order Totals Calculations
+  // Order Totals Calculations (Free Shipping)
   const subtotal = checkoutItems.reduce((acc, item) => {
     return acc + item.price * item.quantity;
   }, 0);
 
-  const shippingFee = subtotal > 999 || subtotal === 0 ? 0 : 99;
-  const grandTotal = subtotal + shippingFee;
+  const grandTotal = subtotal;
 
   const handleShippingChange = (e) => {
-    setShippingAddress((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setShippingAddress((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
   };
 
   const handleBillingChange = (e) => {
-    setBillingAddress((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setBillingAddress((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
   };
 
   const handleAddressSubmit = (e) => {
@@ -112,24 +138,24 @@ const CheckoutPage = () => {
 
     // Shipping address validation
     if (
-      !shippingAddress.fullName ||
-      !shippingAddress.phone ||
-      !shippingAddress.pincode ||
-      !shippingAddress.street
+      !shippingAddress.fullName.trim() ||
+      !shippingAddress.phone.trim() ||
+      !shippingAddress.pincode.trim() ||
+      !shippingAddress.street.trim()
     ) {
-      showToast?.error?.("Please fill all required shipping address fields.");
+      showToast.error("Please fill all required shipping address fields.");
       return;
     }
 
     // Billing address validation if separate
     if (!sameAsShipping) {
       if (
-        !billingAddress.fullName ||
-        !billingAddress.phone ||
-        !billingAddress.pincode ||
-        !billingAddress.street
+        !billingAddress.fullName.trim() ||
+        !billingAddress.phone.trim() ||
+        !billingAddress.pincode.trim() ||
+        !billingAddress.street.trim()
       ) {
-        showToast?.error?.("Please fill all required billing address fields.");
+        showToast.error("Please fill all required billing address fields.");
         return;
       }
     }
@@ -139,9 +165,11 @@ const CheckoutPage = () => {
 
   const handlePlaceOrder = async () => {
     const finalShippingAddress = shippingAddress;
-    const finalBillingAddress = sameAsShipping ? shippingAddress : billingAddress;
+    const finalBillingAddress = sameAsShipping
+      ? shippingAddress
+      : billingAddress;
 
-    // Standardize items payload for Backend verification and order email creation
+    // Standardize items payload for Backend
     const formattedItems = checkoutItems.map((item) => {
       const prod = item.product || {};
       const img =
@@ -164,7 +192,7 @@ const CheckoutPage = () => {
     // 1. ONLINE PAYMENT VIA RAZORPAY
     if (paymentMethod === "online") {
       if (typeof window === "undefined" || !window.Razorpay) {
-        showToast?.error?.("Razorpay SDK not loaded. Please refresh the page.");
+        showToast.error("Razorpay SDK not loaded. Please refresh the page.");
         return;
       }
 
@@ -178,7 +206,9 @@ const CheckoutPage = () => {
         ).unwrap();
 
         if (!orderResponse?.order_id) {
-          throw new Error(orderResponse?.message || "Order initialization failed.");
+          throw new Error(
+            orderResponse?.message || "Order initialization failed."
+          );
         }
 
         const razorpayKey =
@@ -197,7 +227,7 @@ const CheckoutPage = () => {
             contact: shippingAddress.phone || user?.phone || "",
           },
           theme: {
-            color: "#F16937",
+            color: C?.coral || "#F16937",
           },
           handler: async function (paymentResponse) {
             try {
@@ -222,9 +252,8 @@ const CheckoutPage = () => {
                   await dispatch(fetchCart());
                 }
 
-                showToast?.success?.("Order placed successfully!");
+                showToast.success("Order placed successfully!");
 
-                // Navigate to Thank You Page (which will auto-redirect to My Orders after 35s)
                 navigate("/thank-you", {
                   replace: true,
                   state: {
@@ -235,10 +264,10 @@ const CheckoutPage = () => {
                   },
                 });
               } else {
-                showToast?.error?.("Payment verification failed.");
+                showToast.error("Payment verification failed.");
               }
             } catch (verifyErr) {
-              showToast?.error?.(
+              showToast.error(
                 typeof verifyErr === "string"
                   ? verifyErr
                   : verifyErr?.message || "Payment verification failed."
@@ -250,7 +279,7 @@ const CheckoutPage = () => {
           modal: {
             ondismiss: function () {
               setIsProcessingPayment(false);
-              showToast?.info?.("Payment process was cancelled.");
+              showToast.info?.("Payment process was cancelled.");
             },
           },
         };
@@ -259,7 +288,7 @@ const CheckoutPage = () => {
 
         razorpayInstance.on("payment.failed", function (failResponse) {
           setIsProcessingPayment(false);
-          showToast?.error?.(
+          showToast.error(
             failResponse?.error?.description || "Payment transaction failed."
           );
         });
@@ -267,7 +296,7 @@ const CheckoutPage = () => {
         razorpayInstance.open();
       } catch (err) {
         setIsProcessingPayment(false);
-        showToast?.error?.(
+        showToast.error(
           typeof err === "string"
             ? err
             : err?.message || "Unable to initiate payment."
@@ -279,7 +308,7 @@ const CheckoutPage = () => {
         await dispatch(clearCart());
         await dispatch(fetchCart());
       }
-      showToast?.success?.("COD Order placed successfully!");
+      showToast.success("COD Order placed successfully!");
       navigate("/thank-you", {
         replace: true,
         state: {
@@ -300,20 +329,30 @@ const CheckoutPage = () => {
   const formatPrice = (value) => Number(value || 0).toLocaleString("en-IN");
 
   return (
-    <div className="min-h-screen bg-[#FFFDF9] text-[#1C1917] pb-16 pt-6 sm:pt-10">
+    <div
+      className="min-h-screen pb-16 pt-6 sm:pt-10 transition-colors duration-300"
+      style={{ backgroundColor: C?.ivory || "#FDF8F3", color: C?.dark || "#1C1208" }}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Back Link */}
         <button
           type="button"
           onClick={handleTopBackClick}
-          className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-[#78716C] hover:text-[#F16937] transition-colors mb-6 cursor-pointer"
+          className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold hover:opacity-80 transition-colors mb-6 cursor-pointer"
+          style={{ color: `${C?.dark || "#1C1208"}90` }}
         >
           <ArrowLeft size={16} />{" "}
           {currentStep > 1 ? "Back to previous step" : "Back to Cart"}
         </button>
 
         {/* STEP PROGRESS BAR */}
-        <div className="bg-[#F5F0E8] rounded-2xl p-4 sm:p-6 mb-8 sm:mb-10 shadow-sm border border-[rgba(28,25,23,0.08)]">
+        <div
+          className="rounded-2xl p-4 sm:p-6 mb-8 sm:mb-10 shadow-xs border"
+          style={{
+            backgroundColor: C?.cream || "#FAF4ED",
+            borderColor: `${C?.dark || "#1C1208"}15`,
+          }}
+        >
           <div className="flex items-center justify-center gap-2 sm:gap-6 max-w-xl mx-auto">
             {STEPS.map((step, idx) => {
               const isActive = currentStep === step.id;
@@ -329,25 +368,37 @@ const CheckoutPage = () => {
                     }`}
                   >
                     <div
-                      className={`w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold transition-all ${
+                      className="w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold transition-all shadow-xs"
+                      style={
                         isActive
-                          ? "bg-[#F16937] text-white shadow-md shadow-[#F16937]/20 ring-4 ring-[#F16937]/15"
+                          ? {
+                              backgroundColor: C?.coral || "#F16937",
+                              color: "#FFFFFF",
+                            }
                           : isCompleted
-                          ? "bg-[#76A845] text-white"
-                          : "bg-white text-[#78716C] border border-[rgba(28,25,23,0.15)]"
-                      }`}
+                          ? {
+                              backgroundColor: C?.green || "#76A845",
+                              color: "#FFFFFF",
+                            }
+                          : {
+                              backgroundColor: "#FFFFFF",
+                              color: `${C?.dark || "#1C1208"}60`,
+                              border: `1px solid ${C?.dark || "#1C1208"}20`,
+                            }
+                      }
                     >
                       {isCompleted ? <CheckCircle2 size={16} /> : step.id}
                     </div>
 
                     <span
-                      className={`text-xs sm:text-base font-bold capitalize transition-colors ${
-                        isActive
-                          ? "text-[#1C1917]"
+                      className="text-xs sm:text-base font-bold capitalize transition-colors"
+                      style={{
+                        color: isActive
+                          ? C?.coral || "#F16937"
                           : isCompleted
-                          ? "text-[#76A845]"
-                          : "text-[#78716C]"
-                      }`}
+                          ? C?.green || "#76A845"
+                          : `${C?.dark || "#1C1208"}70`,
+                      }}
                     >
                       {step.name}
                     </span>
@@ -356,11 +407,13 @@ const CheckoutPage = () => {
                   {idx < STEPS.length - 1 && (
                     <ChevronRight
                       size={18}
-                      className={`shrink-0 ${
-                        currentStep > step.id
-                          ? "text-[#76A845]"
-                          : "text-[#78716C]/40"
-                      }`}
+                      className="shrink-0"
+                      style={{
+                        color:
+                          currentStep > step.id
+                            ? C?.green || "#76A845"
+                            : `${C?.dark || "#1C1208"}30`,
+                      }}
                     />
                   )}
                 </React.Fragment>
@@ -375,28 +428,46 @@ const CheckoutPage = () => {
           <div className="lg:col-span-7 xl:col-span-8 space-y-6">
             {/* STEP 1: ORDER REVIEW */}
             {currentStep === 1 && (
-              <div className="bg-white rounded-3xl p-5 sm:p-7 border border-[rgba(28,25,23,0.1)] shadow-sm">
-                <div className="flex items-center justify-between pb-4 mb-5 border-b border-[rgba(28,25,23,0.08)]">
+              <div
+                className="rounded-3xl p-5 sm:p-7 border shadow-xs"
+                style={{
+                  backgroundColor: C?.cream || "#FAF4ED",
+                  borderColor: `${C?.dark || "#1C1208"}15`,
+                }}
+              >
+                <div
+                  className="flex items-center justify-between pb-4 mb-5 border-b"
+                  style={{ borderColor: `${C?.dark || "#1C1208"}15` }}
+                >
                   <h2 className="text-lg sm:text-xl font-bold font-heading">
                     1. Review Items
                   </h2>
-                  <span className="text-xs sm:text-sm font-semibold text-[#78716C]">
+                  <span
+                    className="text-xs sm:text-sm font-semibold"
+                    style={{ color: `${C?.dark || "#1C1208"}70` }}
+                  >
                     {checkoutItems.length} Item(s)
                   </span>
                 </div>
 
                 {checkoutItems.length === 0 ? (
                   <div className="text-center py-10">
-                    <p className="text-[#78716C] mb-4">No items found to checkout.</p>
+                    <p className="mb-4" style={{ color: `${C?.dark || "#1C1208"}70` }}>
+                      No items found to checkout.
+                    </p>
                     <Link
                       to="/products"
-                      className="px-5 py-2.5 bg-[#F16937] text-white rounded-full font-bold text-sm"
+                      className="px-5 py-2.5 text-white rounded-full font-bold text-sm shadow-xs"
+                      style={{ backgroundColor: C?.coral || "#F16937" }}
                     >
                       Explore Products
                     </Link>
                   </div>
                 ) : (
-                  <div className="divide-y divide-[rgba(28,25,23,0.08)]">
+                  <div
+                    className="divide-y"
+                    style={{ borderColor: `${C?.dark || "#1C1208"}10` }}
+                  >
                     {checkoutItems.map((item, idx) => {
                       const prod = item.product || {};
                       const image =
@@ -407,11 +478,15 @@ const CheckoutPage = () => {
                           : "/placeholder.png";
 
                       return (
-                        <div key={idx} className="py-4 first:pt-0 last:pb-0 flex gap-4">
+                        <div
+                          key={idx}
+                          className="py-4 first:pt-0 last:pb-0 flex gap-4"
+                        >
                           <img
                             src={image}
                             alt={prod.title || "Product"}
-                            className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover bg-[#F5F0E8] shrink-0"
+                            className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shrink-0 shadow-xs"
+                            style={{ backgroundColor: C?.paleCoral || "#FEF1EC" }}
                           />
                           <div className="flex-1 flex flex-col justify-between">
                             <div>
@@ -419,16 +494,28 @@ const CheckoutPage = () => {
                                 {prod.title || "Untitled Product"}
                               </h3>
                               {item.variant?.colorName && (
-                                <p className="text-xs text-[#78716C] mt-0.5">
-                                  Color: <span className="font-medium text-[#1C1917]">{item.variant.colorName}</span>
+                                <p
+                                  className="text-xs mt-0.5"
+                                  style={{ color: `${C?.dark || "#1C1208"}70` }}
+                                >
+                                  Color:{" "}
+                                  <span className="font-medium">
+                                    {item.variant.colorName}
+                                  </span>
                                 </p>
                               )}
-                              <p className="text-xs text-[#78716C] mt-1">
+                              <p
+                                className="text-xs mt-1"
+                                style={{ color: `${C?.dark || "#1C1208"}70` }}
+                              >
                                 Qty: <span className="font-bold">{item.quantity}</span>
                               </p>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="font-bold text-[#F16937] text-base sm:text-lg">
+                              <span
+                                className="font-bold text-base sm:text-lg"
+                                style={{ color: C?.coral || "#F16937" }}
+                              >
                                 ₹{formatPrice(item.price * item.quantity)}
                               </span>
                             </div>
@@ -443,7 +530,8 @@ const CheckoutPage = () => {
                   <button
                     type="button"
                     onClick={() => setCurrentStep(2)}
-                    className="mt-6 w-full py-3.5 bg-[#F16937] text-white font-bold text-sm sm:text-base rounded-full shadow-lg shadow-[#F16937]/20 hover:opacity-90 transition-all cursor-pointer"
+                    className="mt-6 w-full py-3.5 text-white font-bold text-sm sm:text-base rounded-full shadow-md hover:opacity-90 transition-all cursor-pointer"
+                    style={{ backgroundColor: C?.coral || "#F16937" }}
                   >
                     Proceed to Delivery Address
                   </button>
@@ -455,11 +543,18 @@ const CheckoutPage = () => {
             {currentStep === 2 && (
               <form
                 onSubmit={handleAddressSubmit}
-                className="bg-white rounded-3xl p-5 sm:p-7 border border-[rgba(28,25,23,0.1)] shadow-sm space-y-6"
+                className="rounded-3xl p-5 sm:p-7 border shadow-xs space-y-6"
+                style={{
+                  backgroundColor: C?.cream || "#FAF4ED",
+                  borderColor: `${C?.dark || "#1C1208"}15`,
+                }}
               >
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-3 border-b border-[rgba(28,25,23,0.08)]">
-                    <Truck size={20} className="text-[#F16937]" />
+                  <div
+                    className="flex items-center gap-2 pb-3 border-b"
+                    style={{ borderColor: `${C?.dark || "#1C1208"}15` }}
+                  >
+                    <Truck size={20} style={{ color: C?.coral || "#F16937" }} />
                     <h2 className="text-lg sm:text-xl font-bold font-heading">
                       2A. Shipping Address
                     </h2>
@@ -467,7 +562,10 @@ const CheckoutPage = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-[#78716C] mb-1">
+                      <label
+                        className="block text-xs font-bold mb-1"
+                        style={{ color: `${C?.dark || "#1C1208"}80` }}
+                      >
                         Full Name *
                       </label>
                       <input
@@ -477,12 +575,16 @@ const CheckoutPage = () => {
                         onChange={handleShippingChange}
                         required
                         placeholder="Full Name"
-                        className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
+                        className="w-full rounded-xl border bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none"
+                        style={{ borderColor: `${C?.dark || "#1C1208"}20` }}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#78716C] mb-1">
+                      <label
+                        className="block text-xs font-bold mb-1"
+                        style={{ color: `${C?.dark || "#1C1208"}80` }}
+                      >
                         Mobile Phone *
                       </label>
                       <input
@@ -492,14 +594,18 @@ const CheckoutPage = () => {
                         onChange={handleShippingChange}
                         required
                         placeholder="Mobile Number"
-                        className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
+                        className="w-full rounded-xl border bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none"
+                        style={{ borderColor: `${C?.dark || "#1C1208"}20` }}
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-[#78716C] mb-1">
+                      <label
+                        className="block text-xs font-bold mb-1"
+                        style={{ color: `${C?.dark || "#1C1208"}80` }}
+                      >
                         PIN Code *
                       </label>
                       <input
@@ -510,12 +616,16 @@ const CheckoutPage = () => {
                         onChange={handleShippingChange}
                         required
                         placeholder="PIN Code"
-                        className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
+                        className="w-full rounded-xl border bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none"
+                        style={{ borderColor: `${C?.dark || "#1C1208"}20` }}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#78716C] mb-1">
+                      <label
+                        className="block text-xs font-bold mb-1"
+                        style={{ color: `${C?.dark || "#1C1208"}80` }}
+                      >
                         City / District *
                       </label>
                       <input
@@ -525,12 +635,16 @@ const CheckoutPage = () => {
                         onChange={handleShippingChange}
                         required
                         placeholder="City"
-                        className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
+                        className="w-full rounded-xl border bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none"
+                        style={{ borderColor: `${C?.dark || "#1C1208"}20` }}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#78716C] mb-1">
+                      <label
+                        className="block text-xs font-bold mb-1"
+                        style={{ color: `${C?.dark || "#1C1208"}80` }}
+                      >
                         State *
                       </label>
                       <input
@@ -540,13 +654,17 @@ const CheckoutPage = () => {
                         onChange={handleShippingChange}
                         required
                         placeholder="State"
-                        className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
+                        className="w-full rounded-xl border bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none"
+                        style={{ borderColor: `${C?.dark || "#1C1208"}20` }}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-[#78716C] mb-1">
+                    <label
+                      className="block text-xs font-bold mb-1"
+                      style={{ color: `${C?.dark || "#1C1208"}80` }}
+                    >
                       Street Address / House No. *
                     </label>
                     <textarea
@@ -556,27 +674,35 @@ const CheckoutPage = () => {
                       onChange={handleShippingChange}
                       required
                       placeholder="House No, Building, Street Area"
-                      className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
+                      className="w-full rounded-xl border bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none"
+                      style={{ borderColor: `${C?.dark || "#1C1208"}20` }}
                     />
                   </div>
                 </div>
 
                 {/* --- BILLING ADDRESS --- */}
-                <div className="space-y-4 pt-4 border-t border-[rgba(28,25,23,0.08)]">
+                <div
+                  className="space-y-4 pt-4 border-t"
+                  style={{ borderColor: `${C?.dark || "#1C1208"}15` }}
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Receipt size={20} className="text-[#1BACB1]" />
+                      <Receipt
+                        size={20}
+                        style={{ color: C?.teal || "#1BACB1" }}
+                      />
                       <h2 className="text-lg sm:text-xl font-bold font-heading">
                         2B. Billing Address
                       </h2>
                     </div>
 
-                    <label className="flex items-center gap-2 text-xs sm:text-sm font-bold text-[#1C1917] cursor-pointer">
+                    <label className="flex items-center gap-2 text-xs sm:text-sm font-bold cursor-pointer">
                       <input
                         type="checkbox"
                         checked={sameAsShipping}
                         onChange={(e) => setSameAsShipping(e.target.checked)}
-                        className="h-4 w-4 accent-[#F16937] rounded cursor-pointer"
+                        className="h-4 w-4 rounded cursor-pointer"
+                        style={{ accentColor: C?.coral || "#F16937" }}
                       />
                       Same as shipping address
                     </label>
@@ -586,7 +712,10 @@ const CheckoutPage = () => {
                     <div className="space-y-4 pt-2">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-bold text-[#78716C] mb-1">
+                          <label
+                            className="block text-xs font-bold mb-1"
+                            style={{ color: `${C?.dark || "#1C1208"}80` }}
+                          >
                             Full Name *
                           </label>
                           <input
@@ -596,12 +725,16 @@ const CheckoutPage = () => {
                             onChange={handleBillingChange}
                             required={!sameAsShipping}
                             placeholder="Full Name"
-                            className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
+                            className="w-full rounded-xl border bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none"
+                            style={{ borderColor: `${C?.dark || "#1C1208"}20` }}
                           />
                         </div>
 
                         <div>
-                          <label className="block text-xs font-bold text-[#78716C] mb-1">
+                          <label
+                            className="block text-xs font-bold mb-1"
+                            style={{ color: `${C?.dark || "#1C1208"}80` }}
+                          >
                             Mobile Phone *
                           </label>
                           <input
@@ -611,14 +744,18 @@ const CheckoutPage = () => {
                             onChange={handleBillingChange}
                             required={!sameAsShipping}
                             placeholder="Mobile Number"
-                            className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
+                            className="w-full rounded-xl border bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none"
+                            style={{ borderColor: `${C?.dark || "#1C1208"}20` }}
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
-                          <label className="block text-xs font-bold text-[#78716C] mb-1">
+                          <label
+                            className="block text-xs font-bold mb-1"
+                            style={{ color: `${C?.dark || "#1C1208"}80` }}
+                          >
                             PIN Code *
                           </label>
                           <input
@@ -629,12 +766,16 @@ const CheckoutPage = () => {
                             onChange={handleBillingChange}
                             required={!sameAsShipping}
                             placeholder="PIN Code"
-                            className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
+                            className="w-full rounded-xl border bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none"
+                            style={{ borderColor: `${C?.dark || "#1C1208"}20` }}
                           />
                         </div>
 
                         <div>
-                          <label className="block text-xs font-bold text-[#78716C] mb-1">
+                          <label
+                            className="block text-xs font-bold mb-1"
+                            style={{ color: `${C?.dark || "#1C1208"}80` }}
+                          >
                             City / District *
                           </label>
                           <input
@@ -644,12 +785,16 @@ const CheckoutPage = () => {
                             onChange={handleBillingChange}
                             required={!sameAsShipping}
                             placeholder="City"
-                            className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
+                            className="w-full rounded-xl border bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none"
+                            style={{ borderColor: `${C?.dark || "#1C1208"}20` }}
                           />
                         </div>
 
                         <div>
-                          <label className="block text-xs font-bold text-[#78716C] mb-1">
+                          <label
+                            className="block text-xs font-bold mb-1"
+                            style={{ color: `${C?.dark || "#1C1208"}80` }}
+                          >
                             State *
                           </label>
                           <input
@@ -659,13 +804,17 @@ const CheckoutPage = () => {
                             onChange={handleBillingChange}
                             required={!sameAsShipping}
                             placeholder="State"
-                            className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
+                            className="w-full rounded-xl border bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none"
+                            style={{ borderColor: `${C?.dark || "#1C1208"}20` }}
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-[#78716C] mb-1">
+                        <label
+                          className="block text-xs font-bold mb-1"
+                          style={{ color: `${C?.dark || "#1C1208"}80` }}
+                        >
                           Street Address / House No. *
                         </label>
                         <textarea
@@ -675,25 +824,31 @@ const CheckoutPage = () => {
                           onChange={handleBillingChange}
                           required={!sameAsShipping}
                           placeholder="House No, Building, Street Area"
-                          className="w-full rounded-xl border border-[rgba(28,25,23,0.15)] bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-[#F16937]"
+                          className="w-full rounded-xl border bg-[#FFFDF9] px-4 py-2.5 text-xs sm:text-sm outline-none"
+                          style={{ borderColor: `${C?.dark || "#1C1208"}20` }}
                         />
                       </div>
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center gap-3 pt-4 border-t border-[rgba(28,25,23,0.08)]">
+                <div
+                  className="flex items-center gap-3 pt-4 border-t"
+                  style={{ borderColor: `${C?.dark || "#1C1208"}15` }}
+                >
                   <button
                     type="button"
                     onClick={() => setCurrentStep(1)}
-                    className="px-6 py-3 border border-[rgba(28,25,23,0.2)] font-bold text-xs sm:text-sm rounded-full hover:bg-[#F5F0E8] cursor-pointer"
+                    className="px-6 py-3 border font-bold text-xs sm:text-sm rounded-full cursor-pointer hover:opacity-80 transition"
+                    style={{ borderColor: `${C?.dark || "#1C1208"}20` }}
                   >
                     Back
                   </button>
 
                   <button
                     type="submit"
-                    className="flex-1 py-3 bg-[#F16937] text-white font-bold text-xs sm:text-sm rounded-full shadow-lg shadow-[#F16937]/20 hover:opacity-90 cursor-pointer"
+                    className="flex-1 py-3 text-white font-bold text-xs sm:text-sm rounded-full shadow-md hover:opacity-90 transition cursor-pointer"
+                    style={{ backgroundColor: C?.coral || "#F16937" }}
                   >
                     Continue to Payment
                   </button>
@@ -703,8 +858,17 @@ const CheckoutPage = () => {
 
             {/* STEP 3: PAYMENT METHOD */}
             {currentStep === 3 && (
-              <div className="bg-white rounded-3xl p-5 sm:p-7 border border-[rgba(28,25,23,0.1)] shadow-sm space-y-4">
-                <div className="pb-3 border-b border-[rgba(28,25,23,0.08)]">
+              <div
+                className="rounded-3xl p-5 sm:p-7 border shadow-xs space-y-4"
+                style={{
+                  backgroundColor: C?.cream || "#FAF4ED",
+                  borderColor: `${C?.dark || "#1C1208"}15`,
+                }}
+              >
+                <div
+                  className="pb-3 border-b"
+                  style={{ borderColor: `${C?.dark || "#1C1208"}15` }}
+                >
                   <h2 className="text-lg sm:text-xl font-bold font-heading">
                     3. Payment Method
                   </h2>
@@ -725,11 +889,18 @@ const CheckoutPage = () => {
                   ].map((method) => (
                     <label
                       key={method.id}
-                      className={`flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
+                      className="flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all"
+                      style={
                         paymentMethod === method.id
-                          ? "border-[#F16937] bg-[#FEF1EC]/40 ring-1 ring-[#F16937]"
-                          : "border-[rgba(28,25,23,0.12)] hover:bg-[#FFFDF9]"
-                      }`}
+                          ? {
+                              borderColor: C?.coral || "#F16937",
+                              backgroundColor: C?.paleCoral || "#FEF1EC",
+                            }
+                          : {
+                              borderColor: `${C?.dark || "#1C1208"}15`,
+                              backgroundColor: "#FFFDF9",
+                            }
+                      }
                     >
                       <input
                         type="radio"
@@ -737,11 +908,17 @@ const CheckoutPage = () => {
                         value={method.id}
                         checked={paymentMethod === method.id}
                         onChange={() => setPaymentMethod(method.id)}
-                        className="mt-1 accent-[#F16937] cursor-pointer"
+                        className="mt-1 cursor-pointer"
+                        style={{ accentColor: C?.coral || "#F16937" }}
                       />
                       <div>
                         <p className="font-bold text-sm">{method.label}</p>
-                        <p className="text-xs text-[#78716C]">{method.desc}</p>
+                        <p
+                          className="text-xs"
+                          style={{ color: `${C?.dark || "#1C1208"}70` }}
+                        >
+                          {method.desc}
+                        </p>
                       </div>
                     </label>
                   ))}
@@ -752,7 +929,8 @@ const CheckoutPage = () => {
                     type="button"
                     onClick={() => setCurrentStep(2)}
                     disabled={isProcessingPayment}
-                    className="px-6 py-3 border border-[rgba(28,25,23,0.2)] font-bold text-xs sm:text-sm rounded-full hover:bg-[#F5F0E8] cursor-pointer disabled:opacity-40"
+                    className="px-6 py-3 border font-bold text-xs sm:text-sm rounded-full cursor-pointer disabled:opacity-40 hover:opacity-80 transition"
+                    style={{ borderColor: `${C?.dark || "#1C1208"}20` }}
                   >
                     Back
                   </button>
@@ -761,7 +939,8 @@ const CheckoutPage = () => {
                     type="button"
                     onClick={handlePlaceOrder}
                     disabled={isProcessingPayment}
-                    className="flex-1 py-3.5 bg-[#F16937] text-white font-bold text-sm rounded-full shadow-lg shadow-[#F16937]/20 hover:opacity-90 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="flex-1 py-3.5 text-white font-bold text-sm rounded-full shadow-md hover:opacity-90 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 transition"
+                    style={{ backgroundColor: C?.coral || "#F16937" }}
                   >
                     {isProcessingPayment ? (
                       <>
@@ -779,46 +958,78 @@ const CheckoutPage = () => {
 
           {/* RIGHT SIDEBAR: ORDER SUMMARY */}
           <div className="lg:col-span-5 xl:col-span-4 sticky top-6">
-            <div className="bg-white rounded-3xl p-5 sm:p-6 border border-[rgba(28,25,23,0.1)] shadow-sm">
-              <h3 className="font-heading font-bold text-base sm:text-lg pb-3 border-b border-[rgba(28,25,23,0.08)]">
+            <div
+              className="rounded-3xl p-5 sm:p-6 border shadow-xs"
+              style={{
+                backgroundColor: C?.cream || "#FAF4ED",
+                borderColor: `${C?.dark || "#1C1208"}15`,
+              }}
+            >
+              <h3
+                className="font-heading font-bold text-base sm:text-lg pb-3 border-b"
+                style={{ borderColor: `${C?.dark || "#1C1208"}15` }}
+              >
                 Order Summary
               </h3>
 
-              <div className="py-4 space-y-2.5 text-xs sm:text-sm border-b border-[rgba(28,25,23,0.08)]">
-                <div className="flex justify-between text-[#78716C]">
+              <div
+                className="py-4 space-y-2.5 text-xs sm:text-sm border-b"
+                style={{ borderColor: `${C?.dark || "#1C1208"}15` }}
+              >
+                <div
+                  className="flex justify-between"
+                  style={{ color: `${C?.dark || "#1C1208"}70` }}
+                >
                   <span>Items Subtotal</span>
-                  <span className="font-semibold text-[#1C1917]">
+                  <span
+                    className="font-semibold"
+                    style={{ color: C?.dark || "#1C1208" }}
+                  >
                     ₹{formatPrice(subtotal)}
                   </span>
                 </div>
 
-                <div className="flex justify-between text-[#78716C]">
+                <div
+                  className="flex justify-between"
+                  style={{ color: `${C?.dark || "#1C1208"}70` }}
+                >
                   <span>Shipping Fee</span>
-                  <span className="font-semibold text-[#1C1917]">
-                    {shippingFee === 0 ? (
-                      <span className="text-[#76A845] font-bold">FREE</span>
-                    ) : (
-                      `₹${shippingFee}`
-                    )}
+                  <span
+                    className="font-bold"
+                    style={{ color: C?.green || "#76A845" }}
+                  >
+                    FREE
                   </span>
                 </div>
               </div>
 
               <div className="py-4 flex justify-between items-center text-sm sm:text-base font-bold">
                 <span>Total Amount</span>
-                <span className="text-[#F16937] text-xl font-heading">
+                <span
+                  className="text-xl font-heading"
+                  style={{ color: C?.coral || "#F16937" }}
+                >
                   ₹{formatPrice(grandTotal)}
                 </span>
               </div>
 
               {/* Security Badges */}
-              <div className="mt-4 pt-4 border-t border-[rgba(28,25,23,0.08)] space-y-2 text-[11px] text-[#78716C]">
+              <div
+                className="mt-4 pt-4 border-t space-y-2 text-[11px]"
+                style={{
+                  borderColor: `${C?.dark || "#1C1208"}15`,
+                  color: `${C?.dark || "#1C1208"}70`,
+                }}
+              >
                 <div className="flex items-center gap-2">
-                  <ShieldCheck size={16} className="text-[#1BACB1]" />
+                  <ShieldCheck
+                    size={16}
+                    style={{ color: C?.teal || "#1BACB1" }}
+                  />
                   <span>Safe and Secure Checkout</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Truck size={16} className="text-[#F16937]" />
+                  <Truck size={16} style={{ color: C?.coral || "#F16937" }} />
                   <span>Fast delivery directly to your door</span>
                 </div>
               </div>

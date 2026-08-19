@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   PlusCircle,
   FolderPlus,
+  Users, // 👈 Imported Users icon
   LogOut,
   X,
 } from "lucide-react";
@@ -16,6 +17,11 @@ import { showToast } from "../../../config/toast";
 import { FRONTEND_MESSAGES } from "../../../constants/messages";
 
 const adminNavLinks = [
+  {
+    name: "All Users",
+    path: "/admin/users", // 👈 Added All Users Route
+    icon: Users,
+  },
   {
     name: "Add Category",
     path: "/admin/add-category",

@@ -6,6 +6,9 @@ export const USER_AUTH_ENDPOINTS = {
   // Agar backend me Google route nahi hai to isko use mat karo
   GOOGLE_LOGIN: "/auth/google",
 
+  // Get All Users (Admin / User List)
+  ALL_USERS: "/user/all",
+
   // User Profile
   PROFILE: "/user/profile",
 

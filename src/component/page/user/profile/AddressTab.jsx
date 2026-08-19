@@ -1,9 +1,18 @@
 import React, { useEffect, useState } from "react";
 import {
-  Home, Plus, Pencil, Trash2, X,
-  MapPin, Phone, User, Building, CheckCircle2, Loader2
+  Home,
+  Plus,
+  Pencil,
+  Trash2,
+  X,
+  MapPin,
+  Phone,
+  User,
+  Building,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
-import { C } from "../../../../constants/theme"; // Adjust relative import path as needed
+import { C } from "../../../../constants/theme";
 
 const emptyForm = {
   type: "Home",
@@ -27,8 +36,15 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (user?.addresses) setAddresses(user.addresses);
+    if (user?.addresses) {
+      setAddresses(user.addresses);
+    }
   }, [user]);
+
+  const showNotification = (msg) => {
+    setStatusMessage(msg);
+    setTimeout(() => setStatusMessage(""), 3000);
+  };
 
   const openAdd = () => {
     setEditingId(null);
@@ -66,59 +82,110 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
 
   const change = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((p) => ({ ...p, [name]: type === "checkbox" ? checked : value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
+  // Add / Edit handler
   const save = async (e) => {
     e.preventDefault();
     if (!onUpdate) return;
 
     try {
       setSaving(true);
-      const payload = {
-        address: {
-          ...(editingId && { _id: editingId }),
-          type: formData.type,
-          fullName: formData.fullName,
-          phone: formData.phone,
-          street: formData.street,
-          landmark: formData.landmark,
-          city: formData.city,
-          state: formData.state,
-          zipCode: formData.zipCode,
-          country: formData.country,
-          isDefault: formData.isDefault,
-        },
-      };
+      let updatedList = [];
 
-      await onUpdate(payload);
+      if (editingId) {
+        // Edit mode
+        updatedList = addresses.map((addr) => {
+          const id = addr._id || addr.id;
+          if (id === editingId) {
+            return {
+              ...addr,
+              ...formData,
+              isDefault: formData.isDefault,
+            };
+          }
+          return formData.isDefault ? { ...addr, isDefault: false } : addr;
+        });
+      } else {
+        // Add new mode
+        const shouldBeDefault = formData.isDefault || addresses.length === 0;
+        const existingList = shouldBeDefault
+          ? addresses.map((a) => ({ ...a, isDefault: false }))
+          : [...addresses];
+
+        const newAddress = {
+          ...formData,
+          isDefault: shouldBeDefault,
+        };
+
+        updatedList = [...existingList, newAddress];
+      }
+
+      await onUpdate({ addresses: updatedList });
+      setAddresses(updatedList);
+      showNotification(
+        editingId ? "Address updated successfully." : "Address added successfully."
+      );
       close();
     } catch (err) {
-      console.error(err);
+      console.error("Save address error:", err);
     } finally {
       setSaving(false);
     }
   };
 
+  // Delete handler
   const del = async (id) => {
-    const list = addresses.filter((a) => (a._id || a.id) !== id);
-    setAddresses(list);
-    if (onUpdate) await onUpdate({ addresses: list });
+    try {
+      let updatedList = addresses.filter((a) => (a._id || a.id) !== id);
+
+      // Agar default delete hua aur list khali nahi hai to pehle wale ko default set karein
+      if (updatedList.length > 0 && !updatedList.some((a) => a.isDefault)) {
+        updatedList[0] = { ...updatedList[0], isDefault: true };
+      }
+
+      setAddresses(updatedList);
+      if (onUpdate) {
+        await onUpdate({ addresses: updatedList });
+        showNotification("Address removed successfully.");
+      }
+    } catch (err) {
+      console.error("Delete address error:", err);
+    }
   };
 
+  // Set Default handler
   const setDefault = async (id) => {
-    const list = addresses.map((a) => ({
-      ...a,
-      isDefault: (a._id || a.id) === id,
-    }));
-    setAddresses(list);
-    if (onUpdate) await onUpdate({ addresses: list });
+    try {
+      const updatedList = addresses.map((a) => ({
+        ...a,
+        isDefault: (a._id || a.id) === id,
+      }));
+
+      setAddresses(updatedList);
+      if (onUpdate) {
+        await onUpdate({ addresses: updatedList });
+        showNotification("Default address updated.");
+      }
+    } catch (err) {
+      console.error("Set default error:", err);
+    }
   };
 
   return (
-    <div className="p-6 sm:p-8 rounded-3xl" style={{ backgroundColor: C.cream, color: C.dark }}>
+    <div
+      className="p-6 sm:p-8 rounded-3xl"
+      style={{ backgroundColor: C.cream, color: C.dark }}
+    >
       {/* Tab Header */}
-      <div className="flex justify-between items-center mb-6 pb-4 border-b" style={{ borderColor: `${C.dark}15` }}>
+      <div
+        className="flex justify-between items-center mb-6 pb-4 border-b"
+        style={{ borderColor: `${C.dark}15` }}
+      >
         <div>
           <h2 className="text-2xl font-bold font-heading">Address Book</h2>
           <p className="text-xs sm:text-sm mt-1" style={{ color: `${C.dark}80` }}>
@@ -127,7 +194,7 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
         </div>
         <button
           onClick={openAdd}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold text-white shadow-xs transition-all hover:opacity-90 active:scale-95"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold text-white shadow-xs transition-all hover:opacity-90 active:scale-95 cursor-pointer"
           style={{ backgroundColor: C.coral }}
         >
           <Plus size={18} />
@@ -136,7 +203,10 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
       </div>
 
       {statusMessage && (
-        <div className="mb-4 flex items-center gap-2 text-sm font-semibold p-3 rounded-2xl" style={{ backgroundColor: C.paleGreen, color: C.green }}>
+        <div
+          className="mb-4 flex items-center gap-2 text-sm font-semibold p-3 rounded-2xl transition-all"
+          style={{ backgroundColor: C.paleGreen, color: C.green }}
+        >
           <CheckCircle2 size={18} />
           <span>{statusMessage}</span>
         </div>
@@ -162,7 +232,7 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
               </p>
               <button
                 onClick={openAdd}
-                className="mt-5 rounded-full px-6 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs transition-all hover:opacity-90 active:scale-95"
+                className="mt-5 rounded-full px-6 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs transition-all hover:opacity-90 active:scale-95 cursor-pointer"
                 style={{ backgroundColor: C.coral }}
               >
                 <Plus className="mr-1.5 inline" size={16} />
@@ -173,7 +243,7 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
         ) : (
           addresses.map((item) => (
             <div
-              key={item._id || item.id}
+              key={item._id || item.id || Math.random()}
               className="group relative overflow-hidden rounded-3xl border shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
               style={{
                 backgroundColor: C.ivory,
@@ -205,11 +275,16 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
                       )}
                     </div>
                     <div>
-                      <h3 className="text-base font-bold font-heading">{item.type}</h3>
+                      <h3 className="text-base font-bold font-heading">
+                        {item.type || "Address"}
+                      </h3>
                       {item.isDefault && (
                         <span
                           className="mt-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold"
-                          style={{ backgroundColor: C.paleGreen, color: C.green }}
+                          style={{
+                            backgroundColor: C.paleGreen,
+                            color: C.green,
+                          }}
                         >
                           <CheckCircle2 size={12} className="mr-1" /> Default
                         </span>
@@ -220,7 +295,7 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
                   <div className="flex gap-1">
                     <button
                       onClick={() => openEdit(item)}
-                      className="rounded-xl p-2 transition hover:bg-white"
+                      className="rounded-xl p-2 transition hover:bg-white cursor-pointer"
                       style={{ color: C.teal }}
                       title="Edit Address"
                     >
@@ -228,7 +303,7 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
                     </button>
                     <button
                       onClick={() => del(item._id || item.id)}
-                      className="rounded-xl p-2 transition hover:bg-white"
+                      className="rounded-xl p-2 transition hover:bg-white cursor-pointer"
                       style={{ color: C.raspberry }}
                       title="Delete Address"
                     >
@@ -237,7 +312,10 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
                   </div>
                 </div>
 
-                <div className="my-4 border-t border-dashed" style={{ borderColor: `${C.dark}15` }} />
+                <div
+                  className="my-4 border-t border-dashed"
+                  style={{ borderColor: `${C.dark}15` }}
+                />
 
                 {/* Details */}
                 <div className="space-y-2.5 text-xs sm:text-sm font-medium">
@@ -252,11 +330,17 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
                   </div>
 
                   <div className="flex items-start gap-2.5">
-                    <MapPin size={15} className="mt-0.5 shrink-0" style={{ color: C.raspberry }} />
+                    <MapPin
+                      size={15}
+                      className="mt-0.5 shrink-0"
+                      style={{ color: C.raspberry }}
+                    />
                     <div style={{ color: `${C.dark}80` }}>
                       <div>{item.street}</div>
                       {item.landmark && <div>{item.landmark}</div>}
-                      <div>{item.city}, {item.state} - {item.zipCode}</div>
+                      <div>
+                        {item.city}, {item.state} - {item.zipCode}
+                      </div>
                       <div>{item.country}</div>
                     </div>
                   </div>
@@ -265,7 +349,7 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
                 {!item.isDefault && (
                   <button
                     onClick={() => setDefault(item._id || item.id)}
-                    className="mt-5 w-full rounded-full border py-2.5 text-xs font-bold transition hover:bg-white"
+                    className="mt-5 w-full rounded-full border py-2.5 text-xs font-bold transition hover:bg-white cursor-pointer"
                     style={{ borderColor: C.coral, color: C.coral }}
                   >
                     Set as Default
@@ -277,35 +361,45 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
         )}
       </div>
 
-      {/* Modal Backdrop & Popup */}
+      {/* Modal Popup */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
           <div
             className="w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-3xl border shadow-2xl transition-all"
-            style={{ backgroundColor: C.cream, borderColor: `${C.dark}20` }}
+            style={{
+              backgroundColor: C.cream,
+              borderColor: `${C.dark}20`,
+            }}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b px-6 py-4" style={{ borderColor: `${C.dark}15` }}>
+            <div
+              className="flex items-center justify-between border-b px-6 py-4"
+              style={{ borderColor: `${C.dark}15` }}
+            >
               <div>
-                <h2 className="text-xl font-bold font-heading">{editingId ? "Edit Address" : "Add New Address"}</h2>
+                <h2 className="text-xl font-bold font-heading">
+                  {editingId ? "Edit Address" : "Add New Address"}
+                </h2>
                 <p className="text-xs mt-0.5" style={{ color: `${C.dark}70` }}>
                   Enter details for delivery.
                 </p>
               </div>
               <button
                 onClick={close}
-                className="rounded-full p-2 hover:bg-black/5 transition"
+                className="rounded-full p-2 hover:bg-black/5 transition cursor-pointer"
               >
                 <X size={20} />
               </button>
             </div>
 
-            {/* Modal Form Body */}
+            {/* Modal Form */}
             <div className="overflow-y-auto max-h-[calc(90vh-85px)] px-6 py-5">
               <form onSubmit={save} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1 block text-xs font-bold">Address Type</label>
+                    <label className="mb-1 block text-xs font-bold">
+                      Address Type
+                    </label>
                     <select
                       name="type"
                       value={formData.type}
@@ -320,7 +414,9 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-xs font-bold">Full Name *</label>
+                    <label className="mb-1 block text-xs font-bold">
+                      Full Name *
+                    </label>
                     <input
                       type="text"
                       name="fullName"
@@ -336,7 +432,9 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1 block text-xs font-bold">Mobile Phone *</label>
+                    <label className="mb-1 block text-xs font-bold">
+                      Mobile Phone *
+                    </label>
                     <input
                       type="tel"
                       name="phone"
@@ -350,7 +448,9 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-xs font-bold">Landmark</label>
+                    <label className="mb-1 block text-xs font-bold">
+                      Landmark
+                    </label>
                     <input
                       type="text"
                       name="landmark"
@@ -364,7 +464,9 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-xs font-bold">Street Address *</label>
+                  <label className="mb-1 block text-xs font-bold">
+                    Street Address *
+                  </label>
                   <textarea
                     rows={2}
                     name="street"
@@ -379,7 +481,9 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1 block text-xs font-bold">City / District *</label>
+                    <label className="mb-1 block text-xs font-bold">
+                      City / District *
+                    </label>
                     <input
                       type="text"
                       name="city"
@@ -393,7 +497,9 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-xs font-bold">State *</label>
+                    <label className="mb-1 block text-xs font-bold">
+                      State *
+                    </label>
                     <input
                       type="text"
                       name="state"
@@ -409,7 +515,9 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1 block text-xs font-bold">PIN Code *</label>
+                    <label className="mb-1 block text-xs font-bold">
+                      PIN Code *
+                    </label>
                     <input
                       type="text"
                       name="zipCode"
@@ -423,7 +531,9 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-xs font-bold">Country</label>
+                    <label className="mb-1 block text-xs font-bold">
+                      Country
+                    </label>
                     <input
                       type="text"
                       name="country"
@@ -435,7 +545,10 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border p-3 flex items-center gap-3 bg-[#FFFDF9]" style={{ borderColor: `${C.dark}15` }}>
+                <div
+                  className="rounded-2xl border p-3 flex items-center gap-3 bg-[#FFFDF9]"
+                  style={{ borderColor: `${C.dark}15` }}
+                >
                   <input
                     type="checkbox"
                     id="isDefault"
@@ -444,16 +557,22 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
                     onChange={change}
                     className="h-4 w-4 accent-[#F16937] rounded-sm cursor-pointer"
                   />
-                  <label htmlFor="isDefault" className="cursor-pointer text-xs font-bold">
+                  <label
+                    htmlFor="isDefault"
+                    className="cursor-pointer text-xs font-bold"
+                  >
                     Make this my default shipping address
                   </label>
                 </div>
 
-                <div className="flex justify-end gap-3 pt-3 border-t" style={{ borderColor: `${C.dark}15` }}>
+                <div
+                  className="flex justify-end gap-3 pt-3 border-t"
+                  style={{ borderColor: `${C.dark}15` }}
+                >
                   <button
                     type="button"
                     onClick={close}
-                    className="rounded-full border px-6 py-2.5 text-xs sm:text-sm font-bold transition hover:bg-black/5"
+                    className="rounded-full border px-6 py-2.5 text-xs sm:text-sm font-bold transition hover:bg-black/5 cursor-pointer"
                     style={{ borderColor: `${C.dark}20` }}
                   >
                     Cancel
@@ -462,11 +581,17 @@ const AddressTab = ({ user, loading = false, onUpdate }) => {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="rounded-full px-6 py-2.5 text-xs sm:text-sm font-bold text-white transition hover:opacity-90 active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                    className="rounded-full px-6 py-2.5 text-xs sm:text-sm font-bold text-white transition hover:opacity-90 active:scale-95 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
                     style={{ backgroundColor: C.coral }}
                   >
                     {saving && <Loader2 size={16} className="animate-spin" />}
-                    <span>{saving ? "Saving..." : editingId ? "Update Address" : "Save Address"}</span>
+                    <span>
+                      {saving
+                        ? "Saving..."
+                        : editingId
+                        ? "Update Address"
+                        : "Save Address"}
+                    </span>
                   </button>
                 </div>
               </form>

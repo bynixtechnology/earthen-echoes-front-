@@ -12,9 +12,9 @@ import AddCategory from "../../component/page/admin/AddCategory";
 import AddProduct from "../../component/page/admin/AddProduct";
 import EditProduct from "../../component/page/admin/EditProduct";
 import AddProductTag from "../../component/page/admin/AddProductTag";
+import AllUsers from "../../component/page/admin/AllUsers"; // 👈 Imported AllUsers Component
 
 const adminRoutes = [
-
   {
     path: "/admin/login",
     element: <AdminLogin />,
@@ -24,22 +24,24 @@ const adminRoutes = [
     element: <AdminProtectedRoute />,
 
     children: [
-
       {
         path: "/admin",
         element: <AdminLayout />,
 
         children: [
- 
           {
             index: true,
-
             element: (
               <Navigate
                 to="dashboard"
                 replace
               />
             ),
+          },
+
+          {
+            path: "users", // 👈 Route for /admin/users
+            element: <AllUsers />,
           },
 
           {
@@ -62,7 +64,7 @@ const adminRoutes = [
             element: <AddCategory />,
           },
 
-           {
+          {
             path: "add-product-tags",
             element: <AddProductTag />,
           },
