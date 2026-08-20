@@ -16,7 +16,7 @@ export default function HeroSection() {
   const stats = [
     ["12K+", "Happy Customers"],
     ["500+", "Products"],
-    ["15+", "Years Heritage"],
+    ["5+", "Years Heritage"],
   ];
 
   return (
@@ -316,7 +316,7 @@ export default function HeroSection() {
               }}
             >
               <img
-                src={img("1609881583302-61548332039c", 900, 900)}
+                src="/homepage1.jpeg"
                 alt="Pottery Artisan"
                 style={{
                   width: "100%",
@@ -344,7 +344,7 @@ export default function HeroSection() {
                   boxShadow: "0 4px 14px rgba(0,0,0,0.12)",
                 }}
               >
-                <span>🌿</span> 100% Eco Friendly
+                100% Eco Friendly
               </div>
             </div>
 

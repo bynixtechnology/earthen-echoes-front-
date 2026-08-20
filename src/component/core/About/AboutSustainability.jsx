@@ -1,51 +1,53 @@
 import React from "react";
-import { Leaf, Trash2, Sparkles, Package } from "lucide-react";
+import { Flame, RefreshCw, Globe2, Box } from "lucide-react";
 import { C } from "../../../constants/theme";
 
-const sustainabilityData = [
+export const sustainabilityData = [
   {
     id: 1,
     title: "Eco-Friendly Production",
     description:
       "Powered by natural fires and sun drying with zero chemical run-off.",
-    icon: Leaf,
+    icon: Flame, // Flame icon better suits the wood-firing process
+  
   },
   {
     id: 2,
     title: "Minimal Waste",
     description:
       "Any un-fired clay is entirely recycled and remolded into new designs.",
-    icon: Trash2,
+    icon: RefreshCw, // Represents a continuous recycling loop
+    
   },
   {
     id: 3,
     title: "Natural Materials",
     description:
       "Pure alluvial soil and organic plant-based binders with no synthetic additives.",
-    icon: Sparkles,
+    icon: Globe2, // Represents natural earth and soil sourcing
+    
   },
   {
     id: 4,
     title: "Plastic-Free Packaging",
     description:
       "Shipped strictly in biodegradable wood shavings and reinforced cardboard.",
-    icon: Package,
+    icon: Box, // Premium geometric box icon
+    
   },
 ];
 
 const AboutSustainability = () => {
   return (
     <section
-      className="py-20"
+      className="py-10"
       style={{
         background: `linear-gradient(135deg, ${C.darkTeal} 0%, ${C.teal} 100%)`,
       }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-
         {/* Heading */}
         <div className="max-w-2xl mx-auto mb-16">
-
           <span
             className="inline-block px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest mb-5"
             style={{
@@ -81,7 +83,6 @@ const AboutSustainability = () => {
 
         {/* Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-
           {sustainabilityData.map((item) => {
             const Icon = item.icon;
 
@@ -103,7 +104,7 @@ const AboutSustainability = () => {
                 >
                   <Icon
                     size={32}
-                    color={C.green}
+                    color="#ffffff"
                     strokeWidth={2.2}
                   />
                 </div>
@@ -129,7 +130,6 @@ const AboutSustainability = () => {
               </div>
             );
           })}
-
         </div>
       </div>
     </section>

@@ -1,395 +1,217 @@
 import axiosInstance from "../config/axiosInstance";
-
-import {
-  CATEGORY_ENDPOINTS,
-} from "../constants/endpoints/categoryEndpoints";
-
-
-
+import { CATEGORY_ENDPOINTS } from "../constants/endpoints/categoryEndpoints";
 
 export const CategoryService = {
-
-
-
-  getAll: async (
-    params = {}
-  ) => {
-
-    const response =
-      await axiosInstance.get(
-
-        CATEGORY_ENDPOINTS.GET_ALL,
-
-        {
-          params,
-        }
-
-      );
-
-
+  /*
+  |--------------------------------------------------------------------------
+  | GET ALL CATEGORIES
+  |--------------------------------------------------------------------------
+  */
+  getAll: async (params = {}) => {
+    const response = await axiosInstance.get(CATEGORY_ENDPOINTS.GET_ALL, {
+      params,
+    });
     return response.data;
-
   },
 
-
-
-
-  getById: async (
-    id
-  ) => {
-
-    /*
-    |--------------------------------------------------------------------------
-    | Validate Category ID
-    |--------------------------------------------------------------------------
-    */
-
+  /*
+  |--------------------------------------------------------------------------
+  | GET CATEGORY BY ID
+  |--------------------------------------------------------------------------
+  */
+  getById: async (id) => {
     if (!id) {
-
-      throw new Error(
-        "Category ID is required."
-      );
-
+      throw new Error("Category ID is required.");
     }
 
-
-    const response =
-      await axiosInstance.get(
-
-        CATEGORY_ENDPOINTS.GET_BY_ID(
-          id
-        )
-
-      );
-
-
+    const response = await axiosInstance.get(
+      CATEGORY_ENDPOINTS.GET_BY_ID(id)
+    );
     return response.data;
-
   },
 
-
-
-  getBySlug: async (
-    slug
-  ) => {
-
-    /*
-    |--------------------------------------------------------------------------
-    | Validate Slug
-    |--------------------------------------------------------------------------
-    */
-
+  /*
+  |--------------------------------------------------------------------------
+  | GET CATEGORY BY SLUG
+  |--------------------------------------------------------------------------
+  */
+  getBySlug: async (slug) => {
     if (!slug) {
-
-      throw new Error(
-        "Category slug is required."
-      );
-
+      throw new Error("Category slug is required.");
     }
 
-
-    const response =
-      await axiosInstance.get(
-
-        CATEGORY_ENDPOINTS.GET_BY_SLUG(
-          slug
-        )
-
-      );
-
-
+    const response = await axiosInstance.get(
+      CATEGORY_ENDPOINTS.GET_BY_SLUG(slug)
+    );
     return response.data;
-
   },
 
-
-
-
-  getProducts: async (
-    id,
-    params = {}
-  ) => {
-
-    /*
-    |--------------------------------------------------------------------------
-    | Validate Category ID
-    |--------------------------------------------------------------------------
-    */
-
+  /*
+  |--------------------------------------------------------------------------
+  | GET CATEGORY PRODUCTS
+  |--------------------------------------------------------------------------
+  */
+  getProducts: async (id, params = {}) => {
     if (!id) {
-
-      throw new Error(
-        "Category ID is required."
-      );
-
+      throw new Error("Category ID is required.");
     }
 
-
-    const response =
-      await axiosInstance.get(
-
-        CATEGORY_ENDPOINTS.GET_PRODUCTS(
-          id
-        ),
-
-        {
-          params,
-        }
-
-      );
-
-
+    const response = await axiosInstance.get(
+      CATEGORY_ENDPOINTS.GET_PRODUCTS(id),
+      {
+        params,
+      }
+    );
     return response.data;
-
   },
 
+  /*
+  |--------------------------------------------------------------------------
+  | CREATE CATEGORY
+  |--------------------------------------------------------------------------
+  */
+  create: async (formData) => {
+    if (!formData) {
+      throw new Error("Category data is required.");
+    }
 
+    const response = await axiosInstance.post(
+      CATEGORY_ENDPOINTS.CREATE,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+    return response.data;
+  },
 
-
-  create: async (
-    formData
-  ) => {
-
-    /*
-    |--------------------------------------------------------------------------
-    | Validate FormData
-    |--------------------------------------------------------------------------
-    */
+  /*
+  |--------------------------------------------------------------------------
+  | UPDATE CATEGORY
+  |--------------------------------------------------------------------------
+  */
+  update: async (id, formData) => {
+    if (!id) {
+      throw new Error("Category ID is required.");
+    }
 
     if (!formData) {
-
-      throw new Error(
-        "Category data is required."
-      );
-
+      throw new Error("Category update data is required.");
     }
 
-
-    const response =
-      await axiosInstance.post(
-
-        CATEGORY_ENDPOINTS.CREATE,
-
-        formData,
-
-        {
-          headers: {
-
-            "Content-Type":
-              "multipart/form-data",
-
-          },
-        }
-
-      );
-
-
+    const response = await axiosInstance.patch(
+      CATEGORY_ENDPOINTS.UPDATE(id),
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
     return response.data;
-
   },
 
-
-
-  update: async (
-    id,
-    formData
-  ) => {
-
-
-
+  /*
+  |--------------------------------------------------------------------------
+  | UPDATE CATEGORY STATUS
+  |--------------------------------------------------------------------------
+  */
+  updateStatus: async (id, isActive) => {
     if (!id) {
-
-      throw new Error(
-        "Category ID is required."
-      );
-
+      throw new Error("Category ID is required.");
     }
 
-
-    if (!formData) {
-
-      throw new Error(
-        "Category update data is required."
-      );
-
+    if (typeof isActive !== "boolean") {
+      throw new Error("Category status must be true or false.");
     }
 
-
-    const response =
-      await axiosInstance.patch(
-
-        CATEGORY_ENDPOINTS.UPDATE(
-          id
-        ),
-
-        formData,
-
-        {
-          headers: {
-
-            "Content-Type":
-              "multipart/form-data",
-
-          },
-        }
-
-      );
-
-
+    const response = await axiosInstance.patch(
+      CATEGORY_ENDPOINTS.UPDATE_STATUS(id),
+      {
+        isActive,
+      }
+    );
     return response.data;
-
   },
 
-
-  
-
-  updateStatus: async (
-    id,
-    isActive
-  ) => {
-
-   
-
+  /*
+  |--------------------------------------------------------------------------
+  | UPDATE CATEGORY FEATURED STATUS
+  |--------------------------------------------------------------------------
+  */
+  updateFeaturedStatus: async (id, isFeatured) => {
     if (!id) {
-
-      throw new Error(
-        "Category ID is required."
-      );
-
+      throw new Error("Category ID is required.");
     }
 
-    if (
-      typeof isActive !==
-      "boolean"
-    ) {
-
-      throw new Error(
-        "Category status must be true or false."
-      );
-
+    if (typeof isFeatured !== "boolean") {
+      throw new Error("Category featured status must be true or false.");
     }
 
-
-    const response =
-      await axiosInstance.patch(
-
-        CATEGORY_ENDPOINTS.UPDATE_STATUS(
-          id
-        ),
-
-        {
-          isActive,
-        }
-
-      );
-
-
+    const response = await axiosInstance.patch(
+      CATEGORY_ENDPOINTS.UPDATE_FEATURED(id),
+      {
+        isFeatured,
+      }
+    );
     return response.data;
-
   },
 
-  delete: async (
-    id
-  ) => {
-
-    /*
-    |--------------------------------------------------------------------------
-    | Validate Category ID
-    |--------------------------------------------------------------------------
-    */
-
+  /*
+  |--------------------------------------------------------------------------
+  | DELETE CATEGORY
+  |--------------------------------------------------------------------------
+  */
+  delete: async (id) => {
     if (!id) {
-
-      throw new Error(
-        "Category ID is required."
-      );
-
+      throw new Error("Category ID is required.");
     }
 
-
-    const response =
-      await axiosInstance.delete(
-
-        CATEGORY_ENDPOINTS.DELETE(
-          id
-        )
-
-      );
-
-
+    const response = await axiosInstance.delete(
+      CATEGORY_ENDPOINTS.DELETE(id)
+    );
     return response.data;
-
   },
 
-    /*
+  /*
   |--------------------------------------------------------------------------
   | EXPORT CATEGORIES EXCEL
   |--------------------------------------------------------------------------
   */
-
   exportExcel: async () => {
-
-    const response =
-      await axiosInstance.get(
-
-        CATEGORY_ENDPOINTS.EXPORT_EXCEL,
-
-        {
-          responseType: "blob",
-        }
-
-      );
-
-    return response;
-
+    const response = await axiosInstance.get(
+      CATEGORY_ENDPOINTS.EXPORT_EXCEL,
+      {
+        responseType: "blob",
+      }
+    );
+    return response.data;
   },
-
-
 
   /*
   |--------------------------------------------------------------------------
   | IMPORT CATEGORIES EXCEL
   |--------------------------------------------------------------------------
   */
-
-  importExcel: async (
-    file
-  ) => {
-
+  importExcel: async (file) => {
     if (!file) {
-
-      throw new Error(
-        "Excel file is required."
-      );
-
+      throw new Error("Excel file is required.");
     }
 
-    const formData =
-      new FormData();
+    const formData = new FormData();
+    formData.append("file", file);
 
-    formData.append(
-      "file",
-      file
+    const response = await axiosInstance.post(
+      CATEGORY_ENDPOINTS.IMPORT_EXCEL,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
     );
-
-    const response =
-      await axiosInstance.post(
-
-        CATEGORY_ENDPOINTS.IMPORT_EXCEL,
-
-        formData,
-
-        {
-          headers: {
-            "Content-Type":
-              "multipart/form-data",
-          },
-        }
-
-      );
-
     return response.data;
-
   },
-
 };

@@ -8,7 +8,8 @@ import {
   LayoutDashboard,
   PlusCircle,
   FolderPlus,
-  Users, // 👈 Imported Users icon
+  Users,
+  ShoppingBag,
   LogOut,
   X,
 } from "lucide-react";
@@ -42,6 +43,11 @@ const adminNavLinks = [
     path: "/admin/add-product-tags",
     icon: PlusCircle,
   },
+  {
+    name:"All Order",
+    path:"/admin/order",
+    icon:ShoppingBag,
+  }
 ];
 
 export default function Sidebar({

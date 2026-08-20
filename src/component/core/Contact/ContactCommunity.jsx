@@ -1,86 +1,82 @@
 import React from "react";
 import {
-  Image,
-  ThumbsUp,
-  Bookmark,
-  PhoneCall,
-} from "lucide-react";
-import { C, img } from "../../../constants/theme";
+  FaInstagram,
+  FaFacebookF,
+  FaPinterestP,
+  FaWhatsapp,
+} from "react-icons/fa";
+import { C } from "../../../constants/theme";
+
+// const DUMMY_BG_IMAGE =
+//   "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=1920&q=80";
 
 const socialLinks = [
   {
     id: 1,
     title: "Instagram",
-    href: "#",
-    icon: Image,
+    href: "https://www.instagram.com/earthen.echoes.jaipur/",
+    icon: FaInstagram,
+    hoverBg: "linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)",
   },
   {
     id: 2,
     title: "Facebook",
-    href: "#",
-    icon: ThumbsUp,
+    href: "https://www.facebook.com/Earthen.Echoes.Jaipur/",
+    icon: FaFacebookF,
+    hoverBg: "#1877F2",
   },
-  {
-    id: 3,
-    title: "Pinterest",
-    href: "#",
-    icon: Bookmark,
-  },
+  
   {
     id: 4,
     title: "WhatsApp",
-    href: "https://wa.me/919876543210",
-    icon: PhoneCall,
+    href: "https://wa.me/919772790222",
+    icon: FaWhatsapp,
+    hoverBg: "#25D366",
   },
 ];
 
 const ContactCommunity = () => {
   return (
     <section
-      className="py-20"
+      className="relative py-28 lg:py-36 overflow-hidden text-center bg-cover bg-center bg-no-repeat"
       style={{
-        background: `linear-gradient(135deg, ${C.darkTeal} 0%, ${C.teal} 100%)`,
-        position: "relative",
-        overflow: "hidden",
-      }}
+  backgroundImage: `url("/ContactEnd.png")`,
+}}
     >
-      {/* Background Decorations */}
+      {/* Balanced Transparent Overlay: Image + Color Blend */}
       <div
+        className="absolute inset-0 z-0 pointer-events-none"
+        
+      />
+
+      {/* Subtle Glow Accents */}
+      <div
+        className="absolute top-[-10%] right-[-5%] w-[30rem] h-[30rem] rounded-full pointer-events-none mix-blend-screen"
         style={{
-          position: "absolute",
-          top: -80,
-          right: -80,
-          width: 280,
-          height: 280,
-          borderRadius: "50%",
-          background: "rgba(255,255,255,.06)",
+          background: "radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)",
+          filter: "blur(40px)",
+        }}
+      />
+      <div
+        className="absolute bottom-[-15%] left-[-10%] w-[26rem] h-[26rem] rounded-full pointer-events-none mix-blend-screen"
+        style={{
+          background: `radial-gradient(circle, ${C.coral || "#ff7a59"}20 0%, rgba(0,0,0,0) 75%)`,
+          filter: "blur(50px)",
         }}
       />
 
-      <div
-        style={{
-          position: "absolute",
-          left: -60,
-          bottom: -60,
-          width: 220,
-          height: 220,
-          borderRadius: "50%",
-          background: `${C.coral}25`,
-          filter: "blur(10px)",
-        }}
-      />
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-
-        <div className="text-center max-w-3xl mx-auto">
-
+      {/* Main Content */}
+      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto">
+          
           {/* Badge */}
           <span
-            className="inline-block px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest mb-6"
+            className="inline-block px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest mb-6 backdrop-blur-md"
             style={{
-              background: "rgba(255,255,255,.12)",
-              color: C.ivory,
-              border: "1px solid rgba(255,255,255,.18)",
+              background: "rgba(255, 255, 255, 0.12)",
+              color: C.ivory || "#fbf9f5",
+              border: "1px solid rgba(255, 255, 255, 0.25)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
             }}
           >
             Join Our Community
@@ -88,9 +84,9 @@ const ContactCommunity = () => {
 
           {/* Heading */}
           <h2
-            className="text-3xl md:text-5xl font-bold"
+            className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-[1.2] drop-shadow-md"
             style={{
-              color: C.ivory,
+              color: C.ivory || "#fbf9f5",
               fontFamily: "'Playfair Display', serif",
             }}
           >
@@ -99,18 +95,18 @@ const ContactCommunity = () => {
 
           {/* Description */}
           <p
-            className="mt-6 text-sm md:text-base max-w-2xl mx-auto leading-8"
+            className="mt-5 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto drop-shadow-sm font-medium"
             style={{
-              color: "rgba(255,255,255,.82)",
+              color: C.ivory || "#fbf9f5",
             }}
           >
-            Stay updated with daily artisan wheel-throwing videos, live kiln
-            firings, behind-the-scenes craftsmanship, and interior design
-            inspiration from Earthen Echoes.
+            Stay updated with daily artisan wheel-throwing loops, live kiln
+            firings, raw behind-the-scenes craft processes, and timeless interior 
+            design curation directly from our Jaipur studio.
           </p>
 
-          {/* Social Icons */}
-          <div className="mt-10 flex items-center justify-center gap-5 flex-wrap">
+          {/* Social Platform Links */}
+          <div className="mt-10 flex items-center justify-center gap-4 sm:gap-6 flex-wrap">
             {socialLinks.map((item) => {
               const Icon = item.icon;
 
@@ -118,53 +114,32 @@ const ContactCommunity = () => {
                 <a
                   key={item.id}
                   href={item.href}
-                  target={
-                    item.title === "WhatsApp"
-                      ? "_blank"
-                      : "_self"
-                  }
+                  target="_blank"
                   rel="noopener noreferrer"
-                  title={item.title}
-                  className="transition-all duration-300 hover:scale-110"
+                  title={`Follow us on ${item.title}`}
+                  aria-label={item.title}
+                  className="group relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 hover:-translate-y-1.5 backdrop-blur-md"
                   style={{
-                    width: 56,
-                    height: 56,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderRadius: "50%",
-                    background: "rgba(255,255,255,.12)",
-                    color: C.ivory,
-                    border: "1px solid rgba(255,255,255,.18)",
-                    backdropFilter: "blur(10px)",
-                    boxShadow:
-                      "0 10px 25px rgba(0,0,0,.08)",
+                    background: "rgba(255, 255, 255, 0.15)",
+                    color: C.ivory || "#fbf9f5",
+                    border: "1px solid rgba(255, 255, 255, 0.25)",
+                    boxShadow: "0 8px 20px rgba(0, 0, 0, 0.2)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = item.hoverBg;
+                    e.currentTarget.style.borderColor = "transparent";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.15)";
+                    e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.25)";
                   }}
                 >
-                  <Icon size={22} strokeWidth={2.2} />
+                  <Icon size={20} className="transition-transform duration-300 group-hover:scale-110" />
                 </a>
               );
             })}
           </div>
 
-          {/* Community Image */}
-          <div
-            className="mt-14 overflow-hidden rounded-3xl"
-            style={{
-              boxShadow:
-                "0 25px 60px rgba(0,0,0,.18)",
-            }}
-          >
-            <img
-              src={img(
-                "1493106641515-6b5631de4bb9",
-                1200,
-                500
-              )}
-              alt="Earthen Echoes Community"
-              className="w-full h-[220px] sm:h-[320px] lg:h-[380px] object-cover"
-            />
-          </div>
         </div>
       </div>
     </section>

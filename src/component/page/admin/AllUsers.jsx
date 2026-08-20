@@ -13,6 +13,9 @@ import {
   Hash,
   ShoppingCart,
   Heart,
+  Eye,
+  X,
+  Package,
 } from "lucide-react";
 
 import { fetchAllUsers } from "../../../redux/thunks/userAuthThunk";
@@ -38,9 +41,6 @@ export const C = {
   paleGreen: "#EEF6E7",
 };
 
-export const img = (id, w = 800, h = 600) =>
-  `https://images.unsplash.com/photo-${id}?w=${w}&h=${h}&fit=crop&auto=format&q=80`;
-
 export default function AllUsers() {
   const dispatch = useDispatch();
 
@@ -52,6 +52,9 @@ export default function AllUsers() {
   const [roleFilter, setRoleFilter] = useState("all");
   const [cartFilter, setCartFilter] = useState("all");
 
+  // Selected User Cart Modal State
+  const [selectedUserCart, setSelectedUserCart] = useState(null);
+
   useEffect(() => {
     dispatch(fetchAllUsers());
   }, [dispatch]);
@@ -60,7 +63,7 @@ export default function AllUsers() {
     dispatch(fetchAllUsers());
   };
 
-  // Helper functions for Cart calculations
+  // Helper functions
   const getCartTotalUnits = (cart = []) => {
     if (!Array.isArray(cart)) return 0;
     return cart.reduce((total, item) => total + (Number(item?.quantity) || 1), 0);
@@ -72,6 +75,16 @@ export default function AllUsers() {
 
   const getWishlistCount = (wishlist = []) => {
     return Array.isArray(wishlist) ? wishlist.length : 0;
+  };
+
+  const getProductImage = (prod) => {
+    if (!prod) return "/placeholder.png";
+    if (Array.isArray(prod.images) && prod.images.length > 0) {
+      const firstImg = prod.images[0];
+      if (typeof firstImg === "string") return firstImg;
+      return firstImg?.url || firstImg?.secure_url || "/placeholder.png";
+    }
+    return "/placeholder.png";
   };
 
   // Search & Filter Logic
@@ -102,10 +115,27 @@ export default function AllUsers() {
   const usersWithCartItems =
     users?.filter((u) => (u.cart?.length || 0) > 0).length || 0;
 
+  // Cart total value calculation for the modal
+  const cartTotalValue = useMemo(() => {
+    if (!selectedUserCart?.cart) return 0;
+    return selectedUserCart.cart.reduce((acc, item) => {
+      const price = Number(item.productId?.price || 0);
+      const qty = Number(item.quantity || 1);
+      return acc + price * qty;
+    }, 0);
+  }, [selectedUserCart]);
+
+  // Extract phone number helper (direct phone or fallback to address)
+  const getUserPhone = (user) => {
+    if (user?.phone && user.phone.trim() !== "") return user.phone;
+    const addrPhone = user?.addresses?.find((a) => a.phone)?.phone;
+    return addrPhone || null;
+  };
+
   return (
     <div
-      className="w-full min-h-screen p-4 sm:p-6 lg:p-8 space-y-6"
-      
+      className="w-full  p-2 sm:p-3 lg:p-4 space-y-6"
+    
     >
       {/* ── Top Header ────────────────────────────────────────── */}
       <div
@@ -131,10 +161,10 @@ export default function AllUsers() {
               className="text-xl sm:text-2xl font-bold tracking-tight"
               style={{ color: C.dark }}
             >
-              Registered Users & Activity
+              Registered Users & Cart Inventory
             </h1>
             <p className="text-xs sm:text-sm font-medium mt-0.5 text-slate-500">
-              Manage accounts, cart contents, wishlist, and activity logs
+              Manage accounts, inspect active cart contents, prices, and wishlists
             </p>
           </div>
         </div>
@@ -183,7 +213,7 @@ export default function AllUsers() {
             {totalUsers}
           </p>
           <div className="mt-2 text-xs text-slate-400 font-medium">
-            Registered accounts
+            Registered database accounts
           </div>
         </div>
 
@@ -322,7 +352,7 @@ export default function AllUsers() {
           }}
         >
           <option value="all">All Cart Status</option>
-          <option value="has_cart">🛒 With Cart Items</option>
+          <option value="has_cart">With Cart Items</option>
           <option value="empty_cart">Empty Cart</option>
         </select>
       </div>
@@ -342,7 +372,7 @@ export default function AllUsers() {
         </div>
       )}
 
-      {/* ── Users & Cart Data Table ──────────────────────────── */}
+      {/* ── Clean & Simple Table ─────────────────────────────── */}
       <div
         className="overflow-hidden rounded-2xl border shadow-sm"
         style={{
@@ -354,16 +384,13 @@ export default function AllUsers() {
           <table className="w-full text-left text-sm">
             <thead
               className="border-b text-xs uppercase tracking-wider font-bold"
-              style={{
-                backgroundColor: C.cream,
-                borderColor: C.paleCoral,
-                color: C.dark,
-              }}
+             
             >
               <tr>
                 <th className="px-6 py-4">User</th>
                 <th className="px-6 py-4">Contact</th>
-                <th className="px-6 py-4">Cart & Wishlist</th>
+                <th className="px-6 py-4 text-center">Cart Status</th>
+                <th className="px-6 py-4">Wishlist</th>
                 <th className="px-6 py-4">Role</th>
                 <th className="px-6 py-4">Joined Date</th>
               </tr>
@@ -372,7 +399,7 @@ export default function AllUsers() {
             <tbody className="divide-y" style={{ borderColor: C.cream }}>
               {loading && users.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-16 text-center text-slate-500">
+                  <td colSpan={6} className="py-16 text-center text-slate-500">
                     <RefreshCw
                       size={28}
                       className="mx-auto animate-spin mb-3"
@@ -385,7 +412,7 @@ export default function AllUsers() {
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-16 text-center text-slate-500">
+                  <td colSpan={6} className="py-16 text-center text-slate-500">
                     <Users size={32} className="mx-auto mb-2 text-slate-300" />
                     <p className="font-semibold" style={{ color: C.dark }}>
                       No users found matching your search
@@ -397,9 +424,10 @@ export default function AllUsers() {
                 </tr>
               ) : (
                 filteredUsers.map((user) => {
-                  const cartUnique = getCartUniqueItems(user.cart);
-                  const cartUnits = getCartTotalUnits(user.cart);
-                  const wishlistItems = getWishlistCount(user.wishlist);
+                  const cartCount = getCartUniqueItems(user?.cart);
+                  const cartUnits = getCartTotalUnits(user?.cart);
+                  const wishlistCount = getWishlistCount(user?.wishlist);
+                  const displayPhone = getUserPhone(user);
 
                   return (
                     <tr
@@ -435,12 +463,15 @@ export default function AllUsers() {
                             >
                               {user.name || "Unnamed User"}
                             </p>
-                            
+                            <div className="flex items-center gap-1 text-[11px] text-slate-400 font-mono mt-0.5">
+                              <Hash size={11} className="text-slate-400" />
+                              <span className="truncate">{user._id}</span>
+                            </div>
                           </div>
                         </div>
                       </td>
 
-                      {/* Contact Details */}
+                      {/* Contact */}
                       <td className="px-6 py-4">
                         <div className="space-y-1">
                           <div
@@ -454,50 +485,59 @@ export default function AllUsers() {
                             />
                             <span className="truncate">{user.email || "No email"}</span>
                           </div>
-                          {user.phone ? (
+                          {displayPhone ? (
                             <div className="flex items-center gap-2 text-xs text-slate-500">
                               <Phone size={14} className="shrink-0 text-slate-400" />
-                              <span>{user.phone}</span>
+                              <span>{displayPhone}</span>
                             </div>
                           ) : null}
                         </div>
                       </td>
 
-                      {/* 🛒 Cart & Wishlist Activity Column */}
-                      <td className="px-6 py-4">
-                        <div className="space-y-1.5">
-                          {/* Cart Badge */}
-                          <div className="flex items-center gap-2">
-                            {cartUnique > 0 ? (
-                              <span
-                                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold border"
-                                style={{
-                                  backgroundColor: C.paleCoral,
-                                  color: C.coral,
-                                  borderColor: `${C.coral}40`,
-                                }}
-                              >
-                                <ShoppingCart size={13} />
-                                <span>
-                                  {cartUnique} {cartUnique === 1 ? "item" : "items"} ({cartUnits} {cartUnits === 1 ? "unit" : "units"})
-                                </span>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-xs text-slate-400 font-medium">
-                                <ShoppingCart size={13} className="text-slate-300" />
-                                <span>Cart empty</span>
-                              </span>
-                            )}
-                          </div>
+                      {/* Cart Action Button */}
+                      <td className="px-6 py-4 text-center">
+                        {cartCount > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedUserCart(user)}
+                            className="inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer hover:opacity-90 border"
+                            style={{
+                              backgroundColor: C.paleCoral,
+                              color: C.coral,
+                              borderColor: `${C.coral}40`,
+                            }}
+                          >
+                            <ShoppingCart size={14} />
+                            <span>
+                              {cartCount} Items ({cartUnits} Units)
+                            </span>
+                            <Eye size={12} />
+                          </button>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs text-slate-400 font-medium">
+                            <ShoppingCart size={13} className="text-slate-300" />
+                            <span>Empty Cart</span>
+                          </span>
+                        )}
+                      </td>
 
-                          {/* Wishlist Indicator */}
-                          {wishlistItems > 0 && (
-                            <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: C.raspberry }}>
-                              <Heart size={12} className="fill-current" />
-                              <span>{wishlistItems} saved in wishlist</span>
-                            </div>
-                          )}
-                        </div>
+                      {/* Wishlist */}
+                      <td className="px-6 py-4">
+                        {wishlistCount > 0 ? (
+                          <span
+                            className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg border"
+                            style={{
+                              backgroundColor: C.paleBlush,
+                              color: C.raspberry,
+                              borderColor: `${C.raspberry}30`,
+                            }}
+                          >
+                            <Heart size={12} className="fill-current" />
+                            <span>{wishlistCount} Saved</span>
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400">0</span>
+                        )}
                       </td>
 
                       {/* Role Badge */}
@@ -571,6 +611,232 @@ export default function AllUsers() {
           </span>
         </div>
       </div>
+
+      {/* ── Cart Inspection Detail Modal (Pop-up) ──────────────── */}
+      {selectedUserCart && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div
+            className="w-full max-w-2xl rounded-3xl p-6 shadow-2xl border space-y-5 max-h-[85vh] flex flex-col"
+            style={{
+              backgroundColor: "#FFFFFF",
+              borderColor: C.paleCoral,
+              color: C.dark,
+            }}
+          >
+            {/* Modal Header with Phone Number */}
+            <div
+              className="flex items-start justify-between pb-4 border-b"
+              style={{ borderColor: `${C.dark}15` }}
+            >
+              <div className="flex items-center gap-3.5">
+                <div
+                  className="flex h-12 w-12 items-center justify-center rounded-2xl shadow-inner shrink-0"
+                  style={{ backgroundColor: C.paleCoral, color: C.coral }}
+                >
+                  <ShoppingCart size={22} />
+                </div>
+                <div>
+                  <h3
+                    className="font-bold text-lg font-heading"
+                    style={{ color: C.dark }}
+                  >
+                    {selectedUserCart.name}&apos;s Cart Items
+                  </h3>
+
+                  {/* Contact Badges: Email & Phone Number */}
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                      <Mail size={12} className="text-slate-400" />
+                      <span>{selectedUserCart.email}</span>
+                    </span>
+
+                    {/* 📞 Phone Number Tag in Modal */}
+                    {getUserPhone(selectedUserCart) ? (
+                      <span
+                        className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md border"
+                        style={{
+                          backgroundColor: C.paleGreen,
+                          color: C.green,
+                          borderColor: `${C.green}30`,
+                        }}
+                      >
+                        <Phone size={11} />
+                        <span>{getUserPhone(selectedUserCart)}</span>
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-slate-400 italic">
+                        (No phone provided)
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedUserCart(null)}
+                className="p-2 rounded-full hover:bg-black/5 transition cursor-pointer"
+                style={{ color: C.dark }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body Items Table */}
+            <div
+              className="flex-1 overflow-y-auto pr-1"
+              style={{ borderColor: `${C.dark}10` }}
+            >
+              {selectedUserCart.cart && selectedUserCart.cart.length > 0 ? (
+                <div
+                  className="overflow-hidden rounded-xl border"
+                  style={{ borderColor: C.paleCoral }}
+                >
+                  <table className="w-full text-left text-xs sm:text-sm">
+                    <thead
+                      className="border-b font-bold"
+                      style={{
+                        backgroundColor: C.cream,
+                        borderColor: C.paleCoral,
+                        color: C.dark,
+                      }}
+                    >
+                      <tr>
+                        <th className="p-3">Product</th>
+                        <th className="p-3">Variant</th>
+                        <th className="p-3 text-center">Quantity</th>
+                        <th className="p-3 text-right">Unit Price</th>
+                        <th className="p-3 text-right">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody
+                      className="divide-y"
+                      style={{ borderColor: `${C.dark}10` }}
+                    >
+                      {selectedUserCart.cart.map((item, idx) => {
+                        const prod =
+                          typeof item.productId === "object" &&
+                          item.productId !== null
+                            ? item.productId
+                            : null;
+                        const prodTitle =
+                          prod?.title ||
+                          prod?.name ||
+                          `Product (${item.productId || "N/A"})`;
+                        const prodImg = getProductImage(prod);
+                        const price = Number(prod?.price || 0);
+                        const qty = Number(item.quantity || 1);
+                        const subtotal = price * qty;
+
+                        return (
+                          <tr key={item._id || idx} className="hover:bg-amber-50/30">
+                            {/* Product */}
+                            <td className="p-3">
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={prodImg}
+                                  alt={prodTitle}
+                                  className="h-12 w-12 rounded-xl object-cover border shrink-0 bg-[#FAF4ED]"
+                                  style={{ borderColor: `${C.dark}15` }}
+                                />
+                                <div className="min-w-0">
+                                  <p
+                                    className="font-bold truncate max-w-[150px] sm:max-w-[200px]"
+                                    style={{ color: C.dark }}
+                                  >
+                                    {prodTitle}
+                                  </p>
+                                 
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Variant */}
+                            <td className="p-3">
+                              {item.variant?.colorName ? (
+                                <span
+                                  className="inline-block text-xs font-semibold px-2 py-0.5 rounded border"
+                                  style={{ borderColor: `${C.dark}20` }}
+                                >
+                                  {item.variant.colorName}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 text-xs">
+                                  Standard
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Quantity */}
+                            <td className="p-3 text-center font-bold">
+                              <span
+                                className="inline-block px-2.5 py-1 rounded-lg text-xs font-bold"
+                                style={{
+                                  backgroundColor: C.paleCoral,
+                                  color: C.coral,
+                                }}
+                              >
+                                {qty} Qty
+                              </span>
+                            </td>
+
+                            {/* Unit Price */}
+                            <td className="p-3 text-right font-medium">
+                              {price > 0 ? `₹${price.toLocaleString("en-IN")}` : "N/A"}
+                            </td>
+
+                            {/* Subtotal */}
+                            <td
+                              className="p-3 text-right font-bold"
+                              style={{ color: C.coral }}
+                            >
+                              {price > 0
+                                ? `₹${subtotal.toLocaleString("en-IN")}`
+                                : "N/A"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="py-12 text-center text-slate-400">
+                  <Package size={36} className="mx-auto mb-2 opacity-50" />
+                  <p>Cart is currently empty.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              className="pt-4 border-t flex items-center justify-between"
+              style={{ borderColor: `${C.dark}15` }}
+            >
+              <div>
+                <span className="text-xs text-slate-500 block">
+                  Estimated Cart Value:
+                </span>
+                <strong
+                  className="text-lg font-extrabold"
+                  style={{ color: C.coral }}
+                >
+                  ₹{cartTotalValue.toLocaleString("en-IN")}
+                </strong>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedUserCart(null)}
+                className="px-6 py-2.5 rounded-full font-bold text-xs sm:text-sm text-white shadow-sm cursor-pointer transition hover:opacity-90"
+                style={{ backgroundColor: C.coral }}
+              >
+                Close Window
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ import AddProduct from "../../component/page/admin/AddProduct";
 import EditProduct from "../../component/page/admin/EditProduct";
 import AddProductTag from "../../component/page/admin/AddProductTag";
 import AllUsers from "../../component/page/admin/AllUsers"; // 👈 Imported AllUsers Component
+import AllOrders from "../../component/page/admin/AllOrders";
 
 const adminRoutes = [
   {
@@ -67,6 +68,10 @@ const adminRoutes = [
           {
             path: "add-product-tags",
             element: <AddProductTag />,
+          },
+           {
+            path: "order",
+            element: <AllOrders />,
           },
         ],
       },

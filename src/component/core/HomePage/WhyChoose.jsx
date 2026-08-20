@@ -132,11 +132,11 @@ export default function WhyChoose() {
 
   return (
     <section style={{
-      padding: isMobile ? "60px 0" : "100px 40px",
+    padding: isMobile ? "40px 16px" : "60px 40px",
       background: C.ivory,
       overflow: "hidden"
     }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "0 16px" : "0" }}>
+      <div className="max-w-7xl mx-auto" style={{  padding: isMobile ? "0 16px" : "0" }}>
         <div style={{ textAlign: "center", marginBottom: isMobile ? 32 : 60 }}>
           <span style={{
             fontSize: 11, fontWeight: 700, letterSpacing: 3,

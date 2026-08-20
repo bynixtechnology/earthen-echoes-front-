@@ -4,52 +4,52 @@ import { C } from "../../../constants/theme";
 const AboutHeroSection = () => {
   return (
     <section
-      className="relative h-[60vh] flex items-center justify-center overflow-hidden"
+      className="relative min-h-[60vh] lg:min-h-[70vh] flex items-center justify-center overflow-hidden"
       style={{ background: C.dark }}
     >
-      {/* Background Image */}
+      {/* Background Image Container */}
       <div className="absolute inset-0">
         <img
-          src="https://uxmagic.blob.core.windows.net/public/agent-images/artisan-craft-1783060841778-xbzpiwajcvf.png"
+          src="/about7.png"
           alt="Earthen Echoes Story Banner"
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover "
         />
 
-        {/* Overlay */}
+        {/* Balanced Dark Overlay for clear text readability without hiding pots */}
         <div
           className="absolute inset-0"
           style={{
             background: `linear-gradient(
-              90deg,
-              ${C.dark}CC 0%,
-              ${C.darkTeal}99 45%,
-              transparent 100%
+              180deg,
+              rgba(28, 18, 8, 0.45) 0%,
+              rgba(15, 46, 42, 0.65) 50%,
+              rgba(28, 18, 8, 0.75) 100%
             )`,
           }}
         />
       </div>
 
       {/* Content */}
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full z-10 text-center">
-        <div className="max-w-3xl mx-auto space-y-5">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full z-10 text-center py-16">
+        <div className="max-w-3xl mx-auto space-y-6">
 
           <span
-            className="inline-block text-xs uppercase tracking-[0.18em] font-semibold px-4 py-2 rounded-full"
+            className="inline-block text-xs uppercase tracking-[0.2em] font-semibold px-4 py-2 rounded-full backdrop-blur-md"
             style={{
               color: C.ivory,
-              background: `${C.coral}22`,
-              border: `1px solid ${C.coral}66`,
-              backdropFilter: "blur(10px)",
+              background: `${C.coral}33`,
+              border: `1px solid ${C.coral}88`,
+              boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
             }}
           >
             Our Story
           </span>
 
           <h1
-            className="font-bold"
+            className="font-bold tracking-tight leading-tight drop-shadow-lg"
             style={{
               fontFamily: "'Playfair Display', serif",
-              fontSize: "clamp(2.5rem,5vw,4.5rem)",
+              fontSize: "clamp(2.5rem, 5.5vw, 4.5rem)",
               color: C.ivory,
             }}
           >
@@ -57,10 +57,10 @@ const AboutHeroSection = () => {
           </h1>
 
           <p
-            className="max-w-xl mx-auto leading-relaxed"
+            className="max-w-xl mx-auto leading-relaxed drop-shadow-md font-medium"
             style={{
-              color: "rgba(253,248,243,0.9)",
-              fontSize: "clamp(1rem,2vw,1.1rem)",
+              color: "rgba(253, 248, 243, 0.95)",
+              fontSize: "clamp(1rem, 2vw, 1.2rem)",
             }}
           >
             From the sacred soil of Rajasthan to your modern home sanctuary.

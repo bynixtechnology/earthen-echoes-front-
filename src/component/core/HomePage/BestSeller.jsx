@@ -134,12 +134,13 @@ const BestSeller = () => {
   return (
     <section
       style={{
-        padding: isMobile ? "60px 16px" : "100px 24px",
+        padding: isMobile ? "40px 16px" : "60px 40px",
         overflow: "hidden",
       }}
     >
-      <div className="max-w-[1240px] mx-auto px-4 md:px-8">
+      <div className="max-w-7xl mx-auto">
         <div
+        
           style={{
             display: "flex",
             flexDirection: isMobile ? "column" : "row",

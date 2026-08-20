@@ -37,7 +37,7 @@ const workflowSteps = [
 const AboutWorkflow = () => {
   return (
     <section
-      className="py-20"
+      className="py-10"
       style={{ background: C.cream }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -80,8 +80,8 @@ const AboutWorkflow = () => {
           />
         </div>
 
-        {/* Process Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
+        {/* Process Grid: 3 items per row (3-3 split) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {workflowSteps.map((step) => (
             <div
               key={step.id}

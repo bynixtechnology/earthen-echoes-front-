@@ -7,6 +7,7 @@ import {
   updateCategory,
   deleteCategory,
   updateCategoryStatus,
+  updateCategoryFeaturedStatus,
   exportCategoriesExcel,
   importCategoriesExcel,
 } from "../../../redux/thunks/categoryThunk";
@@ -32,6 +33,7 @@ const INITIAL_FORM = {
   title: "",
   description: "",
   sortOrder: 0,
+  isFeatured: false,
 };
 
 export default function AddCategory() {
@@ -204,6 +206,7 @@ export default function AddCategory() {
       title: category?.title || "",
       description: category?.description || "",
       sortOrder: category?.sortOrder ?? 0,
+      isFeatured: Boolean(category?.isFeatured),
     });
 
     setImage(null);
@@ -259,6 +262,7 @@ export default function AddCategory() {
     formData.append("title", cleanTitle);
     formData.append("description", cleanDescription);
     formData.append("sortOrder", String(Number(form.sortOrder) || 0));
+    formData.append("isFeatured", String(Boolean(form.isFeatured)));
 
     if (image) {
       formData.append("image", image);
@@ -268,7 +272,6 @@ export default function AddCategory() {
       let response;
 
       if (editingCategory?._id) {
-        // FIX: Payload key changed from formData to data to match categoryThunk.js
         response = await dispatch(
           updateCategory({
             id: editingCategory._id,
@@ -385,6 +388,45 @@ export default function AddCategory() {
 
   /*
   |--------------------------------------------------------------------------
+  | Toggle Category Featured Status
+  |--------------------------------------------------------------------------
+  */
+  const handleFeaturedStatus = async (category) => {
+    const id = category?._id || category?.id;
+
+    if (!id) return;
+
+    const newFeaturedStatus = !Boolean(category?.isFeatured);
+
+    try {
+      setActionLoading(`featured-${id}`);
+
+      const response = await dispatch(
+        updateCategoryFeaturedStatus({
+          id,
+          isFeatured: newFeaturedStatus,
+        })
+      ).unwrap();
+
+      showToast.success(
+        response?.message ||
+          `Category marked as ${newFeaturedStatus ? "featured" : "not featured"}.`
+      );
+
+      loadCategories(page, search, limit);
+    } catch (error) {
+      showToast.error(
+        typeof error === "string"
+          ? error
+          : error?.message || "Failed to update featured status."
+      );
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  /*
+  |--------------------------------------------------------------------------
   | Pagination & Filters
   |--------------------------------------------------------------------------
   */
@@ -422,7 +464,19 @@ export default function AddCategory() {
   */
   const handleExportExcel = async () => {
     try {
-      await dispatch(exportCategoriesExcel()).unwrap();
+      const data = await dispatch(exportCategoriesExcel()).unwrap();
+      const blob = new Blob([data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `categories-${Date.now()}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
       showToast.success("Categories exported successfully.");
     } catch (error) {
       showToast.error(error?.message || "Export failed.");
@@ -466,6 +520,7 @@ export default function AddCategory() {
         onEdit={openEditModal}
         onDelete={handleDelete}
         onStatus={handleStatus}
+        onFeaturedStatus={handleFeaturedStatus}
       />
 
       <CategoryPagination

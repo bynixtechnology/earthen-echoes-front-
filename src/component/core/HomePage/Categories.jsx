@@ -22,7 +22,13 @@ function CategoryCard({ cat, i, mobile }) {
 
   return (
     <Link
-      to={cat.id ? `/products?category=${encodeURIComponent(cat.id)}` : "/products"}
+      to={
+        cat.slug
+          ? `/products?category=${encodeURIComponent(cat.slug)}`
+          : cat.id
+          ? `/products?category=${encodeURIComponent(cat.id)}`
+          : "/products"
+      }
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{
@@ -38,7 +44,8 @@ function CategoryCard({ cat, i, mobile }) {
         background: "#E5E0D8",
         display: "block",
         textDecoration: "none",
-        transition: "transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.4s ease",
+        transition:
+          "transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.4s ease",
         transform: isHovered && !mobile ? "translateY(-4px)" : "translateY(0)",
       }}
     >
@@ -74,7 +81,7 @@ function CategoryCard({ cat, i, mobile }) {
           left: mobile ? 12 : 16,
           right: mobile ? 12 : 16,
           display: "flex",
-          justify: "space-between",
+          justifyContent: "space-between",
           alignItems: "center",
           zIndex: 2,
         }}
@@ -89,17 +96,9 @@ function CategoryCard({ cat, i, mobile }) {
               boxShadow: "0 0 8px rgba(255,255,255,0.8)",
             }}
           />
+          
         </div>
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: "rgba(255,255,255,0.7)",
-            letterSpacing: 1,
-          }}
-        >
-          0{i + 1}
-        </span>
+        
       </div>
 
       {/* Card Content */}
@@ -174,27 +173,42 @@ export default function Categories() {
     let mounted = true;
     (async () => {
       try {
-        const res = await CategoryService.getAll();
-        const data = res?.data ?? res ?? [];
+        const res = await CategoryService.getAll({ isActive: true });
+        const rawList = res?.data ?? res?.categories ?? res ?? [];
         if (!mounted) return;
-        setCategories(
-          (Array.isArray(data) ? data : []).slice(0, 6).map((item, index) => ({
+
+        // Filter only active categories & slice top 6
+        const activeOnly = (Array.isArray(rawList) ? rawList : [])
+          .filter((item) => item?.isActive === true)
+          .slice(0, 6)
+          .map((item, index) => ({
             id: item._id,
+            slug: item.slug,
             name: item.name || "Category",
             desc: item.description || "Traditional Handcrafted Collection",
             image: item.image || item.imageUrl,
+            totalProducts: item.totalProducts ?? 0,
+            activeProducts: item.activeProducts ?? item.totalProducts ?? 0,
+            isFeatured: Boolean(item.isFeatured),
             img: "1603697486934-686e0b3c9f06",
-            color: [C.coral, C.teal, C.raspberry, C.green, C.raspberry, C.teal][
-              index % 6
-            ],
-          }))
-        );
+            color: [
+              C.coral,
+              C.teal,
+              C.raspberry,
+              C.green,
+              C.raspberry,
+              C.teal,
+            ][index % 6],
+          }));
+
+        setCategories(activeOnly);
       } catch (e) {
         if (mounted) setError(e?.response?.data?.message || e.message);
       } finally {
         if (mounted) setLoading(false);
       }
     })();
+
     return () => {
       mounted = false;
     };
@@ -203,11 +217,11 @@ export default function Categories() {
   return (
     <section
       style={{
-        padding: mobile ? "50px 16px" : "90px 40px",
+        padding: mobile ? "40px 16px" : "40px 20px",
         background: C.ivory,
       }}
     >
-      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div
           style={{
@@ -267,13 +281,20 @@ export default function Categories() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: mobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
+              gridTemplateColumns: mobile
+                ? "repeat(2, 1fr)"
+                : "repeat(4, 1fr)",
               gridAutoRows: mobile ? "auto" : "280px",
               gap: mobile ? 12 : 20,
             }}
           >
             {categories.map((cat, i) => (
-              <CategoryCard key={cat.id || i} cat={cat} i={i} mobile={mobile} />
+              <CategoryCard
+                key={cat.id || i}
+                cat={cat}
+                i={i}
+                mobile={mobile}
+              />
             ))}
           </div>
         )}

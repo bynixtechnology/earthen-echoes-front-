@@ -609,7 +609,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
                     stock > 0 ? "bg-[#76A845] animate-pulse" : "bg-[#E44587]"
                   }`}
                 />
-                {stock > 0 ? `In Stock · ${stock} left` : "Out of Stock"}
+                {stock > 0 ? `In Stock` : "Out of Stock"}
               </span>
             </div>
 
@@ -696,14 +696,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
                       className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold border w-fit"
                       style={{ background: "#FEF1EC", color: "#F16937", borderColor: "#F5B5D0" }}
                     >
-                      {tagImage ? (
-                        <img
-                          src={tagImage}
-                          alt={tagName}
-                          className="w-4 h-4 rounded-full object-cover shrink-0"
-                          onError={(e) => (e.currentTarget.style.display = "none")}
-                        />
-                      ) : null}
+                     
                       {tagName}
                     </span>
                   );
