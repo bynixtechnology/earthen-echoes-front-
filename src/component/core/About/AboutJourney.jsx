@@ -123,7 +123,7 @@ const AboutJourney = () => {
           }}
         >
           <img
-          src="/about8.jpeg"
+          src="/about9.png"
             alt="Earthen Echoes Clay Pottery"
             className="w-full h-[380px] sm:h-[450px] lg:h-[520px] object-cover"
           />

@@ -1186,9 +1186,12 @@ const ProductGallery = ({
     };
   };
 
+  // Resolve slug identifier with fallback to _id
+  const productSlug = product?.slug || product?._id;
+
   return (
     <Link
-      to={`/products/${product._id}`}
+      to={`/products/${productSlug}`}
       className="group block h-full"
     >
       <div

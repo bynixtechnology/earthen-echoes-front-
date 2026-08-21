@@ -37,9 +37,9 @@ const publicRoutes = [
         element: <Product />, 
       }, 
       { 
-        path: "products/:id", 
+        path: "products/:slug", 
         element: <ProductDetails />, 
-      }, 
+      },
       { 
         path: "cart", 
         element: <CartPage />, 

@@ -28,7 +28,10 @@ import {
 import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
-import { fetchProductById } from "../../../redux/thunks/productThunk";
+import {
+  fetchProductBySlug,
+  fetchProductById,
+} from "../../../redux/thunks/productThunk";
 import {
   clearSelectedProduct,
   selectSelectedProduct,
@@ -42,16 +45,15 @@ import {
   getWishlist,
   toggleWishlist as toggleWishlistThunk,
 } from "../../../redux/thunks/wishlistThunk";
-import {
-  createPaymentOrder,
-  verifyPayment,
-} from "../../../redux/thunks/paymentThunk";
 import { showToast } from "../../../config/toast";
 
 const TABS = ["description", "specifications", "shipping", "reviews"];
 
 const ProductDetailHeroSection = ({ setCategoryId }) => {
-  const { id } = useParams();
+  // Extract slug param matching updated route /products/:slug
+  const { slug, id } = useParams();
+  const activeIdentifier = slug || id;
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -86,16 +88,22 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Fetch product by slug (with ID fallback)
   useEffect(() => {
-    if (!id) return;
+    if (!activeIdentifier) return;
 
-    dispatch(fetchProductById(id));
+    if (slug) {
+      dispatch(fetchProductBySlug(slug));
+    } else if (id) {
+      dispatch(fetchProductById(id));
+    }
+
     dispatch(getWishlist());
 
     return () => {
       dispatch(clearSelectedProduct());
     };
-  }, [dispatch, id]);
+  }, [dispatch, activeIdentifier, slug, id]);
 
   // Handle active variant resolution
   const hasVariants = Boolean(
@@ -150,7 +158,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
     setActiveTab("description");
     setPincode("");
     setPincodeMsg("");
-  }, [id]);
+  }, [activeIdentifier]);
 
   const productName = product?.title;
 
@@ -291,7 +299,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
       selectedVariant: activeVariant,
     };
 
-    // 1. Force Login if user is not authorized
+    // Force Login if user is not authorized
     if (!isAuthenticated) {
       showToast?.error?.("Please login to proceed with your order.");
       navigate("/user/login", {
@@ -303,7 +311,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
       return;
     }
 
-    // 2. Navigate directly to full Checkout (Address + Razorpay / COD flow)
+    // Navigate directly to checkout
     navigate("/checkout", {
       state: {
         buyNowItem: buyNowItemData,
@@ -437,7 +445,10 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
         <p className="mt-2 text-sm text-[#78716C]">{error}</p>
         <button
           type="button"
-          onClick={() => dispatch(fetchProductById(id))}
+          onClick={() => {
+            if (slug) dispatch(fetchProductBySlug(slug));
+            else if (id) dispatch(fetchProductById(id));
+          }}
           className="mt-5 px-5 py-3 bg-[#F16937] text-white rounded-xl flex items-center gap-2"
         >
           <RefreshCw size={16} />
@@ -688,7 +699,6 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
                 {product.productTags.map((tag) => {
                   const tagId = tag?._id || tag?.id || tag;
                   const tagName = typeof tag === "object" ? tag?.name : tag;
-                  const tagImage = typeof tag === "object" ? tag?.image : null;
                   if (!tagName) return null;
                   return (
                     <span
@@ -696,7 +706,6 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
                       className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold border w-fit"
                       style={{ background: "#FEF1EC", color: "#F16937", borderColor: "#F5B5D0" }}
                     >
-                     
                       {tagName}
                     </span>
                   );

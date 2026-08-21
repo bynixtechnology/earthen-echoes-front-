@@ -323,8 +323,11 @@ const ProductGallery = ({
   const stock = Number(activeVariant?.stock ?? product?.stock ?? 0);
   const discount = Number(product?.discountPercentage || 0);
 
+  // Use slug parameter with _id as fallback
+  const productIdentifier = product?.slug || product?._id;
+
   return (
-    <Link to={`/products/${product._id}`} className="group block h-full">
+    <Link to={`/products/${productIdentifier}`} className="group block h-full">
       <article
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}

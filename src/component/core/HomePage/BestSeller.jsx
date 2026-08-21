@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { C, img } from "../../../constants/theme";
+import { C } from "../../../constants/theme";
 import {
   Heart,
   ShoppingCart,
@@ -12,7 +12,6 @@ import { ProductService } from "../../../services/productService";
 import { useDispatch, useSelector } from "react-redux";
 import { addProductToCart, fetchCart } from "../../../redux/thunks/cartThunk";
 import { getWishlist, toggleWishlist } from "../../../redux/thunks/wishlistThunk";
-// 🟢 FIXED IMPORT: selectCartAdding ki jagah selectCartLoading use karein
 import { selectCartLoading } from "../../../redux/slices/cartSlice";
 import { selectWishlistItems } from "../../../redux/slices/wishlistSlice";
 import { showToast } from "../../../config/toast";
@@ -31,7 +30,7 @@ const BestSeller = () => {
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const adding = useSelector(selectCartLoading); // 🟢 Selector Updated
+  const adding = useSelector(selectCartLoading);
   const wishlistItems = useSelector(selectWishlistItems) || [];
   const scrollRef = useRef(null);
 
@@ -91,9 +90,11 @@ const BestSeller = () => {
     };
   }, [dispatch]);
 
-  const handleProductClick = (productId) => {
-    if (!productId) return;
-    navigate(`/products/${productId}`);
+  // Navigate with slug (with ID fallback)
+  const handleProductClick = (product) => {
+    const identifier = product?.slug || product?._id || product?.id;
+    if (!identifier) return;
+    navigate(`/products/${identifier}`);
   };
 
   const handleAddToCart = async (event, product, activeVariant) => {
@@ -124,6 +125,7 @@ const BestSeller = () => {
     try {
       const response = await dispatch(toggleWishlist(productId)).unwrap();
       showToast.success(response.message);
+      dispatch(getWishlist());
     } catch (error) {
       showToast.error(error?.message || error);
     }
@@ -140,7 +142,6 @@ const BestSeller = () => {
     >
       <div className="max-w-7xl mx-auto">
         <div
-        
           style={{
             display: "flex",
             flexDirection: isMobile ? "column" : "row",
@@ -207,6 +208,7 @@ const BestSeller = () => {
             {!isMobile && (
               <div style={{ display: "flex", gap: 12 }}>
                 <button
+                  type="button"
                   onClick={() => scroll(-1)}
                   style={{
                     width: 48,
@@ -225,6 +227,7 @@ const BestSeller = () => {
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => scroll(1)}
                   style={{
                     width: 48,
@@ -389,7 +392,7 @@ const BestSellerCard = ({
   return (
     <div
       className="group transition-all duration-300 hover:-translate-y-2"
-      onClick={() => onProductClick(productId)}
+      onClick={() => onProductClick(product)}
       style={{
         width: "100%",
         background: "#fff",
@@ -421,8 +424,30 @@ const BestSellerCard = ({
           }}
         />
 
+        {/* Discount Badge */}
+        {discount > 0 && (
+          <span
+            style={{
+              position: "absolute",
+              top: 12,
+              left: 12,
+              background: C.raspberry || "#E44587",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 700,
+              padding: "4px 8px",
+              borderRadius: 12,
+              zIndex: 2,
+            }}
+          >
+            -{discount}%
+          </span>
+        )}
+
         <button
+          type="button"
           onClick={(e) => onWishlist(e, productId)}
+          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
           style={{
             position: "absolute",
             right: 14,
@@ -440,13 +465,14 @@ const BestSellerCard = ({
         >
           <Heart
             size={18}
-            className={isWishlisted ? "fill-red-500 text-red-500" : ""}
+            className={isWishlisted ? "fill-red-500 text-red-500" : "text-gray-600"}
           />
         </button>
 
         {!isMobile && (
           <div className="absolute inset-x-0 bottom-0 p-4 pt-6 bg-gradient-to-t from-black/60 to-transparent translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out">
             <button
+              type="button"
               onClick={(e) => onAddToCart(e, product, activeVariant)}
               style={{
                 width: "100%",
@@ -500,12 +526,55 @@ const BestSellerCard = ({
           >
             {product.title || product.name}
           </h3>
+
+          {/* Color Variant Swatches */}
+          {hasVariants && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                marginBottom: 10,
+                flexWrap: "wrap",
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+            >
+              {product.variants.map((v, idx) => (
+                <button
+                  key={v.sku || idx}
+                  type="button"
+                  title={v.colorName}
+                  onClick={() => setSelectedVariantIndex(idx)}
+                  className={`w-3.5 h-3.5 rounded-full border border-gray-300 transition-transform ${
+                    selectedVariantIndex === idx
+                      ? "scale-125 ring-1 ring-orange-500 ring-offset-1"
+                      : "hover:scale-110"
+                  }`}
+                  style={{ backgroundColor: v.colorCode || "#CCC" }}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
-        <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 18, fontWeight: 700, color: C.dark }}>
             ₹{price.toLocaleString("en-IN")}
           </span>
+          {originalPrice > price && (
+            <span
+              style={{
+                fontSize: 13,
+                color: "#999",
+                textDecoration: "line-through",
+              }}
+            >
+              ₹{originalPrice.toLocaleString("en-IN")}
+            </span>
+          )}
         </div>
       </div>
     </div>

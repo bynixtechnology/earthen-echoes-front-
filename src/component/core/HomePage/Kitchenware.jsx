@@ -64,13 +64,16 @@ const Kitchenware = () => {
           ? response
           : [];
 
-        // 🟢 FIX: Case-insensitive check on name, title, and slug
+        // Case-insensitive check on name, title, and slug
         const targetCategory = "traditional kitchenware";
         const kitchenwareProducts = rawList.filter((item) => {
           const catName = item?.category?.name?.toLowerCase()?.trim();
           const catTitle = item?.category?.title?.toLowerCase()?.trim();
           const catSlug = item?.category?.slug?.toLowerCase()?.trim();
-          const directCat = typeof item?.category === "string" ? item.category.toLowerCase().trim() : "";
+          const directCat =
+            typeof item?.category === "string"
+              ? item.category.toLowerCase().trim()
+              : "";
 
           return (
             catName === targetCategory ||
@@ -81,8 +84,9 @@ const Kitchenware = () => {
         });
 
         if (isMounted) {
-          // Fallback to rawList if API already pre-filtered the products
-          setProducts(kitchenwareProducts.length > 0 ? kitchenwareProducts : rawList);
+          setProducts(
+            kitchenwareProducts.length > 0 ? kitchenwareProducts : rawList
+          );
         }
       } catch (err) {
         console.error("FETCH KITCHENWARE ERROR:", err);
@@ -107,9 +111,11 @@ const Kitchenware = () => {
     };
   }, [dispatch]);
 
-  const handleProductClick = (productId) => {
-    if (!productId) return;
-    navigate(`/products/${productId}`);
+  // Navigate using product slug with fallback to ID
+  const handleProductClick = (product) => {
+    const identifier = product?.slug || product?._id || product?.id;
+    if (!identifier) return;
+    navigate(`/products/${identifier}`);
   };
 
   const handleAddToCart = async (event, product, activeVariant) => {
@@ -140,6 +146,7 @@ const Kitchenware = () => {
     try {
       const response = await dispatch(toggleWishlist(productId)).unwrap();
       showToast.success(response?.message || "Wishlist updated.");
+      dispatch(getWishlist());
     } catch (err) {
       showToast.error(err?.message || err || "Failed to update wishlist.");
     }
@@ -150,11 +157,11 @@ const Kitchenware = () => {
   return (
     <section
       style={{
-         padding: isMobile ? "40px 16px" : "60px 40px",
+        padding: isMobile ? "40px 16px" : "60px 40px",
         overflow: "hidden",
       }}
     >
-      <div cclassName="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* HEADER */}
         <div
           style={{
@@ -210,6 +217,7 @@ const Kitchenware = () => {
             {!isMobile && (
               <div style={{ display: "flex", gap: 12 }}>
                 <button
+                  type="button"
                   onClick={() => scroll(-1)}
                   style={{
                     width: 48,
@@ -238,6 +246,7 @@ const Kitchenware = () => {
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => scroll(1)}
                   style={{
                     width: 48,
@@ -279,7 +288,11 @@ const Kitchenware = () => {
               alignItems: "center",
             }}
           >
-            <Loader2 size={46} className="animate-spin" color={C?.coral || "#F16937"} />
+            <Loader2
+              size={46}
+              className="animate-spin"
+              color={C?.coral || "#F16937"}
+            />
           </div>
         ) : error ? (
           <div
@@ -420,7 +433,7 @@ const KitchenwareCard = ({
   return (
     <div
       className="group"
-      onClick={() => onProductClick(productId)}
+      onClick={() => onProductClick(product)}
       style={{
         width: "100%",
         background: "#fff",
