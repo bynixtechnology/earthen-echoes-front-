@@ -156,7 +156,7 @@ const ContactFeq = () => {
           }}
         >
           <img
-            src={img("1493106641515-6b5631de4bb9", 800, 900)}
+            src="/contact1.jpeg"
             alt="Terracotta Craft"
             className="w-full h-[700px] object-cover"
           />

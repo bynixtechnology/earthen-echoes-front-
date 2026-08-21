@@ -96,9 +96,7 @@ function CategoryCard({ cat, i, mobile }) {
               boxShadow: "0 0 8px rgba(255,255,255,0.8)",
             }}
           />
-          
         </div>
-        
       </div>
 
       {/* Card Content */}
@@ -173,13 +171,13 @@ export default function Categories() {
     let mounted = true;
     (async () => {
       try {
-        const res = await CategoryService.getAll({ isActive: true });
+        const res = await CategoryService.getAll();
         const rawList = res?.data ?? res?.categories ?? res ?? [];
         if (!mounted) return;
 
-        // Filter only active categories & slice top 6
-        const activeOnly = (Array.isArray(rawList) ? rawList : [])
-          .filter((item) => item?.isActive === true)
+        // Sirf isFeatured: true wali categories filter hongi
+        const featuredCategories = (Array.isArray(rawList) ? rawList : [])
+          .filter((item) => Boolean(item?.isFeatured))
           .slice(0, 6)
           .map((item, index) => ({
             id: item._id,
@@ -189,7 +187,7 @@ export default function Categories() {
             image: item.image || item.imageUrl,
             totalProducts: item.totalProducts ?? 0,
             activeProducts: item.activeProducts ?? item.totalProducts ?? 0,
-            isFeatured: Boolean(item.isFeatured),
+            isFeatured: true,
             img: "1603697486934-686e0b3c9f06",
             color: [
               C.coral,
@@ -201,7 +199,7 @@ export default function Categories() {
             ][index % 6],
           }));
 
-        setCategories(activeOnly);
+        setCategories(featuredCategories);
       } catch (e) {
         if (mounted) setError(e?.response?.data?.message || e.message);
       } finally {
