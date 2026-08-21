@@ -49,7 +49,7 @@ const UserProtectedRoute = () => {
   if (user?.role === "admin") {
     return (
       <Navigate
-        to="/admin/product"
+        to="/admin/dashboard"
         replace
       />
     );

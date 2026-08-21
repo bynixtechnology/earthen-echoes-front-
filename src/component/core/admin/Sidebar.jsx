@@ -10,6 +10,8 @@ import {
   FolderPlus,
   Users,
   ShoppingBag,
+  Package,
+  Tags,
   LogOut,
   X,
 } from "lucide-react";
@@ -19,8 +21,13 @@ import { FRONTEND_MESSAGES } from "../../../constants/messages";
 
 const adminNavLinks = [
   {
+    name: "Dashboard",
+    path: "/admin/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
     name: "All Users",
-    path: "/admin/users", // 👈 Added All Users Route
+    path: "/admin/users",
     icon: Users,
   },
   {
@@ -31,7 +38,7 @@ const adminNavLinks = [
   {
     name: "Products",
     path: "/admin/product",
-    icon: LayoutDashboard,
+    icon: Package,
   },
   {
     name: "Add Product",
@@ -41,13 +48,13 @@ const adminNavLinks = [
   {
     name: "Add Product Tags",
     path: "/admin/add-product-tags",
-    icon: PlusCircle,
+    icon: Tags,
   },
   {
-    name:"All Order",
-    path:"/admin/order",
-    icon:ShoppingBag,
-  }
+    name: "All Orders",
+    path: "/admin/order",
+    icon: ShoppingBag,
+  },
 ];
 
 export default function Sidebar({
@@ -61,8 +68,6 @@ export default function Sidebar({
       // Remove Admin Session
       localStorage.removeItem("adminToken");
       localStorage.removeItem("adminUser");
-
-      // Remove legacy admin keys if used
       localStorage.removeItem("admin");
 
       sessionStorage.clear();
@@ -83,7 +88,6 @@ export default function Sidebar({
       });
     } catch (error) {
       console.error(error);
-
       showToast.error("Unable to logout.");
     }
   };
@@ -136,7 +140,7 @@ export default function Sidebar({
 
             <button
               onClick={toggleSidebar}
-              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-900 hover:text-white lg:hidden shrink-0"
+              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-900 hover:text-white lg:hidden shrink-0 cursor-pointer"
             >
               <X size={20} />
             </button>
@@ -172,7 +176,7 @@ export default function Sidebar({
         <div className="border-t border-slate-800 p-3 sm:p-4">
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium text-rose-400 transition-all duration-200 hover:bg-rose-500/10 hover:text-rose-300"
+            className="flex w-full items-center gap-3 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium text-rose-400 transition-all duration-200 hover:bg-rose-500/10 hover:text-rose-300 cursor-pointer"
           >
             <LogOut size={18} className="shrink-0" />
             <span className="truncate">Secure Logout</span>

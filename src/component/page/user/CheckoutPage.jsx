@@ -12,12 +12,14 @@ import {
   Package,
   Receipt,
   Loader2,
+  Banknote,
 } from "lucide-react";
 
 import { selectCartItems } from "../../../redux/slices/cartSlice";
 import {
   createPaymentOrder,
   verifyPayment,
+  placeCodOrder,
 } from "../../../redux/thunks/paymentThunk";
 import { clearCart, fetchCart } from "../../../redux/thunks/cartThunk";
 import { showToast } from "../../../config/toast";
@@ -189,7 +191,56 @@ const CheckoutPage = () => {
       };
     });
 
-    // 1. ONLINE PAYMENT VIA RAZORPAY
+    // ==========================================
+    // 1. CASH ON DELIVERY (COD) ORDER FLOW
+    // ==========================================
+    if (paymentMethod === "cod") {
+      try {
+        setIsProcessingPayment(true);
+
+        const codPayload = {
+          items: formattedItems,
+          totalAmount: grandTotal,
+          shippingAddress: finalShippingAddress,
+          billingAddress: finalBillingAddress,
+          paymentMethod: "COD",
+        };
+
+        const result = await dispatch(placeCodOrder(codPayload)).unwrap();
+
+        if (result?.success || result?.order) {
+          if (!buyNowItem) {
+            await dispatch(clearCart());
+            await dispatch(fetchCart());
+          }
+
+          showToast.success("Cash on Delivery order placed successfully!");
+
+          navigate("/thank-you", {
+            replace: true,
+            state: {
+              order: result.order,
+              orderId: result.order?._id,
+              amount: grandTotal,
+              paymentMethod: "COD",
+            },
+          });
+        }
+      } catch (err) {
+        showToast.error(
+          typeof err === "string"
+            ? err
+            : err?.message || "Failed to place Cash on Delivery order."
+        );
+      } finally {
+        setIsProcessingPayment(false);
+      }
+      return;
+    }
+
+    // ==========================================
+    // 2. ONLINE PAYMENT VIA RAZORPAY
+    // ==========================================
     if (paymentMethod === "online") {
       if (typeof window === "undefined" || !window.Razorpay) {
         showToast.error("Razorpay SDK not loaded. Please refresh the page.");
@@ -261,6 +312,7 @@ const CheckoutPage = () => {
                     orderId: paymentResponse.razorpay_order_id,
                     paymentId: paymentResponse.razorpay_payment_id,
                     amount: grandTotal,
+                    paymentMethod: "ONLINE",
                   },
                 });
               } else {
@@ -302,19 +354,6 @@ const CheckoutPage = () => {
             : err?.message || "Unable to initiate payment."
         );
       }
-    } else {
-      // 2. CASH ON DELIVERY (COD)
-      if (!buyNowItem) {
-        await dispatch(clearCart());
-        await dispatch(fetchCart());
-      }
-      showToast.success("COD Order placed successfully!");
-      navigate("/thank-you", {
-        replace: true,
-        state: {
-          amount: grandTotal,
-        },
-      });
     }
   };
 
@@ -870,58 +909,86 @@ const CheckoutPage = () => {
                   style={{ borderColor: `${C?.dark || "#1C1208"}15` }}
                 >
                   <h2 className="text-lg sm:text-xl font-bold font-heading">
-                    3. Payment Method
+                    3. Select Payment Method
                   </h2>
                 </div>
 
                 <div className="space-y-3">
-                  {[
-                    {
-                      id: "online",
-                      label: "UPI / Credit / Debit Card / NetBanking",
-                      desc: "Instant secure payment via Razorpay Gateway",
-                    },
-                    {
-                      id: "cod",
-                      label: "Cash on Delivery (COD)",
-                      desc: "Pay in cash when your order arrives",
-                    },
-                  ].map((method) => (
-                    <label
-                      key={method.id}
-                      className="flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all"
-                      style={
-                        paymentMethod === method.id
-                          ? {
-                              borderColor: C?.coral || "#F16937",
-                              backgroundColor: C?.paleCoral || "#FEF1EC",
-                            }
-                          : {
-                              borderColor: `${C?.dark || "#1C1208"}15`,
-                              backgroundColor: "#FFFDF9",
-                            }
-                      }
-                    >
-                      <input
-                        type="radio"
-                        name="payment"
-                        value={method.id}
-                        checked={paymentMethod === method.id}
-                        onChange={() => setPaymentMethod(method.id)}
-                        className="mt-1 cursor-pointer"
-                        style={{ accentColor: C?.coral || "#F16937" }}
-                      />
-                      <div>
-                        <p className="font-bold text-sm">{method.label}</p>
-                        <p
-                          className="text-xs"
-                          style={{ color: `${C?.dark || "#1C1208"}70` }}
-                        >
-                          {method.desc}
-                        </p>
+                  {/* Option 1: Razorpay Online */}
+                  <label
+                    className="flex items-start gap-3.5 p-4 rounded-2xl border cursor-pointer transition-all"
+                    style={
+                      paymentMethod === "online"
+                        ? {
+                            borderColor: C?.coral || "#F16937",
+                            backgroundColor: C?.paleCoral || "#FEF1EC",
+                          }
+                        : {
+                            borderColor: `${C?.dark || "#1C1208"}15`,
+                            backgroundColor: "#FFFDF9",
+                          }
+                    }
+                  >
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="online"
+                      checked={paymentMethod === "online"}
+                      onChange={() => setPaymentMethod("online")}
+                      className="mt-1 cursor-pointer"
+                      style={{ accentColor: C?.coral || "#F16937" }}
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <CreditCard size={17} style={{ color: C?.coral || "#F16937" }} />
+                        <p className="font-bold text-sm">UPI / Cards / NetBanking / Wallets</p>
                       </div>
-                    </label>
-                  ))}
+                      <p
+                        className="text-xs mt-1"
+                        style={{ color: `${C?.dark || "#1C1208"}70` }}
+                      >
+                        Instant secure online payment via Razorpay Payment Gateway.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Option 2: Cash on Delivery (COD) */}
+                  <label
+                    className="flex items-start gap-3.5 p-4 rounded-2xl border cursor-pointer transition-all"
+                    style={
+                      paymentMethod === "cod"
+                        ? {
+                            borderColor: C?.coral || "#F16937",
+                            backgroundColor: C?.paleCoral || "#FEF1EC",
+                          }
+                        : {
+                            borderColor: `${C?.dark || "#1C1208"}15`,
+                            backgroundColor: "#FFFDF9",
+                          }
+                    }
+                  >
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="cod"
+                      checked={paymentMethod === "cod"}
+                      onChange={() => setPaymentMethod("cod")}
+                      className="mt-1 cursor-pointer"
+                      style={{ accentColor: C?.coral || "#F16937" }}
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Banknote size={17} style={{ color: C?.green || "#76A845" }} />
+                        <p className="font-bold text-sm">Cash on Delivery (COD)</p>
+                      </div>
+                      <p
+                        className="text-xs mt-1"
+                        style={{ color: `${C?.dark || "#1C1208"}70` }}
+                      >
+                        Pay in cash when your handcrafted items arrive at your doorstep.
+                      </p>
+                    </div>
+                  </label>
                 </div>
 
                 <div className="flex items-center gap-3 pt-4">
@@ -945,10 +1012,14 @@ const CheckoutPage = () => {
                     {isProcessingPayment ? (
                       <>
                         <Loader2 size={18} className="animate-spin" />
-                        Processing Payment...
+                        {paymentMethod === "cod" ? "Placing COD Order..." : "Processing Payment..."}
                       </>
                     ) : (
-                      <>Confirm & Place Order · ₹{formatPrice(grandTotal)}</>
+                      <>
+                        {paymentMethod === "cod"
+                          ? `Confirm COD Order · ₹${formatPrice(grandTotal)}`
+                          : `Pay Now via Razorpay · ₹${formatPrice(grandTotal)}`}
+                      </>
                     )}
                   </button>
                 </div>

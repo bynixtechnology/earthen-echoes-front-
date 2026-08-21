@@ -48,9 +48,23 @@ const verifyRazorpayPayment = async (paymentData) => {
   return response.data;
 };
 
+/**
+ * CREATE CASH ON DELIVERY (COD) ORDER
+ * POST /api/payment/cod-order
+ */
+const createCodOrder = async (orderData) => {
+  const response = await axios.post(
+    `${BASE_URL}${PAYMENT_ENDPOINTS.COD_ORDER}`,
+    orderData,
+    getAuthConfig()
+  );
+  return response.data;
+};
+
 const paymentService = {
   createRazorpayOrder,
   verifyRazorpayPayment,
+  createCodOrder,
 };
 
 export default paymentService;

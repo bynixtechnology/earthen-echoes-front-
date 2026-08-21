@@ -1,30 +1,60 @@
 export const USER_AUTH_ENDPOINTS = {
-  LOGIN: "/auth/login",
+  /*
+  |--------------------------------------------------------------------------
+  | AUTHENTICATION ENDPOINTS
+  |--------------------------------------------------------------------------
+  */
+  LOGIN: "/user/login",
+  REGISTER: "/user/register",
+  GOOGLE_LOGIN: "/user/google",
 
-  REGISTER: "/auth/register",
-
-  // Agar backend me Google route nahi hai to isko use mat karo
-  GOOGLE_LOGIN: "/auth/google",
-
-  // Get All Users (Admin / User List)
-  ALL_USERS: "/user/all",
-
-  // User Profile
+  /*
+  |--------------------------------------------------------------------------
+  | USER PROFILE & ACCOUNT ENDPOINTS
+  |--------------------------------------------------------------------------
+  */
   PROFILE: "/user/profile",
-
-  // Update Profile
   UPDATE_PROFILE: "/user/profile",
-
-  // Change Password
   CHANGE_PASSWORD: "/user/change-password",
 
-  // Orders
+  /*
+  |--------------------------------------------------------------------------
+  | USER ORDERS ENDPOINTS
+  |--------------------------------------------------------------------------
+  */
   ORDERS: "/user/orders",
   ORDER_DETAILS: (id) => `/user/orders/${id}`,
 
-  // Cart
+  /*
+  |--------------------------------------------------------------------------
+  | USER CART & WISHLIST ENDPOINTS
+  |--------------------------------------------------------------------------
+  */
   CART: "/user/cart",
-
-  // Wishlist
   WISHLIST: "/user/wishlist",
+
+  /*
+  |--------------------------------------------------------------------------
+  | ADMIN MANAGEMENT, DASHBOARD & ORDER TRACKING ENDPOINTS
+  |--------------------------------------------------------------------------
+  */
+  // Admin Dashboard Summary Stats & Analytics
+  ADMIN_DASHBOARD_STATS: "/user/admin/dashboard-stats",
+
+  // All Users List
+  ALL_USERS: "/user/all",
+
+  // Admin Orders List & Search/Filter
+  ADMIN_ORDERS: "/user/admin/orders",
+
+  // Admin Single Order Breakdown
+  ADMIN_ORDER_DETAILS: (id) => `/user/admin/orders/${id}`,
+
+  // Admin Update Delivery/Tracking Status
+  ADMIN_UPDATE_ORDER_STATUS: (id) => `/user/admin/orders/${id}/status`,
+
+  // Admin Delete Order
+  ADMIN_DELETE_ORDER: (id) => `/user/admin/orders/${id}`,
 };
+
+export default USER_AUTH_ENDPOINTS;

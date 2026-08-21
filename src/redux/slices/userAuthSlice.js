@@ -7,7 +7,16 @@ import {
   getUserProfile,
   updateUserProfile,
   changePassword,
-  fetchAllUsers, // 👈 Imported fetchAllUsers
+  fetchAllUsers,
+  // Customer Order Thunks
+  fetchMyOrders,
+  fetchOrderDetails,
+  // Admin Order & Dashboard Thunks
+  fetchAdminDashboardStats,
+  fetchAllOrdersAdmin,
+  fetchAdminOrderDetails,
+  updateOrderStatusAdmin,
+  deleteOrderAdmin,
 } from "../thunks/userAuthThunk";
 
 /*
@@ -93,6 +102,56 @@ const initialState = {
   allUsers: [],
   usersLoading: false,
   usersError: null,
+
+  // Customer Orders State
+  myOrders: [],
+  myOrdersLoading: false,
+  myOrdersError: null,
+
+  // Single Order Details State (Customer & Admin)
+  selectedOrder: null,
+  orderLoading: false,
+  orderError: null,
+
+  // Admin Dashboard Stats & Recent Activities State
+  adminDashboardStats: {
+    counts: {
+      totalProducts: 0,
+      totalOrders: 0,
+      totalUsers: 0,
+      totalRevenue: 0,
+      statusBreakdown: {
+        Processing: 0,
+        Shipped: 0,
+        Delivered: 0,
+        Cancelled: 0,
+      },
+    },
+    recentActivities: {
+      recentProducts: [],
+      recentOrders: [],
+      recentUsers: [],
+      lowStockAlerts: [],
+    },
+  },
+  adminDashboardLoading: false,
+  adminDashboardError: null,
+
+  // Admin Orders Management State
+  adminOrders: [],
+  adminOrdersTotal: 0,
+  adminOrdersPages: 1,
+  adminOrdersCurrentPage: 1,
+  adminOrdersAnalytics: {
+    totalRevenue: 0,
+    totalOrdersCount: 0,
+    processingCount: 0,
+    shippedCount: 0,
+    deliveredCount: 0,
+  },
+  adminOrdersLoading: false,
+  adminOrdersError: null,
+  adminOrderUpdating: false,
 };
 
 /*
@@ -172,11 +231,28 @@ const userAuthSlice = createSlice({
       state.usersError = null;
     },
 
+    clearOrdersError: (state) => {
+      state.myOrdersError = null;
+      state.orderError = null;
+      state.adminOrdersError = null;
+      state.adminDashboardError = null;
+    },
+
+    clearSelectedOrder: (state) => {
+      state.selectedOrder = null;
+    },
+
     logoutUser: (state) => {
       resetAuthState(state);
       state.allUsers = [];
       state.usersLoading = false;
       state.usersError = null;
+      state.myOrders = [];
+      state.myOrdersLoading = false;
+      state.myOrdersError = null;
+      state.selectedOrder = null;
+      state.adminOrders = [];
+      state.adminDashboardStats = initialState.adminDashboardStats;
       state.authInitialized = true;
       clearStoredUserAuth();
 
@@ -338,7 +414,7 @@ const userAuthSlice = createSlice({
 
       /*
       |--------------------------------------------------------------------------
-      | FETCH ALL USERS (ADMIN / USER LIST)
+      | FETCH ALL USERS (ADMIN)
       |--------------------------------------------------------------------------
       */
       .addCase(fetchAllUsers.pending, (state) => {
@@ -356,6 +432,160 @@ const userAuthSlice = createSlice({
           action.payload ||
           action.error?.message ||
           "Failed to fetch users list.";
+      })
+
+      /*
+      |--------------------------------------------------------------------------
+      | FETCH MY ORDERS (CUSTOMER)
+      |--------------------------------------------------------------------------
+      */
+      .addCase(fetchMyOrders.pending, (state) => {
+        state.myOrdersLoading = true;
+        state.myOrdersError = null;
+      })
+      .addCase(fetchMyOrders.fulfilled, (state, action) => {
+        state.myOrdersLoading = false;
+        state.myOrders = action.payload || [];
+        state.myOrdersError = null;
+      })
+      .addCase(fetchMyOrders.rejected, (state, action) => {
+        state.myOrdersLoading = false;
+        state.myOrdersError =
+          action.payload || action.error?.message || "Failed to fetch orders.";
+      })
+
+      /*
+      |--------------------------------------------------------------------------
+      | FETCH ORDER DETAILS (CUSTOMER & ADMIN)
+      |--------------------------------------------------------------------------
+      */
+      .addCase(fetchOrderDetails.pending, (state) => {
+        state.orderLoading = true;
+        state.orderError = null;
+      })
+      .addCase(fetchOrderDetails.fulfilled, (state, action) => {
+        state.orderLoading = false;
+        state.selectedOrder = action.payload || null;
+        state.orderError = null;
+      })
+      .addCase(fetchOrderDetails.rejected, (state, action) => {
+        state.orderLoading = false;
+        state.orderError =
+          action.payload || action.error?.message || "Failed to fetch order details.";
+      })
+
+      /*
+      |--------------------------------------------------------------------------
+      | FETCH ADMIN DASHBOARD STATS
+      |--------------------------------------------------------------------------
+      */
+      .addCase(fetchAdminDashboardStats.pending, (state) => {
+        state.adminDashboardLoading = true;
+        state.adminDashboardError = null;
+      })
+      .addCase(fetchAdminDashboardStats.fulfilled, (state, action) => {
+        state.adminDashboardLoading = false;
+        state.adminDashboardStats = {
+          counts: action.payload?.counts || initialState.adminDashboardStats.counts,
+          recentActivities:
+            action.payload?.recentActivities ||
+            initialState.adminDashboardStats.recentActivities,
+        };
+        state.adminDashboardError = null;
+      })
+      .addCase(fetchAdminDashboardStats.rejected, (state, action) => {
+        state.adminDashboardLoading = false;
+        state.adminDashboardError =
+          action.payload ||
+          action.error?.message ||
+          "Failed to fetch dashboard statistics.";
+      })
+
+      /*
+      |--------------------------------------------------------------------------
+      | FETCH ALL ORDERS ADMIN
+      |--------------------------------------------------------------------------
+      */
+      .addCase(fetchAllOrdersAdmin.pending, (state) => {
+        state.adminOrdersLoading = true;
+        state.adminOrdersError = null;
+      })
+      .addCase(fetchAllOrdersAdmin.fulfilled, (state, action) => {
+        state.adminOrdersLoading = false;
+        state.adminOrders = action.payload?.orders || [];
+        state.adminOrdersTotal = action.payload?.totalOrders || 0;
+        state.adminOrdersPages = action.payload?.totalPages || 1;
+        state.adminOrdersCurrentPage = action.payload?.currentPage || 1;
+        if (action.payload?.analytics) {
+          state.adminOrdersAnalytics = action.payload.analytics;
+        }
+        state.adminOrdersError = null;
+      })
+      .addCase(fetchAllOrdersAdmin.rejected, (state, action) => {
+        state.adminOrdersLoading = false;
+        state.adminOrdersError =
+          action.payload || action.error?.message || "Failed to fetch admin orders.";
+      })
+
+      /*
+      |--------------------------------------------------------------------------
+      | FETCH ADMIN ORDER DETAILS
+      |--------------------------------------------------------------------------
+      */
+      .addCase(fetchAdminOrderDetails.pending, (state) => {
+        state.orderLoading = true;
+        state.orderError = null;
+      })
+      .addCase(fetchAdminOrderDetails.fulfilled, (state, action) => {
+        state.orderLoading = false;
+        state.selectedOrder = action.payload || null;
+        state.orderError = null;
+      })
+      .addCase(fetchAdminOrderDetails.rejected, (state, action) => {
+        state.orderLoading = false;
+        state.orderError =
+          action.payload || action.error?.message || "Failed to fetch admin order details.";
+      })
+
+      /*
+      |--------------------------------------------------------------------------
+      | UPDATE ORDER STATUS ADMIN
+      |--------------------------------------------------------------------------
+      */
+      .addCase(updateOrderStatusAdmin.pending, (state) => {
+        state.adminOrderUpdating = true;
+      })
+      .addCase(updateOrderStatusAdmin.fulfilled, (state, action) => {
+        state.adminOrderUpdating = false;
+        const updatedOrder = action.payload?.order;
+        if (updatedOrder) {
+          state.adminOrders = state.adminOrders.map((order) =>
+            order._id === updatedOrder._id ? updatedOrder : order
+          );
+          if (state.selectedOrder?._id === updatedOrder._id) {
+            state.selectedOrder = updatedOrder;
+          }
+        }
+      })
+      .addCase(updateOrderStatusAdmin.rejected, (state, action) => {
+        state.adminOrderUpdating = false;
+        state.adminOrdersError =
+          action.payload || action.error?.message || "Failed to update status.";
+      })
+
+      /*
+      |--------------------------------------------------------------------------
+      | DELETE ORDER ADMIN
+      |--------------------------------------------------------------------------
+      */
+      .addCase(deleteOrderAdmin.fulfilled, (state, action) => {
+        const deletedId = action.payload?.orderId;
+        if (deletedId) {
+          state.adminOrders = state.adminOrders.filter(
+            (order) => order._id !== deletedId
+          );
+          state.adminOrdersTotal = Math.max(0, state.adminOrdersTotal - 1);
+        }
       });
   },
 });
@@ -369,6 +599,8 @@ const userAuthSlice = createSlice({
 export const {
   clearUserAuthError,
   clearUsersError,
+  clearOrdersError,
+  clearSelectedOrder,
   logoutUser,
   setUserAuth,
   updateCurrentUser,
@@ -381,29 +613,68 @@ export const {
 */
 
 export const selectUser = (state) => state.userAuth?.user || null;
-
 export const selectUserToken = (state) => state.userAuth?.token || null;
-
 export const selectUserAuthenticated = (state) =>
   Boolean(state.userAuth?.isAuthenticated);
-
 export const selectUserAuthLoading = (state) =>
   Boolean(state.userAuth?.loading);
-
 export const selectGoogleAuthLoading = (state) =>
   Boolean(state.userAuth?.googleLoading);
-
 export const selectUserAuthInitialized = (state) =>
   state.userAuth?.authInitialized ?? true;
-
 export const selectUserAuthError = (state) => state.userAuth?.error || null;
 
-// All Users Selectors
+// Users Selectors
 export const selectAllUsers = (state) => state.userAuth?.allUsers || [];
 export const selectAllUsersLoading = (state) =>
   Boolean(state.userAuth?.usersLoading);
 export const selectAllUsersError = (state) =>
   state.userAuth?.usersError || null;
+
+// Customer Orders Selectors
+export const selectMyOrders = (state) => state.userAuth?.myOrders || [];
+export const selectMyOrdersLoading = (state) =>
+  Boolean(state.userAuth?.myOrdersLoading);
+export const selectMyOrdersError = (state) =>
+  state.userAuth?.myOrdersError || null;
+
+// Single Order Breakdown Selectors
+export const selectSelectedOrder = (state) =>
+  state.userAuth?.selectedOrder || null;
+export const selectOrderLoading = (state) =>
+  Boolean(state.userAuth?.orderLoading);
+export const selectOrderError = (state) =>
+  state.userAuth?.orderError || null;
+
+// Admin Dashboard Stats Selectors
+export const selectAdminDashboardStats = (state) =>
+  state.userAuth?.adminDashboardStats || {};
+export const selectAdminDashboardCounts = (state) =>
+  state.userAuth?.adminDashboardStats?.counts || {};
+export const selectAdminDashboardActivities = (state) =>
+  state.userAuth?.adminDashboardStats?.recentActivities || {};
+export const selectAdminDashboardLoading = (state) =>
+  Boolean(state.userAuth?.adminDashboardLoading);
+export const selectAdminDashboardError = (state) =>
+  state.userAuth?.adminDashboardError || null;
+
+// Admin Orders Management Selectors
+export const selectAdminOrders = (state) =>
+  state.userAuth?.adminOrders || [];
+export const selectAdminOrdersTotal = (state) =>
+  state.userAuth?.adminOrdersTotal || 0;
+export const selectAdminOrdersPages = (state) =>
+  state.userAuth?.adminOrdersPages || 1;
+export const selectAdminOrdersCurrentPage = (state) =>
+  state.userAuth?.adminOrdersCurrentPage || 1;
+export const selectAdminOrdersAnalytics = (state) =>
+  state.userAuth?.adminOrdersAnalytics || {};
+export const selectAdminOrdersLoading = (state) =>
+  Boolean(state.userAuth?.adminOrdersLoading);
+export const selectAdminOrdersError = (state) =>
+  state.userAuth?.adminOrdersError || null;
+export const selectAdminOrderUpdating = (state) =>
+  Boolean(state.userAuth?.adminOrderUpdating);
 
 /*
 |--------------------------------------------------------------------------

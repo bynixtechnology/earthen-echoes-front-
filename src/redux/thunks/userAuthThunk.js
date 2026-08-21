@@ -47,29 +47,10 @@ const normalizeAuthResponse = (response) => {
 
 /*
 |--------------------------------------------------------------------------
-| Fetch All Users (Admin / User List)
+| 1. AUTHENTICATION THUNKS
 |--------------------------------------------------------------------------
 */
-export const fetchAllUsers = createAsyncThunk(
-  "userAuth/fetchAllUsers",
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await UserAuthService.getAllUsers();
-      const data = response?.data || response;
-      return data.users || [];
-    } catch (error) {
-      return rejectWithValue(
-        getErrorMessage(error, "Unable to fetch users list.")
-      );
-    }
-  }
-);
 
-/*
-|--------------------------------------------------------------------------
-| Register User
-|--------------------------------------------------------------------------
-*/
 export const registerUser = createAsyncThunk(
   "userAuth/register",
   async ({ name, email, password }, { dispatch, rejectWithValue }) => {
@@ -114,7 +95,7 @@ export const registerUser = createAsyncThunk(
         return rejectWithValue("Invalid customer account.");
       }
 
-      // 🟢 AUTO MERGE & FETCH CART ON REGISTER
+      // Auto merge & fetch cart on register
       try {
         await dispatch(mergeGuestCartThunk()).unwrap();
       } catch (mergeErr) {
@@ -138,11 +119,6 @@ export const registerUser = createAsyncThunk(
   }
 );
 
-/*
-|--------------------------------------------------------------------------
-| User Login
-|--------------------------------------------------------------------------
-*/
 export const loginUser = createAsyncThunk(
   "userAuth/login",
   async ({ email, password }, { dispatch, rejectWithValue }) => {
@@ -174,7 +150,7 @@ export const loginUser = createAsyncThunk(
         return rejectWithValue("Please use the admin login portal.");
       }
 
-      // 🟢 AUTO MERGE & FETCH CART ON LOGIN
+      // Auto merge & fetch cart on login
       try {
         await dispatch(mergeGuestCartThunk()).unwrap();
       } catch (mergeErr) {
@@ -192,11 +168,6 @@ export const loginUser = createAsyncThunk(
   }
 );
 
-/*
-|--------------------------------------------------------------------------
-| Google Login / Registration
-|--------------------------------------------------------------------------
-*/
 export const googleLoginUser = createAsyncThunk(
   "userAuth/googleLogin",
   async (credential, { dispatch, rejectWithValue }) => {
@@ -218,7 +189,7 @@ export const googleLoginUser = createAsyncThunk(
         return rejectWithValue("Admin accounts cannot use customer login.");
       }
 
-      // 🟢 AUTO MERGE & FETCH CART ON GOOGLE LOGIN
+      // Auto merge & fetch cart on Google login
       try {
         await dispatch(mergeGuestCartThunk()).unwrap();
       } catch (mergeErr) {
@@ -244,9 +215,10 @@ export const googleLoginUser = createAsyncThunk(
 
 /*
 |--------------------------------------------------------------------------
-| Get User Profile
+| 2. USER PROFILE THUNKS
 |--------------------------------------------------------------------------
 */
+
 export const getUserProfile = createAsyncThunk(
   "userAuth/getProfile",
   async (_, { rejectWithValue }) => {
@@ -262,11 +234,6 @@ export const getUserProfile = createAsyncThunk(
   }
 );
 
-/*
-|--------------------------------------------------------------------------
-| Update Profile
-|--------------------------------------------------------------------------
-*/
 export const updateUserProfile = createAsyncThunk(
   "userAuth/updateProfile",
   async (data, { rejectWithValue }) => {
@@ -282,11 +249,6 @@ export const updateUserProfile = createAsyncThunk(
   }
 );
 
-/*
-|--------------------------------------------------------------------------
-| Change Password
-|--------------------------------------------------------------------------
-*/
 export const changePassword = createAsyncThunk(
   "userAuth/changePassword",
   async (data, { rejectWithValue }) => {
@@ -296,6 +258,138 @@ export const changePassword = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(
         getErrorMessage(error, "Unable to change password.")
+      );
+    }
+  }
+);
+
+/*
+|--------------------------------------------------------------------------
+| 3. USER ORDERS THUNKS (Customer View)
+|--------------------------------------------------------------------------
+*/
+
+export const fetchMyOrders = createAsyncThunk(
+  "userAuth/fetchMyOrders",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await UserAuthService.getMyOrders();
+      const data = response?.data || response;
+      return data.orders || [];
+    } catch (error) {
+      return rejectWithValue(
+        getErrorMessage(error, "Unable to fetch your orders.")
+      );
+    }
+  }
+);
+
+export const fetchOrderDetails = createAsyncThunk(
+  "userAuth/fetchOrderDetails",
+  async (orderId, { rejectWithValue }) => {
+    try {
+      const response = await UserAuthService.getOrderDetails(orderId);
+      const data = response?.data || response;
+      return data.order || null;
+    } catch (error) {
+      return rejectWithValue(
+        getErrorMessage(error, "Unable to fetch order details.")
+      );
+    }
+  }
+);
+
+/*
+|--------------------------------------------------------------------------
+| 4. ADMIN MANAGEMENT & ORDER TRACKING THUNKS
+|--------------------------------------------------------------------------
+*/
+
+export const fetchAllUsers = createAsyncThunk(
+  "userAuth/fetchAllUsers",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await UserAuthService.getAllUsers();
+      const data = response?.data || response;
+      return data.users || [];
+    } catch (error) {
+      return rejectWithValue(
+        getErrorMessage(error, "Unable to fetch users list.")
+      );
+    }
+  }
+);
+
+export const fetchAdminDashboardStats = createAsyncThunk(
+  "userAuth/fetchAdminDashboardStats",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await UserAuthService.getAdminDashboardStats();
+      const result = response?.data || response;
+      return result.data || result;
+    } catch (error) {
+      return rejectWithValue(
+        getErrorMessage(error, "Unable to fetch admin dashboard statistics.")
+      );
+    }
+  }
+);
+
+export const fetchAllOrdersAdmin = createAsyncThunk(
+  "userAuth/fetchAllOrdersAdmin",
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const response = await UserAuthService.getAllOrdersAdmin(params);
+      return response?.data || response;
+    } catch (error) {
+      return rejectWithValue(
+        getErrorMessage(error, "Unable to fetch admin orders.")
+      );
+    }
+  }
+);
+
+export const fetchAdminOrderDetails = createAsyncThunk(
+  "userAuth/fetchAdminOrderDetails",
+  async (orderId, { rejectWithValue }) => {
+    try {
+      const response = await UserAuthService.getAdminOrderDetails(orderId);
+      const data = response?.data || response;
+      return data.order || null;
+    } catch (error) {
+      return rejectWithValue(
+        getErrorMessage(error, "Unable to fetch order breakdown.")
+      );
+    }
+  }
+);
+
+export const updateOrderStatusAdmin = createAsyncThunk(
+  "userAuth/updateOrderStatusAdmin",
+  async ({ orderId, statusData }, { rejectWithValue }) => {
+    try {
+      const response = await UserAuthService.updateOrderStatusAdmin(
+        orderId,
+        statusData
+      );
+      return response?.data || response;
+    } catch (error) {
+      return rejectWithValue(
+        getErrorMessage(error, "Unable to update order delivery status.")
+      );
+    }
+  }
+);
+
+export const deleteOrderAdmin = createAsyncThunk(
+  "userAuth/deleteOrderAdmin",
+  async (orderId, { rejectWithValue }) => {
+    try {
+      const response = await UserAuthService.deleteOrderAdmin(orderId);
+      return { orderId, ...(response?.data || response) };
+    } catch (error) {
+      return rejectWithValue(
+        getErrorMessage(error, "Unable to delete order.")
       );
     }
   }

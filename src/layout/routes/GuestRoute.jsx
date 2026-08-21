@@ -31,7 +31,7 @@ const GuestRoute = () => {
 
   // If already logged in -> Redirect based on role
   if (user?.role === "admin") {
-    return <Navigate to="/admin/product" replace />;
+    return <Navigate to="/admin/dashboard" replace />;
   }
 
   return <Navigate to="/user/profile" replace />;
