@@ -123,7 +123,7 @@ const AboutJourney = () => {
           }}
         >
           <img
-            src="https://uxmagic.blob.core.windows.net/public/agent-images/hero-banner-1783060832865-za7ect3yr5n.png"
+          src="/about8.jpeg"
             alt="Earthen Echoes Clay Pottery"
             className="w-full h-[380px] sm:h-[450px] lg:h-[520px] object-cover"
           />
