@@ -7,8 +7,8 @@ const columnsData = [
   [
     {
       id: 1,
-      imageSrc: "/insta-2.jpg",
-      postUrl: "https://www.instagram.com/p/DXQyZIXkhAg/?utm_source=ig_web_copy_link&igsi=MzRlODBiNWFlZA==",
+      imageSrc: "/insta-14.jpg",
+      postUrl: "https://www.instagram.com/p/DXgJ-58kihc/?utm_source=ig_web_copy_link&igsi=MzRlODBiNWFlZA==",
       handle: "@earthen.echoes.jaipur",
     },
     {
@@ -38,8 +38,8 @@ const columnsData = [
     },
     {
       id: 5,
-      imageSrc: "/insta-7.jpg",
-      postUrl: "https://www.instagram.com/p/DXizd1Ckt2m/?utm_source=ig_web_copy_link&igsi=MzRlODBiNWFlZA==",
+      imageSrc: "/insta-15.jpg",
+      postUrl: "https://www.instagram.com/p/DYSjEfDEgJh/?utm_source=ig_web_copy_link&igsi=MzRlODBiNWFlZA==",
       handle: "@earthen.echoes.jaipur",
     },
   ],
@@ -70,6 +70,24 @@ const columnsData = [
   ],
 ];
 
+function InstagramIcon({ size = 26 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#FFFFFF"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+    </svg>
+  );
+}
 
 function GalleryCard({ item, isMobile }) {
   const [h, setH] = useState(false);
@@ -107,6 +125,41 @@ function GalleryCard({ item, isMobile }) {
           transform: h ? "scale(1.06)" : "scale(1)",
         }}
       />
+
+      {/* Dark tint overlay on hover */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "rgba(0, 0, 0, 0.28)",
+          opacity: h ? 1 : 0,
+          transition: "opacity 0.35s ease",
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* Centered Instagram Gradient Badge */}
+      <div
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          width: isMobile ? 48 : 54,
+          height: isMobile ? 48 : 54,
+          borderRadius: "50%",
+          background: "linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 8px 20px rgba(0, 0, 0, 0.25)",
+          opacity: h ? 1 : 0,
+          transform: h ? "translate(-50%, -50%) scale(1)" : "translate(-50%, -50%) scale(0.6)",
+          transition: "transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease",
+          pointerEvents: "none",
+        }}
+      >
+        <InstagramIcon size={isMobile ? 22 : 26} />
+      </div>
     </a>
   );
 }

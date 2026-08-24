@@ -748,14 +748,14 @@ const ProductCard = () => {
 
                 {/* Mid-Grid Banner */}
                 {products.length > 6 && (
-                  <div className="col-span-full relative rounded-3xl overflow-hidden min-h-[260px]">
+                  <div className="col-span-full relative rounded-3xl overflow-hidden min-h-[350px]">
                     <img
-                      src="https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=1200"
+                      src="/productheroimage.png"
                       alt=""
                       className="absolute inset-0 w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-black/55" />
-                    <div className="relative z-10 h-full flex flex-col lg:flex-row items-center justify-between p-10">
+                    
+                    {/* <div className="relative z-10 h-full flex flex-col lg:flex-row items-center justify-between p-10">
                       <div>
                         <p className="uppercase tracking-[4px] text-white/70 text-sm mb-2">
                           Artisan Collection
@@ -776,7 +776,7 @@ const ProductCard = () => {
                       >
                         Explore Collection →
                       </button>
-                    </div>
+                    </div> */}
                   </div>
                 )}
 
@@ -1258,30 +1258,7 @@ const ProductGallery = ({
               "
             />
 
-            {/* DISCOUNT BADGE */}
-            {product?.discountPercentage > 0 && (
-              <span
-                className="
-                  absolute
-                  top-3
-                  left-3
-                  sm:top-4
-                  sm:left-4
-                  bg-white
-                  text-[#EF3D7A]
-                  text-[12px]
-                  sm:text-[14px]
-                  font-bold
-                  px-3
-                  py-1.5
-                  rounded-full
-                  shadow-sm
-                  z-10
-                "
-              >
-                -{product.discountPercentage}%
-              </span>
-            )}
+           
 
             {/* FEATURED / BEST SELLER BADGE */}
             {product?.isFeatured && (

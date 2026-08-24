@@ -8,8 +8,6 @@ const teamMembers = [
     role: "Master Wheeler (32 Years Exp.)",
     description:
       "Ram Lal has been throwing clay since age 12, specializing in large-scale decorative vases and urlis.",
-    image: "https://randomuser.me/api/portraits/men/32.jpg",
-    alt: "Artisan Ram Lal",
   },
   {
     id: 2,
@@ -17,26 +15,41 @@ const teamMembers = [
     role: "Lead Relief Carver",
     description:
       "Kamla Devi heads the women's carving group, detailing traditional patterns and motifs on the planters.",
-    image: "https://randomuser.me/api/portraits/women/65.jpg",
-    alt: "Artisan Kamla Devi",
-  },
-  {
-    id: 3,
-    name: "Shiv Charan",
-    role: "Kiln Master",
-    description:
-      "Shiv Charan monitors the traditional wood kilns, managing high temperatures to guarantee structural strength.",
-    image: "https://randomuser.me/api/portraits/men/81.jpg",
-    alt: "Artisan Shiv Charan",
   },
 ];
 
-const MeetTeam = () => {
+function DummyUserAvatar() {
   return (
-    <section
-      className="py-20"
-      style={{ background: C.ivory }}
+    <div
+      className="w-full h-full flex items-center justify-center transition-transform duration-500 hover:scale-105"
+      style={{
+        background: `linear-gradient(135deg, ${C.ivory} 0%, #E8E0D5 100%)`,
+      }}
     >
+      <svg
+        viewBox="0 0 120 120"
+        fill="none"
+        className="w-28 h-28"
+        style={{ color: C.coral }}
+      >
+        {/* User Head */}
+        <circle cx="60" cy="42" r="22" fill="currentColor" fillOpacity="0.85" />
+        {/* User Body */}
+        <path
+          d="M24 100 C24 74, 40 68, 60 68 C80 68, 96 74, 96 100 Z"
+          fill="currentColor"
+          fillOpacity="0.85"
+        />
+      </svg>
+    </div>
+  );
+}
+
+const MeetTeam = () => {
+  const isTwoMembers = teamMembers.length === 2;
+
+  return (
+    <section className="py-20" style={{ background: C.ivory }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Heading */}
         <div className="text-center max-w-xl mx-auto mb-16">
@@ -61,10 +74,7 @@ const MeetTeam = () => {
             Meet Our Master Artisans
           </h2>
 
-          <p
-            className="leading-8"
-            style={{ color: "#6B5B4E" }}
-          >
+          <p className="leading-8" style={{ color: "#6B5B4E" }}>
             The hands that mold the earth and breathe life into Earthen Echoes.
           </p>
 
@@ -77,7 +87,13 @@ const MeetTeam = () => {
         </div>
 
         {/* Team Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div
+          className={`grid grid-cols-1 sm:grid-cols-2 gap-8 ${
+            isTwoMembers
+              ? "lg:grid-cols-2 max-w-4xl mx-auto justify-center"
+              : "lg:grid-cols-3"
+          }`}
+        >
           {teamMembers.map((member) => (
             <div
               key={member.id}
@@ -89,11 +105,7 @@ const MeetTeam = () => {
               }}
             >
               <div className="aspect-square overflow-hidden">
-                <img
-                  src={member.image}
-                  alt={member.alt}
-                  className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-                />
+                <DummyUserAvatar />
               </div>
 
               <div className="p-6 text-center">

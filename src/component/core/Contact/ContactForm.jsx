@@ -143,7 +143,7 @@ const ContactForm = () => {
                                 26.9116° N, 75.7365° E
                             </span>
                             <a
-                                href="https://maps.app.goo.gl/8XY6rGPBQY8UPAh6A"
+                                href="https://www.google.com/maps/dir//Kumhari+Pottery+Jaipur,+A-457,+Nemi+Nagar+Extension,+Block+A,+Vaishali+Nagar,+Jaipur,+Rajasthan+302021/@26.8852108,75.7905578,11z/data=!4m8!4m7!1m0!1m5!1m1!1s0x396db5c74b1491c1:0xc7ccf82cc7545d74!2m2!1d75.736465!2d26.911584?entry=ttu&g_ep=EgoyMDI2MDgxOS4wIKXMDSoASAFQAw%3D%3D"
                                 target="_blank"
                                 rel="noreferrer"
                                 className="px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded hover:opacity-90 transition-all"

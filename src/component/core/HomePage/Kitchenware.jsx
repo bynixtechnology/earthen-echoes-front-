@@ -695,7 +695,7 @@ const KitchenwareCard = ({
             >
               <span
                 style={{
-                  fontFamily: "'Playfair Display', serif",
+                
                   fontSize: isMobile ? 16 : 20,
                   fontWeight: 700,
                   color: C?.dark || "#1C1208",

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { C } from "../../../constants/theme";
 
 const testimonials = [
@@ -149,6 +149,8 @@ function Card({ t, isMobile }) {
 export default function CustomerReviews() {
   const [cols, setCols] = useState(3);
   const [isMobile, setIsMobile] = useState(false);
+  const scrollRef = useRef(null);
+  const isInteracting = useRef(false);
 
   useEffect(() => {
     const f = () => {
@@ -160,6 +162,27 @@ export default function CustomerReviews() {
     window.addEventListener("resize", f);
     return () => window.removeEventListener("resize", f);
   }, []);
+
+  // Automatic Smooth Scroll for Mobile View
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const interval = setInterval(() => {
+      if (scrollRef.current && !isInteracting.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+        const cardStep = 292; // 280px card width + 12px gap
+
+        // Check if reaching the end; loop back to start or scroll next
+        if (scrollLeft + clientWidth >= scrollWidth - 10) {
+          scrollRef.current.scrollTo({ left: 0, behavior: "smooth" });
+        } else {
+          scrollRef.current.scrollBy({ left: cardStep, behavior: "smooth" });
+        }
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [isMobile]);
 
   return (
     <section style={{ padding: isMobile ? "60px 0" : "100px 40px", background: C.ivory, overflow: "hidden" }}>
@@ -212,12 +235,16 @@ export default function CustomerReviews() {
         {/* Mobile View: Horizontal Scroll */}
         {isMobile ? (
           <div
+            ref={scrollRef}
             className="hide-scrollbar"
+            onTouchStart={() => { isInteracting.current = true; }}
+            onTouchEnd={() => { isInteracting.current = false; }}
             style={{
               display: "flex",
               gap: 12,
               overflowX: "auto",
               scrollSnapType: "x mandatory",
+              scrollBehavior: "smooth",
               paddingBottom: 12,
               marginLeft: -16,
               marginRight: -16,
