@@ -10,6 +10,7 @@ import Gallery from '../../core/HomePage/Gallery'
 import Newsletter from '../../core/HomePage/Newsletter'
 import Sustainability from '../../core/HomePage/Sustainability'
 import Kitchenware from '../../core/HomePage/Kitchenware' 
+import InstagramReels from '../../core/HomePage/InstagramReels'
 
 const Home = () => {
   return (
@@ -41,8 +42,14 @@ const Home = () => {
       {/* Customer Reviews */}
       <CustomerReviews />
 
+
+      {/* instagram reels */}
+      <InstagramReels/>
+
       {/* Gallery */}
       <Gallery />
+
+      
 
       {/* Newsletter */}
       <Newsletter />

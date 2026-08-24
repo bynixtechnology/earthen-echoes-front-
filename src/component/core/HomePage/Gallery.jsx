@@ -13,8 +13,8 @@ const columnsData = [
     },
     {
       id: 2,
-      imageSrc: "/insta-3.jpg",
-      postUrl: "https://www.instagram.com/p/DZZX6KdEkyG/?utm_source=ig_web_copy_link&igsi=MzRlODBiNWFlZA==",
+      imageSrc: "/insta-18.jpg",
+      postUrl: "https://www.instagram.com/p/DRlpoZZkpB9/?utm_source=ig_web_copy_link&igsi=MzRlODBiNWFlZA==",
       handle: "@earthen.echoes.jaipur",
     },
   ],
@@ -32,8 +32,8 @@ const columnsData = [
   [
     {
       id: 4,
-      imageSrc: "/insta-6.jpg",
-      postUrl: "https://www.instagram.com/p/DXql9xMkj1w/?utm_source=ig_web_copy_link&igsi=MzRlODBiNWFlZA==",
+      imageSrc: "/insta-20.jpg",
+      postUrl: "https://www.instagram.com/p/DU7ZMrXkpF7/?utm_source=ig_web_copy_link&igsi=MzRlODBiNWFlZA==",
       handle: "@earthen.echoes.jaipur",
     },
     {
@@ -63,8 +63,8 @@ const columnsData = [
     },
     {
       id: 8,
-      imageSrc: "/insta-10.jpg",
-      postUrl: "https://www.instagram.com/p/Dae4Slrktkw/?utm_source=ig_web_copy_link&igsi=MzRlODBiNWFlZA==",
+      imageSrc: "/insta-19.jpg",
+      postUrl: "https://www.instagram.com/p/DVBCQFbEjd_/?utm_source=ig_web_copy_link&igsi=MzRlODBiNWFlZA==",
       handle: "@earthen.echoes.jaipur",
     },
   ],

@@ -615,8 +615,9 @@ const KitchenwareCard = ({
             </span>
           </div>
 
-          {/* Title */}
+          {/* Title - 2 lines limit with ellipsis (...) */}
           <h3
+            title={product.title || product.name}
             style={{
               fontSize: isMobile ? 13 : 15,
               fontWeight: 600,
@@ -627,6 +628,8 @@ const KitchenwareCard = ({
               WebkitLineClamp: 2,
               WebkitBoxOrient: "vertical",
               overflow: "hidden",
+              textOverflow: "ellipsis",
+              minHeight: isMobile ? "2.7em" : "auto",
             }}
           >
             {product.title || product.name}
@@ -695,7 +698,6 @@ const KitchenwareCard = ({
             >
               <span
                 style={{
-                
                   fontSize: isMobile ? 16 : 20,
                   fontWeight: 700,
                   color: C?.dark || "#1C1208",

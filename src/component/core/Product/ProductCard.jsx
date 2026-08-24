@@ -746,37 +746,14 @@ const ProductCard = () => {
                   />
                 ))}
 
-                {/* Mid-Grid Banner */}
+                {/* Mid-Grid Banner (Hidden on mobile) */}
                 {products.length > 6 && (
-                  <div className="col-span-full relative rounded-3xl overflow-hidden min-h-[350px]">
+                  <div className="hidden md:block col-span-full relative rounded-3xl overflow-hidden min-h-[350px]">
                     <img
                       src="/productheroimage.png"
                       alt=""
                       className="absolute inset-0 w-full h-full object-cover"
                     />
-                    
-                    {/* <div className="relative z-10 h-full flex flex-col lg:flex-row items-center justify-between p-10">
-                      <div>
-                        <p className="uppercase tracking-[4px] text-white/70 text-sm mb-2">
-                          Artisan Collection
-                        </p>
-                        <h2 className="text-4xl font-bold text-white mb-4">
-                          Crafted by Hands
-                        </h2>
-                        <p className="text-white/80 max-w-xl">
-                          Every handcrafted terracotta product tells a story of
-                          skilled artisans from Rajasthan.
-                        </p>
-                      </div>
-                      <button
-                        className="mt-6 lg:mt-0 px-8 py-3 rounded-full text-white font-semibold shadow-xl hover:scale-105 transition"
-                        style={{
-                          background: `linear-gradient(135deg, ${CORAL}, #E85520)`,
-                        }}
-                      >
-                        Explore Collection →
-                      </button>
-                    </div> */}
                   </div>
                 )}
 
@@ -1119,18 +1096,15 @@ const ProductGallery = ({
 
   // Image Fallback Logic: Variant Images -> Main Images -> Placeholder
   const image1 = useMemo(() => {
-    // 1. If product has variants, check selected variant images
     if (product?.hasVariants && Array.isArray(product?.variants) && product.variants.length > 0) {
       const activeVariant = product.variants[selectedVariantIndex] || product.variants[0];
       const variantImg = getImageUrl(activeVariant?.images?.[0]);
       if (variantImg) return variantImg;
     }
 
-    // 2. Check main product images
     const mainImg = getImageUrl(product?.images?.[0]);
     if (mainImg) return mainImg;
 
-    // 3. Fallback placeholder
     return "/placeholder.png";
   }, [product, selectedVariantIndex]);
 
@@ -1186,7 +1160,6 @@ const ProductGallery = ({
     };
   };
 
-  // Resolve slug identifier with fallback to _id
   const productSlug = product?.slug || product?._id;
 
   return (
@@ -1257,8 +1230,6 @@ const ProductGallery = ({
                 duration-300
               "
             />
-
-           
 
             {/* FEATURED / BEST SELLER BADGE */}
             {product?.isFeatured && (

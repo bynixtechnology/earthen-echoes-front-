@@ -501,7 +501,7 @@ const BestSellerCard = ({
 
       <div
         style={{
-          padding: "18px 20px 22px",
+          padding: isMobile ? "12px 14px 16px" : "18px 20px 22px",
           background: "#fff",
           display: "flex",
           flexDirection: "column",
@@ -517,11 +517,19 @@ const BestSellerCard = ({
           </div>
 
           <h3
+            title={product.title || product.name}
             style={{
-              fontSize: 15,
+              fontSize: isMobile ? 14 : 15,
               fontWeight: 600,
               color: C.dark,
               margin: "0 0 8px",
+              display: "-webkit-box",
+              WebkitLineClamp: isMobile ? 2 : "unset",
+              WebkitBoxOrient: "vertical",
+              overflow: isMobile ? "hidden" : "visible",
+              textOverflow: isMobile ? "ellipsis" : "unset",
+              lineHeight: "1.3",
+              minHeight: isMobile ? "2.6em" : "auto",
             }}
           >
             {product.title || product.name}
@@ -561,13 +569,13 @@ const BestSellerCard = ({
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 18, fontWeight: 700, color: C.dark }}>
+          <span style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: C.dark }}>
             ₹{price.toLocaleString("en-IN")}
           </span>
           {originalPrice > price && (
             <span
               style={{
-                fontSize: 13,
+                fontSize: isMobile ? 12 : 13,
                 color: "#999",
                 textDecoration: "line-through",
               }}
