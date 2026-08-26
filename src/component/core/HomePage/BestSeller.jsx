@@ -424,25 +424,7 @@ const BestSellerCard = ({
           }}
         />
 
-        {/* Discount Badge */}
-        {discount > 0 && (
-          <span
-            style={{
-              position: "absolute",
-              top: 12,
-              left: 12,
-              background: C.raspberry || "#E44587",
-              color: "#fff",
-              fontSize: 11,
-              fontWeight: 700,
-              padding: "4px 8px",
-              borderRadius: 12,
-              zIndex: 2,
-            }}
-          >
-            -{discount}%
-          </span>
-        )}
+       
 
         <button
           type="button"

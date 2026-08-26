@@ -481,25 +481,7 @@ const KitchenwareCard = ({
           }}
         />
 
-        {/* Discount */}
-        {discount > 0 && (
-          <div
-            style={{
-              position: "absolute",
-              top: isMobile ? 10 : 14,
-              right: isMobile ? 10 : 14,
-              background: C?.raspberry || "#E11D48",
-              color: "#fff",
-              padding: isMobile ? "4px 8px" : "6px 12px",
-              borderRadius: 50,
-              fontSize: isMobile ? 10 : 11,
-              fontWeight: 700,
-              zIndex: 2,
-            }}
-          >
-            -{discount}%
-          </div>
-        )}
+       
 
         {/* Wishlist Button */}
         <button

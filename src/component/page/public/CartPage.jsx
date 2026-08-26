@@ -251,9 +251,22 @@ export default function CartPage() {
 
   /*
   |--------------------------------------------------------------------------
-  | HELPERS - TITLE, PRICE & IMAGE RESOLUTION
+  | HELPERS - SLUG, TITLE, PRICE & IMAGE RESOLUTION
   |--------------------------------------------------------------------------
   */
+  const getItemSlug = (item) => {
+    if (typeof item?.productId === "object" && item?.productId !== null) {
+      return (
+        item.productId.slug ||
+        item.productId.handle ||
+        item.productId._id ||
+        item.productId.id ||
+        ""
+      );
+    }
+    return item?.slug || item?.productId || item?._id || item?.id || "";
+  };
+
   const getItemTitle = (item) => {
     if (typeof item?.productId === "object" && item?.productId !== null) {
       return (
@@ -458,6 +471,7 @@ export default function CartPage() {
                     ? item.productId._id || item.productId.id
                     : item?.productId || item?._id || item?.id;
 
+                const itemSlug = getItemSlug(item);
                 const itemTitle = getItemTitle(item);
                 const itemPrice = getItemPrice(item);
                 const itemImage = getItemImage(item);
@@ -486,7 +500,7 @@ export default function CartPage() {
                     {/* Product Meta */}
                     <div className="col-span-1 sm:col-span-6 flex gap-4 items-center">
                       <div className="w-20 h-20 sm:w-20 sm:h-20 flex-shrink-0 rounded-2xl overflow-hidden border border-gray-100 bg-[#FBF6F2]">
-                        <Link to={`/products/${itemProductId}`}>
+                        <Link to={`/products/${itemSlug}`}>
                           <img
                             src={itemImage}
                             alt={itemTitle}
@@ -501,7 +515,7 @@ export default function CartPage() {
 
                       <div className="flex flex-col justify-center min-w-0">
                         <Link
-                          to={`/products/${itemProductId}`}
+                          to={`/products/${itemSlug}`}
                           className="font-bold text-gray-900 text-sm sm:text-base line-clamp-2 hover:text-[#F16937] transition-colors"
                         >
                           {itemTitle}

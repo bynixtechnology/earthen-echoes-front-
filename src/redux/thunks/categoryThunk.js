@@ -3,9 +3,73 @@ import { CategoryService } from "../../services/categoryService";
 
 /*
 |--------------------------------------------------------------------------
-| Helper - Extract Error Message
+| GET Request Cache / In-Flight Deduplication Layer
+|--------------------------------------------------------------------------
+| - Request Cache (5-min TTL): Blocks duplicate calls if fresh data exists.
+| - In-Flight Set: Blocks multiple components from triggering identical calls.
+| - Cache Invalidation: Triggers on create, update, status change, and delete.
 |--------------------------------------------------------------------------
 */
+
+const CATEGORY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const categoryRequestCache = new Map();
+const categoryInFlightRequests = new Set();
+
+/*
+|--------------------------------------------------------------------------
+| Cache Helpers
+|--------------------------------------------------------------------------
+*/
+
+const stableSerialize = (value) => {
+  if (value === null || value === undefined) return "";
+  if (typeof value !== "object") return String(value);
+
+  if (Array.isArray(value)) {
+    return `[${value.map(stableSerialize).join(",")}]`;
+  }
+
+  return Object.keys(value)
+    .sort()
+    .map((key) => `${key}:${stableSerialize(value[key])}`)
+    .join("|");
+};
+
+const getCacheKey = (type, value = "") => {
+  return `categories:${type}:${stableSerialize(value)}`;
+};
+
+const getCachedValue = (key) => {
+  const cached = categoryRequestCache.get(key);
+  if (!cached) return null;
+
+  if (Date.now() - cached.timestamp > CATEGORY_CACHE_TTL) {
+    categoryRequestCache.delete(key);
+    return null;
+  }
+
+  return cached.data;
+};
+
+const setCachedValue = (key, data) => {
+  categoryRequestCache.set(key, {
+    data,
+    timestamp: Date.now(),
+  });
+};
+
+export const invalidateCategoryCache = () => {
+  categoryRequestCache.clear();
+  categoryInFlightRequests.clear();
+};
+
+/*
+|--------------------------------------------------------------------------
+| Response Extraction Helpers
+|--------------------------------------------------------------------------
+*/
+
 const getErrorMessage = (error, fallback) => {
   return (
     error?.response?.data?.message ||
@@ -15,11 +79,6 @@ const getErrorMessage = (error, fallback) => {
   );
 };
 
-/*
-|--------------------------------------------------------------------------
-| Helper - Extract Categories List
-|--------------------------------------------------------------------------
-*/
 const extractCategories = (response) => {
   const categories =
     response?.data?.categories ||
@@ -31,11 +90,6 @@ const extractCategories = (response) => {
   return Array.isArray(categories) ? categories : [];
 };
 
-/*
-|--------------------------------------------------------------------------
-| Helper - Extract Single Category
-|--------------------------------------------------------------------------
-*/
 const extractCategory = (response) => {
   return (
     response?.data?.category ||
@@ -47,11 +101,6 @@ const extractCategory = (response) => {
   );
 };
 
-/*
-|--------------------------------------------------------------------------
-| Helper - Extract Products List
-|--------------------------------------------------------------------------
-*/
 const extractProducts = (response) => {
   const products =
     response?.data?.products ||
@@ -62,13 +111,11 @@ const extractProducts = (response) => {
   return Array.isArray(products) ? products : [];
 };
 
-/*
-|--------------------------------------------------------------------------
-| Helper - Extract Normalized Pagination
-|--------------------------------------------------------------------------
-*/
 const extractPagination = (response, params = {}, fallbackTotal = 0) => {
-  const pagination = response?.pagination || response?.data?.pagination || {};
+  const pagination =
+    response?.pagination ||
+    response?.data?.pagination ||
+    {};
 
   const page =
     Number(
@@ -138,16 +185,21 @@ const extractPagination = (response, params = {}, fallbackTotal = 0) => {
 | FETCH ALL CATEGORIES
 |--------------------------------------------------------------------------
 */
+
 export const fetchCategories = createAsyncThunk(
   "categories/fetchCategories",
   async (params = {}, { rejectWithValue }) => {
-    try {
-      const requestParams = {
-        page: Number(params?.page) || 1,
-        limit: Number(params?.limit) || 10,
-        ...params,
-      };
+    const requestParams = {
+      page: Number(params?.page) || 1,
+      limit: Number(params?.limit) || 10,
+      ...params,
+    };
 
+    const cacheKey = getCacheKey("list", requestParams);
+    const cached = getCachedValue(cacheKey);
+    if (cached) return cached;
+
+    try {
       const response = await CategoryService.getAll(requestParams);
       const categories = extractCategories(response);
       const pagination = extractPagination(
@@ -156,7 +208,7 @@ export const fetchCategories = createAsyncThunk(
         categories.length
       );
 
-      return {
+      const result = {
         categories,
         results:
           Number(
@@ -179,12 +231,34 @@ export const fetchCategories = createAsyncThunk(
         hasNextPage: pagination.hasNextPage,
         hasPreviousPage: pagination.hasPreviousPage,
       };
+
+      setCachedValue(cacheKey, result);
+      return result;
     } catch (error) {
       console.error("FETCH CATEGORIES ERROR:", error);
       return rejectWithValue(
         getErrorMessage(error, "Unable to fetch categories.")
       );
+    } finally {
+      categoryInFlightRequests.delete(cacheKey);
     }
+  },
+  {
+    condition: (params = {}) => {
+      const requestParams = {
+        page: Number(params?.page) || 1,
+        limit: Number(params?.limit) || 10,
+        ...params,
+      };
+      const cacheKey = getCacheKey("list", requestParams);
+
+      if (getCachedValue(cacheKey) || categoryInFlightRequests.has(cacheKey)) {
+        return false;
+      }
+
+      categoryInFlightRequests.add(cacheKey);
+      return true;
+    },
   }
 );
 
@@ -193,14 +267,19 @@ export const fetchCategories = createAsyncThunk(
 | FETCH CATEGORY BY ID
 |--------------------------------------------------------------------------
 */
+
 export const fetchCategoryById = createAsyncThunk(
   "categories/fetchCategoryById",
   async (id, { rejectWithValue }) => {
-    try {
-      if (!id) {
-        return rejectWithValue("Category ID is required.");
-      }
+    if (!id) {
+      return rejectWithValue("Category ID is required.");
+    }
 
+    const cacheKey = getCacheKey("by-id", id);
+    const cached = getCachedValue(cacheKey);
+    if (cached) return cached;
+
+    try {
       const response = await CategoryService.getById(id);
       const category = extractCategory(response);
 
@@ -208,17 +287,35 @@ export const fetchCategoryById = createAsyncThunk(
         return rejectWithValue("Category not found.");
       }
 
-      return {
+      const result = {
         category,
         totalProducts: response?.data?.totalProducts ?? 0,
         activeProducts: response?.data?.activeProducts ?? 0,
       };
+
+      setCachedValue(cacheKey, result);
+      return result;
     } catch (error) {
       console.error("FETCH CATEGORY BY ID ERROR:", error);
       return rejectWithValue(
         getErrorMessage(error, "Unable to fetch category.")
       );
+    } finally {
+      categoryInFlightRequests.delete(cacheKey);
     }
+  },
+  {
+    condition: (id) => {
+      if (!id) return false;
+      const cacheKey = getCacheKey("by-id", id);
+
+      if (getCachedValue(cacheKey) || categoryInFlightRequests.has(cacheKey)) {
+        return false;
+      }
+
+      categoryInFlightRequests.add(cacheKey);
+      return true;
+    },
   }
 );
 
@@ -227,31 +324,56 @@ export const fetchCategoryById = createAsyncThunk(
 | FETCH CATEGORY BY SLUG
 |--------------------------------------------------------------------------
 */
+
 export const fetchCategoryBySlug = createAsyncThunk(
   "categories/fetchCategoryBySlug",
   async (slug, { rejectWithValue }) => {
-    try {
-      if (!slug || !slug.trim()) {
-        return rejectWithValue("Category slug is required.");
-      }
+    if (!slug || !slug.trim()) {
+      return rejectWithValue("Category slug is required.");
+    }
 
-      const response = await CategoryService.getBySlug(slug.trim());
+    const normalizedSlug = slug.trim();
+    const cacheKey = getCacheKey("by-slug", normalizedSlug);
+    const cached = getCachedValue(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const response = await CategoryService.getBySlug(normalizedSlug);
       const category = extractCategory(response);
 
       if (!category || typeof category !== "object") {
         return rejectWithValue("Category not found.");
       }
 
-      return {
+      const result = {
         category,
         totalProducts: response?.data?.totalProducts ?? 0,
       };
+
+      setCachedValue(cacheKey, result);
+      return result;
     } catch (error) {
       console.error("FETCH CATEGORY BY SLUG ERROR:", error);
       return rejectWithValue(
         getErrorMessage(error, "Unable to fetch category.")
       );
+    } finally {
+      categoryInFlightRequests.delete(cacheKey);
     }
+  },
+  {
+    condition: (slug) => {
+      if (!slug || !slug.trim()) return false;
+      const normalizedSlug = slug.trim();
+      const cacheKey = getCacheKey("by-slug", normalizedSlug);
+
+      if (getCachedValue(cacheKey) || categoryInFlightRequests.has(cacheKey)) {
+        return false;
+      }
+
+      categoryInFlightRequests.add(cacheKey);
+      return true;
+    },
   }
 );
 
@@ -260,20 +382,29 @@ export const fetchCategoryBySlug = createAsyncThunk(
 | FETCH CATEGORY PRODUCTS
 |--------------------------------------------------------------------------
 */
+
 export const fetchCategoryProducts = createAsyncThunk(
   "categories/fetchCategoryProducts",
   async ({ id, params = {} }, { rejectWithValue }) => {
+    if (!id) {
+      return rejectWithValue("Category ID is required.");
+    }
+
+    const requestParams = {
+      page: Number(params?.page) || 1,
+      limit: Number(params?.limit) || 12,
+      ...params,
+    };
+
+    const cacheKey = getCacheKey("products", {
+      id,
+      params: requestParams,
+    });
+
+    const cached = getCachedValue(cacheKey);
+    if (cached) return cached;
+
     try {
-      if (!id) {
-        return rejectWithValue("Category ID is required.");
-      }
-
-      const requestParams = {
-        page: Number(params?.page) || 1,
-        limit: Number(params?.limit) || 12,
-        ...params,
-      };
-
       const response = await CategoryService.getProducts(id, requestParams);
       const products = extractProducts(response);
       const pagination = extractPagination(
@@ -282,7 +413,7 @@ export const fetchCategoryProducts = createAsyncThunk(
         products.length
       );
 
-      return {
+      const result = {
         categoryId: id,
         products,
         results:
@@ -300,12 +431,40 @@ export const fetchCategoryProducts = createAsyncThunk(
         hasNextPage: pagination.hasNextPage,
         hasPreviousPage: pagination.hasPreviousPage,
       };
+
+      setCachedValue(cacheKey, result);
+      return result;
     } catch (error) {
       console.error("FETCH CATEGORY PRODUCTS ERROR:", error);
       return rejectWithValue(
         getErrorMessage(error, "Unable to fetch category products.")
       );
+    } finally {
+      categoryInFlightRequests.delete(cacheKey);
     }
+  },
+  {
+    condition: ({ id, params = {} } = {}) => {
+      if (!id) return false;
+
+      const requestParams = {
+        page: Number(params?.page) || 1,
+        limit: Number(params?.limit) || 12,
+        ...params,
+      };
+
+      const cacheKey = getCacheKey("products", {
+        id,
+        params: requestParams,
+      });
+
+      if (getCachedValue(cacheKey) || categoryInFlightRequests.has(cacheKey)) {
+        return false;
+      }
+
+      categoryInFlightRequests.add(cacheKey);
+      return true;
+    },
   }
 );
 
@@ -314,6 +473,7 @@ export const fetchCategoryProducts = createAsyncThunk(
 | CREATE CATEGORY
 |--------------------------------------------------------------------------
 */
+
 export const createCategory = createAsyncThunk(
   "categories/createCategory",
   async (formData, { rejectWithValue }) => {
@@ -323,6 +483,8 @@ export const createCategory = createAsyncThunk(
       }
 
       const response = await CategoryService.create(formData);
+      invalidateCategoryCache();
+
       const category = extractCategory(response);
 
       return {
@@ -346,6 +508,7 @@ export const createCategory = createAsyncThunk(
 | UPDATE CATEGORY
 |--------------------------------------------------------------------------
 */
+
 export const updateCategory = createAsyncThunk(
   "categories/updateCategory",
   async ({ id, data }, { rejectWithValue }) => {
@@ -359,6 +522,8 @@ export const updateCategory = createAsyncThunk(
       }
 
       const response = await CategoryService.update(id, data);
+      invalidateCategoryCache();
+
       const category = extractCategory(response);
 
       return {
@@ -383,6 +548,7 @@ export const updateCategory = createAsyncThunk(
 | UPDATE CATEGORY STATUS
 |--------------------------------------------------------------------------
 */
+
 export const updateCategoryStatus = createAsyncThunk(
   "categories/updateCategoryStatus",
   async ({ id, isActive }, { rejectWithValue }) => {
@@ -396,6 +562,8 @@ export const updateCategoryStatus = createAsyncThunk(
       }
 
       const response = await CategoryService.updateStatus(id, isActive);
+      invalidateCategoryCache();
+
       const category = extractCategory(response);
 
       return {
@@ -423,6 +591,7 @@ export const updateCategoryStatus = createAsyncThunk(
 | UPDATE CATEGORY FEATURED STATUS
 |--------------------------------------------------------------------------
 */
+
 export const updateCategoryFeaturedStatus = createAsyncThunk(
   "categories/updateCategoryFeaturedStatus",
   async ({ id, isFeatured }, { rejectWithValue }) => {
@@ -437,10 +606,9 @@ export const updateCategoryFeaturedStatus = createAsyncThunk(
         );
       }
 
-      const response = await CategoryService.updateFeaturedStatus(
-        id,
-        isFeatured
-      );
+      const response = await CategoryService.updateFeaturedStatus(id, isFeatured);
+      invalidateCategoryCache();
+
       const category = extractCategory(response);
 
       return {
@@ -468,6 +636,7 @@ export const updateCategoryFeaturedStatus = createAsyncThunk(
 | DELETE CATEGORY
 |--------------------------------------------------------------------------
 */
+
 export const deleteCategory = createAsyncThunk(
   "categories/deleteCategory",
   async (id, { rejectWithValue }) => {
@@ -477,6 +646,7 @@ export const deleteCategory = createAsyncThunk(
       }
 
       const response = await CategoryService.delete(id);
+      invalidateCategoryCache();
 
       return {
         id,
@@ -499,6 +669,7 @@ export const deleteCategory = createAsyncThunk(
 | EXPORT CATEGORIES EXCEL
 |--------------------------------------------------------------------------
 */
+
 export const exportCategoriesExcel = createAsyncThunk(
   "categories/exportCategoriesExcel",
   async (_, { rejectWithValue }) => {
@@ -519,6 +690,7 @@ export const exportCategoriesExcel = createAsyncThunk(
 | IMPORT CATEGORIES EXCEL
 |--------------------------------------------------------------------------
 */
+
 export const importCategoriesExcel = createAsyncThunk(
   "categories/importCategoriesExcel",
   async (file, { rejectWithValue }) => {
@@ -528,6 +700,7 @@ export const importCategoriesExcel = createAsyncThunk(
       }
 
       const response = await CategoryService.importExcel(file);
+      invalidateCategoryCache();
 
       return {
         imported: response?.imported || [],

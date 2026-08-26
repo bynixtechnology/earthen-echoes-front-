@@ -22,7 +22,7 @@ import {
 } from "../../../redux/slices/wishlistSlice";
 
 import { showToast } from "../../../config/toast";
-import { C, img } from "../../../constants/theme";
+import { C } from "../../../constants/theme";
 
 export default function WishlistPage() {
   const dispatch = useDispatch();
@@ -82,7 +82,7 @@ export default function WishlistPage() {
         response?.message || "Product added to cart."
       );
 
-      // 🟢 Header Badge aur Cart Sync
+      // Header Badge aur Cart Sync
       dispatch(fetchCart());
     } catch (error) {
       showToast.error(
@@ -196,6 +196,14 @@ const WishlistCard = ({ product, item, onAddToCart, onRemove }) => {
 
   const productId = product?._id || item?._id;
 
+  // Slug Resolution (Slug -> Handle -> ID)
+  const productSlug =
+    product?.slug ||
+    product?.handle ||
+    item?.slug ||
+    productId ||
+    "";
+
   const hasVariants = Boolean(
     product?.hasVariants &&
       Array.isArray(product?.variants) &&
@@ -234,7 +242,7 @@ const WishlistCard = ({ product, item, onAddToCart, onRemove }) => {
     <div className="group bg-white rounded-2xl sm:rounded-3xl overflow-hidden border border-[#EFE7DF] shadow-xs flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
       <div>
         <Link
-          to={`/products/${productId}`}
+          to={`/products/${productSlug}`}
           className="block relative aspect-square overflow-hidden bg-[#FBF6F2]"
         >
           <img
@@ -253,7 +261,7 @@ const WishlistCard = ({ product, item, onAddToCart, onRemove }) => {
         </Link>
 
         <div className="p-3.5 sm:p-5">
-          <Link to={`/products/${productId}`}>
+          <Link to={`/products/${productSlug}`}>
             <h3 className="font-semibold text-xs sm:text-sm text-gray-900 line-clamp-2 min-h-[32px] sm:min-h-[40px] hover:text-[#F16937] transition-colors">
               {product?.title || product?.name || item?.title}
             </h3>

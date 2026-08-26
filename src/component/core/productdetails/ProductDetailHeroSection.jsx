@@ -520,11 +520,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
               />
 
               <div className="absolute top-3 left-3 sm:top-4 sm:left-4 flex flex-col items-start gap-1.5 sm:gap-2">
-                {discountPercentage > 0 && (
-                  <span className="rounded-full bg-[#E44587] px-2.5 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-bold text-white shadow-sm">
-                    -{discountPercentage}%
-                  </span>
-                )}
+               
                 {categoryName && (
                   <span className="rounded-full bg-[#1C1917]/65 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-semibold text-[#FFFDF9]">
                     {categoryName}

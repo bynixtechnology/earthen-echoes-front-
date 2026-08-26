@@ -4,17 +4,15 @@ import { C } from "../../../constants/theme";
 const teamMembers = [
   {
     id: 1,
-    name: "Ram Lal",
-    role: "Master Wheeler (32 Years Exp.)",
-    description:
-      "Ram Lal has been throwing clay since age 12, specializing in large-scale decorative vases and urlis.",
+    name: "Dolly Khatri",
+    role: "Founder",
+    image: "/founder.jpeg",
   },
   {
     id: 2,
-    name: "Kamla Devi",
-    role: "Lead Relief Carver",
-    description:
-      "Kamla Devi heads the women's carving group, detailing traditional patterns and motifs on the planters.",
+    name: "Jasleen khatri",
+    role: "Co-Founder",
+    image: "/co-founder.jpeg",
   },
 ];
 
@@ -32,9 +30,7 @@ function DummyUserAvatar() {
         className="w-28 h-28"
         style={{ color: C.coral }}
       >
-        {/* User Head */}
         <circle cx="60" cy="42" r="22" fill="currentColor" fillOpacity="0.85" />
-        {/* User Body */}
         <path
           d="M24 100 C24 74, 40 68, 60 68 C80 68, 96 74, 96 100 Z"
           fill="currentColor"
@@ -88,7 +84,7 @@ const MeetTeam = () => {
 
         {/* Team Cards */}
         <div
-          className={`grid grid-cols-1 sm:grid-cols-2 gap-8 ${
+          className={`grid grid-cols-1 sm:grid-cols-2 gap-8 items-stretch ${
             isTwoMembers
               ? "lg:grid-cols-2 max-w-4xl mx-auto justify-center"
               : "lg:grid-cols-3"
@@ -97,18 +93,27 @@ const MeetTeam = () => {
           {teamMembers.map((member) => (
             <div
               key={member.id}
-              className="rounded-3xl overflow-hidden transition-all duration-300 hover:-translate-y-2"
+              className="rounded-3xl overflow-hidden transition-all duration-300 hover:-translate-y-2 group flex flex-col"
               style={{
                 background: "#fff",
                 border: `1px solid ${C.paleCoral}`,
                 boxShadow: "0 12px 35px rgba(28,18,8,.08)",
               }}
             >
-              <div className="aspect-square overflow-hidden">
-                <DummyUserAvatar />
+              {/* Fixed Portrait Ratio with Object Cover */}
+              <div className="w-full aspect-[3/4] sm:aspect-[4/5] overflow-hidden bg-slate-100">
+                {member.image ? (
+                  <img
+                    src={member.image}
+                    alt={member.name}
+                    className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                  />
+                ) : (
+                  <DummyUserAvatar />
+                )}
               </div>
 
-              <div className="p-6 text-center">
+              <div className="p-6 text-center flex-1 flex flex-col justify-center">
                 <h3
                   className="text-2xl font-bold mb-2"
                   style={{
@@ -120,21 +125,12 @@ const MeetTeam = () => {
                 </h3>
 
                 <p
-                  className="text-xs uppercase tracking-widest font-semibold mb-4"
+                  className="text-xs uppercase tracking-widest font-semibold"
                   style={{
                     color: C.coral,
                   }}
                 >
                   {member.role}
-                </p>
-
-                <p
-                  className="text-sm leading-7"
-                  style={{
-                    color: "#6B5B4E",
-                  }}
-                >
-                  {member.description}
                 </p>
               </div>
             </div>
