@@ -99,6 +99,9 @@ export default function EditProduct() {
     discountPercentage: "",
     stock: "",
     composition: "100% natural red clay",
+    height: "",
+    width: "",
+    weight: "",
     suggestedProducts: [],
   });
 
@@ -113,6 +116,9 @@ export default function EditProduct() {
       stock: "",
       specifications: {
         composition: "100% natural red clay",
+        height: "",
+        width: "",
+        weight: "",
       },
       existingImages: [],
       newImages: [],
@@ -175,6 +181,9 @@ export default function EditProduct() {
         composition:
           selectedProduct.specifications?.composition ||
           "100% natural red clay",
+        height: selectedProduct.specifications?.height ?? "",
+        width: selectedProduct.specifications?.width ?? "",
+        weight: selectedProduct.specifications?.weight ?? "",
         suggestedProducts: selectedProduct.suggestedProducts || [],
       });
 
@@ -189,6 +198,9 @@ export default function EditProduct() {
           specifications: {
             composition:
               v.specifications?.composition || "100% natural red clay",
+            height: v.specifications?.height ?? "",
+            width: v.specifications?.width ?? "",
+            weight: v.specifications?.weight ?? "",
           },
           existingImages: v.images || [],
           newImages: [],
@@ -295,6 +307,9 @@ export default function EditProduct() {
         stock: formData.stock || "",
         specifications: {
           composition: formData.composition || "100% natural red clay",
+          height: formData.height || "",
+          width: formData.width || "",
+          weight: formData.weight || "",
         },
         existingImages: [],
         newImages: [],
@@ -478,6 +493,9 @@ export default function EditProduct() {
         specifications: {
           composition:
             v.specifications?.composition?.trim() || "100% natural red clay",
+          height: v.specifications.height !== "" ? Number(v.specifications.height) : undefined,
+          width: v.specifications.width !== "" ? Number(v.specifications.width) : undefined,
+          weight: v.specifications.weight !== "" ? Number(v.specifications.weight) : undefined,
         },
       }));
 
@@ -492,6 +510,9 @@ export default function EditProduct() {
       const specifications = {
         composition:
           formData.composition?.trim() || "100% natural red clay",
+        height: formData.height !== "" ? Number(formData.height) : undefined,
+        width: formData.width !== "" ? Number(formData.width) : undefined,
+        weight: formData.weight !== "" ? Number(formData.weight) : undefined,
       };
       data.append("specifications", JSON.stringify(specifications));
 
@@ -934,26 +955,85 @@ export default function EditProduct() {
                       </div>
                     </div>
 
-                    {/* Composition Specification */}
+                    {/* Specifications (Composition, Height, Width, Weight) */}
                     <div className="space-y-3 pt-1 border-t">
-                      <div>
-                        <label className="block text-xs font-semibold mb-1">
-                          Composition
-                        </label>
-                        <input
-                          type="text"
-                          value={variant.specifications.composition}
-                          onChange={(e) =>
-                            handleVariantSpecChange(
-                              index,
-                              "composition",
-                              e.target.value
-                            )
-                          }
-                          placeholder="100% natural red clay"
-                          className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                          style={{ borderColor: C.blush }}
-                        />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="sm:col-span-2">
+                          <label className="block text-xs font-semibold mb-1">
+                            Composition
+                          </label>
+                          <input
+                            type="text"
+                            value={variant.specifications.composition}
+                            onChange={(e) =>
+                              handleVariantSpecChange(
+                                index,
+                                "composition",
+                                e.target.value
+                              )
+                            }
+                            placeholder="100% natural red clay"
+                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
+                            style={{ borderColor: C.blush }}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold mb-1">
+                            Height (Optional)
+                          </label>
+                          <input
+                            type="number"
+                            value={variant.specifications.height}
+                            onChange={(e) =>
+                              handleVariantSpecChange(
+                                index,
+                                "height",
+                                e.target.value
+                              )
+                            }
+                            placeholder="e.g. 15"
+                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
+                            style={{ borderColor: C.blush }}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold mb-1">
+                            Width (Optional)
+                          </label>
+                          <input
+                            type="number"
+                            value={variant.specifications.width}
+                            onChange={(e) =>
+                              handleVariantSpecChange(
+                                index,
+                                "width",
+                                e.target.value
+                              )
+                            }
+                            placeholder="e.g. 10"
+                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
+                            style={{ borderColor: C.blush }}
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-xs font-semibold mb-1">
+                            Weight (Optional)
+                          </label>
+                          <input
+                            type="number"
+                            value={variant.specifications.weight}
+                            onChange={(e) =>
+                              handleVariantSpecChange(
+                                index,
+                                "weight",
+                                e.target.value
+                              )
+                            }
+                            placeholder="e.g. 500"
+                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
+                            style={{ borderColor: C.blush }}
+                          />
+                        </div>
                       </div>
                     </div>
 
@@ -1060,6 +1140,59 @@ export default function EditProduct() {
                     className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
                     style={{ borderColor: C.blush }}
                   />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label
+                      className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+                      style={{ color: C.darkTeal }}
+                    >
+                      Height (Optional)
+                    </label>
+                    <input
+                      type="number"
+                      name="height"
+                      value={formData.height}
+                      onChange={handleInputChange}
+                      placeholder="e.g. 15"
+                      className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
+                      style={{ borderColor: C.blush }}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+                      style={{ color: C.darkTeal }}
+                    >
+                      Width (Optional)
+                    </label>
+                    <input
+                      type="number"
+                      name="width"
+                      value={formData.width}
+                      onChange={handleInputChange}
+                      placeholder="e.g. 10"
+                      className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
+                      style={{ borderColor: C.blush }}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+                      style={{ color: C.darkTeal }}
+                    >
+                      Weight (Optional)
+                    </label>
+                    <input
+                      type="number"
+                      name="weight"
+                      value={formData.weight}
+                      onChange={handleInputChange}
+                      placeholder="e.g. 500"
+                      className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
+                      style={{ borderColor: C.blush }}
+                    />
+                  </div>
                 </div>
               </div>
             )}
