@@ -263,11 +263,6 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
     }
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | BUY NOW HANDLER (Seamless Flow: Sends Item Directly to Checkout Page)
-  |--------------------------------------------------------------------------
-  */
   const handleBuyNow = () => {
     if (!product?._id) {
       showToast?.error?.("Product not found.");
@@ -299,7 +294,6 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
       selectedVariant: activeVariant,
     };
 
-    // Force Login if user is not authorized
     if (!isAuthenticated) {
       showToast?.error?.("Please login to proceed with your order.");
       navigate("/user/login", {
@@ -311,7 +305,6 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
       return;
     }
 
-    // Navigate directly to checkout
     navigate("/checkout", {
       state: {
         buyNowItem: buyNowItemData,
@@ -393,41 +386,87 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
 
   const currentSpecs = activeVariant?.specifications || product?.specifications || {};
 
-  const potterySpecs = [
-    {
-      icon: Leaf,
-      title: "Material / Composition",
-      value:
-        currentSpecs.composition ||
-        product?.composition ||
-        "100% Natural Red Clay",
-    },
-    {
-      icon: Sparkles,
-      title: "Craftsmanship",
-      value: "Hand-thrown on Traditional Wheel",
-    },
-    {
-      icon: ShieldCheck,
-      title: "Eco Credentials",
-      value: "100% Biodegradable & Non-Toxic",
-    },
-    {
-      icon: Sun,
-      title: "Usage & Placement",
-      value: "Indoor / Covered Outdoor",
-    },
-    {
-      icon: Droplets,
-      title: "Care Instructions",
-      value: "Hand wash with clean water (Avoid soap)",
-    },
-    {
-      icon: MapPin,
-      title: "Artisan Origin",
-      value: "Handcrafted in India",
-    },
-  ];
+  // Dynamically build potterySpecs using height, width, length, and weight if available in specifications
+  const potterySpecs = useMemo(() => {
+    const specs = [
+      {
+        icon: Leaf,
+        title: "Material / Composition",
+        value:
+          currentSpecs.composition ||
+          product?.composition ||
+          "100% Natural Red Clay",
+      },
+    ];
+
+    if (currentSpecs.height !== undefined && currentSpecs.height !== null && currentSpecs.height !== "") {
+      specs.push({
+        icon: Sparkles,
+        title: "Height",
+        value: `${currentSpecs.height} cm`,
+      });
+    }
+
+    if (currentSpecs.width !== undefined && currentSpecs.width !== null && currentSpecs.width !== "") {
+      specs.push({
+        icon: Sparkles,
+        title: "Width",
+        value: `${currentSpecs.width} cm`,
+      });
+    }
+
+    if (currentSpecs.length !== undefined && currentSpecs.length !== null && currentSpecs.length !== "") {
+      specs.push({
+        icon: Sparkles,
+        title: "Length",
+        value: `${currentSpecs.length} cm`,
+      });
+    }
+
+    if (currentSpecs.weight !== undefined && currentSpecs.weight !== null && currentSpecs.weight !== "") {
+      specs.push({
+        icon: Sparkles,
+        title: "Weight",
+        value: `${currentSpecs.weight} g`,
+      });
+    }
+
+    // Fallback to default specifications if dimensions/weight are not present
+    if (specs.length === 1) {
+      specs.push(
+        {
+          icon: Sparkles,
+          title: "Craftsmanship",
+          value: "Hand-thrown on Traditional Wheel",
+        },
+        {
+          icon: ShieldCheck,
+          title: "Eco Credentials",
+          value: "100% Biodegradable & Non-Toxic",
+        }
+      );
+    }
+
+    specs.push(
+      {
+        icon: Sun,
+        title: "Usage & Placement",
+        value: "Indoor / Covered Outdoor",
+      },
+      {
+        icon: Droplets,
+        title: "Care Instructions",
+        value: "Hand wash with clean water (Avoid soap)",
+      },
+      {
+        icon: MapPin,
+        title: "Artisan Origin",
+        value: "Handcrafted in India",
+      }
+    );
+
+    return specs;
+  }, [currentSpecs, product]);
 
   if (loading) {
     return (
@@ -520,7 +559,6 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
               />
 
               <div className="absolute top-3 left-3 sm:top-4 sm:left-4 flex flex-col items-start gap-1.5 sm:gap-2">
-               
                 {categoryName && (
                   <span className="rounded-full bg-[#1C1917]/65 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-semibold text-[#FFFDF9]">
                     {categoryName}
@@ -838,24 +876,24 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
                   Check
                 </button>
               </div>
+            </div>
 
-              {pincodeMsg && (
-                <p
-                  className={`mt-2 text-[11px] sm:text-xs ${
-                    pincodeMsg.startsWith("Delivery")
-                      ? "text-[#3D7020]"
-                      : "text-[#E44587]"
-                  }`}
-                >
-                  {pincodeMsg}
-                </p>
-              )}
+            {pincodeMsg && (
+              <p
+                className={`mt-2 text-[11px] sm:text-xs ${
+                  pincodeMsg.startsWith("Delivery")
+                    ? "text-[#3D7020]"
+                    : "text-[#E44587]"
+                }`}
+              >
+                {pincodeMsg}
+              </p>
+            )}
 
-              <div className="mt-3 sm:mt-4 flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-1.5 text-[10px] sm:text-[11px] text-[#78716C]">
-                <span>✓ Secure payment</span>
-                <span>✓ Carefully packed</span>
-                <span>✓ Easy support</span>
-              </div>
+            <div className="mt-3 sm:mt-4 flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-1.5 text-[10px] sm:text-[11px] text-[#78716C]">
+              <span>✓ Secure payment</span>
+              <span>✓ Carefully packed</span>
+              <span>✓ Easy support</span>
             </div>
           </div>
         </div>
