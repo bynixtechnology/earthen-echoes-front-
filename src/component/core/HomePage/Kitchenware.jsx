@@ -48,10 +48,11 @@ const Kitchenware = () => {
         setIsLoading(true);
         setError("");
 
+        // Pass category slug directly to fetch only traditional-kitchenware products
         const response = await ProductService.getPublic({
           page: 1,
-          limit: 1000,
-          categoryName: "Traditional Kitchenware",
+          limit: 10,
+          category: "traditional-kitchenware",
         });
 
         const rawList = Array.isArray(response?.products)
@@ -64,29 +65,8 @@ const Kitchenware = () => {
           ? response
           : [];
 
-        // Case-insensitive check on name, title, and slug
-        const targetCategory = "traditional kitchenware";
-        const kitchenwareProducts = rawList.filter((item) => {
-          const catName = item?.category?.name?.toLowerCase()?.trim();
-          const catTitle = item?.category?.title?.toLowerCase()?.trim();
-          const catSlug = item?.category?.slug?.toLowerCase()?.trim();
-          const directCat =
-            typeof item?.category === "string"
-              ? item.category.toLowerCase().trim()
-              : "";
-
-          return (
-            catName === targetCategory ||
-            catTitle === targetCategory ||
-            catSlug === "traditional-kitchenware" ||
-            directCat === targetCategory
-          );
-        });
-
         if (isMounted) {
-          setProducts(
-            kitchenwareProducts.length > 0 ? kitchenwareProducts : rawList
-          );
+          setProducts(rawList);
         }
       } catch (err) {
         console.error("FETCH KITCHENWARE ERROR:", err);
@@ -480,8 +460,6 @@ const KitchenwareCard = ({
             pointerEvents: "none",
           }}
         />
-
-       
 
         {/* Wishlist Button */}
         <button

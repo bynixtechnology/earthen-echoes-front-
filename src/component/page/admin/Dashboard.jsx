@@ -66,7 +66,7 @@ export default function Dashboard() {
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({
     current: 0,
-    total: 0,
+    total: 100,
     success: 0,
     failed: 0,
   });
@@ -100,87 +100,50 @@ export default function Dashboard() {
 
   /*
   |--------------------------------------------------------------------------
-  | Fetch Products
+  | Fetch Products (Server-Side Pagination)
   |--------------------------------------------------------------------------
   */
   const fetchProducts = async () => {
     try {
       setIsLoading(true);
 
-      const firstResponse = await ProductService.getAll({
-        page: 1,
-        limit: 100,
+      const response = await ProductService.getAll({
+        page: currentPage,
+        limit,
         search,
         category: categoryFilter,
         minPrice,
         maxPrice,
       });
 
-      const firstProducts =
-        firstResponse?.data?.products ||
-        firstResponse?.products ||
-        (Array.isArray(firstResponse?.data)
-          ? firstResponse.data
-          : Array.isArray(firstResponse)
-          ? firstResponse
+      const fetchedProducts =
+        response?.data?.products ||
+        response?.products ||
+        (Array.isArray(response?.data)
+          ? response.data
+          : Array.isArray(response)
+          ? response
           : []);
 
-      const firstPagination =
-        firstResponse?.data?.pagination ||
-        firstResponse?.pagination ||
+      const pagination =
+        response?.data?.pagination ||
+        response?.pagination ||
         {};
 
-      const serverTotalPages = Math.max(
-        Number(firstPagination?.totalPages || 1),
-        1
-      );
-
-      let fetchedProducts = [...firstProducts];
-
-      for (let page = 2; page <= serverTotalPages; page++) {
-        const response = await ProductService.getAll({
-          page,
-          limit: 100,
-          search,
-          category: categoryFilter,
-          minPrice,
-          maxPrice,
-        });
-
-        const pageProducts =
-          response?.data?.products ||
-          response?.products ||
-          (Array.isArray(response?.data)
-            ? response.data
-            : Array.isArray(response)
-            ? response
-            : []);
-
-        fetchedProducts = [...fetchedProducts, ...pageProducts];
-      }
-
-      // GLOBAL FEATURED FIRST SORT
+      // Featured first sort
       const sortedProducts = [...fetchedProducts].sort(
-        (a, b) =>
-          Number(Boolean(b.isFeatured)) - Number(Boolean(a.isFeatured))
+        (a, b) => Number(Boolean(b.isFeatured)) - Number(Boolean(a.isFeatured))
       );
 
+      setProducts(sortedProducts);
       setAllProducts(sortedProducts);
-      setTotalProducts(sortedProducts.length);
+      setTotalProducts(Number(pagination?.totalProducts || sortedProducts.length));
 
-      const startIndex = (currentPage - 1) * limit;
-      const endIndex = startIndex + limit;
-
-      const currentPageProducts = sortedProducts.slice(startIndex, endIndex);
-
-      setProducts(currentPageProducts);
-
-      const calculatedTotalPages = Math.max(
-        Math.ceil(sortedProducts.length / limit),
+      const serverTotalPages = Math.max(
+        Number(pagination?.totalPages || 1),
         1
       );
-
-      setTotalPages(calculatedTotalPages);
+      setTotalPages(serverTotalPages);
     } catch (err) {
       console.error("FETCH PRODUCTS ERROR:", err);
       showToast.error(
@@ -289,45 +252,9 @@ export default function Dashboard() {
         LongDescription: "Handcrafted from 100% natural clay. Elegant finish and organic design.",
         Images: "https://picsum.photos/seed/vase1/800/800, https://picsum.photos/seed/vase2/800/800",
       },
-      {
-        ID: 2001,
-        Title: "Handcrafted Terracotta Vase",
-        MainSKU: "EE-VASE-2001",
-        VariantSKU: "EE-VASE-BLK",
-        Category: "Pottery & Clay",
-        ProductTags: "Best Seller, Eco Friendly",
-        ColorName: "Black Clay",
-        ColorCode: "#1F1F1F",
-        Price: 1600,
-        OriginalPrice: 1900,
-        Stock: 30,
-        Composition: "100% natural black clay",
-        Description: "Premium handcrafted terracotta vase for home decor.",
-        LongDescription: "Handcrafted from 100% natural clay. Elegant finish and organic design.",
-        Images: "https://picsum.photos/seed/vase3/800/800",
-      },
     ];
 
     const worksheet = XLSX.utils.json_to_sheet(templateData);
-
-    worksheet["!cols"] = [
-      { wch: 10 }, // ID
-      { wch: 30 }, // Title
-      { wch: 18 }, // MainSKU
-      { wch: 18 }, // VariantSKU
-      { wch: 20 }, // Category
-      { wch: 25 }, // ProductTags
-      { wch: 18 }, // ColorName
-      { wch: 12 }, // ColorCode
-      { wch: 12 }, // Price
-      { wch: 14 }, // OriginalPrice
-      { wch: 10 }, // Stock
-      { wch: 25 }, // Composition
-      { wch: 35 }, // Description
-      { wch: 50 }, // LongDescription
-      { wch: 70 }, // Images
-    ];
-
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
     XLSX.writeFile(workbook, "product-variants-import-template.xlsx");
@@ -350,7 +277,6 @@ export default function Dashboard() {
       firstResponse?.data?.pagination || firstResponse?.pagination || {};
 
     const totalPagesToFetch = Number(pagination?.totalPages || 1) || 1;
-
     let allProductsList = [...firstProducts];
 
     for (let page = 2; page <= totalPagesToFetch; page++) {
@@ -373,7 +299,6 @@ export default function Dashboard() {
   const handleExportProducts = async () => {
     try {
       setIsExporting(true);
-
       const allProductsList = await getAllProductsForExport();
 
       if (!Array.isArray(allProductsList) || allProductsList.length === 0) {
@@ -382,10 +307,13 @@ export default function Dashboard() {
       }
 
       const excelRows = [];
-
       allProductsList.forEach((product) => {
         if (product.hasVariants && product.variants?.length > 0) {
           product.variants.forEach((variant) => {
+            const basePrice = variant.sizes?.[0]?.price || product.price || 0;
+            const baseOriginalPrice = variant.sizes?.[0]?.originalPrice || product.originalPrice || 0;
+            const baseStock = variant.sizes?.reduce((acc, sz) => acc + (sz.stock || 0), 0) || 0;
+
             excelRows.push({
               ID: product.id,
               Title: product.title || "",
@@ -397,9 +325,9 @@ export default function Dashboard() {
                 .join(", "),
               ColorName: variant.colorName || "",
               ColorCode: variant.colorCode || "",
-              Price: Number(variant.price || product.price || 0),
-              OriginalPrice: Number(variant.originalPrice || product.originalPrice || 0),
-              Stock: Number(variant.stock || 0),
+              Price: Number(basePrice),
+              OriginalPrice: Number(baseOriginalPrice),
+              Stock: Number(baseStock),
               Composition: variant.specifications?.composition || "100% natural red clay",
               Description: product.description || "",
               Images: (variant.images || []).map((img) => img.url).join(", "),
@@ -428,24 +356,6 @@ export default function Dashboard() {
       });
 
       const worksheet = XLSX.utils.json_to_sheet(excelRows);
-
-      worksheet["!cols"] = [
-        { wch: 10 },
-        { wch: 30 },
-        { wch: 18 },
-        { wch: 18 },
-        { wch: 20 },
-        { wch: 25 },
-        { wch: 18 },
-        { wch: 12 },
-        { wch: 12 },
-        { wch: 14 },
-        { wch: 10 },
-        { wch: 25 },
-        { wch: 35 },
-        { wch: 70 },
-      ];
-
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
 
@@ -455,11 +365,7 @@ export default function Dashboard() {
       showToast.success(`${allProductsList.length} products exported successfully.`);
     } catch (error) {
       console.error("EXPORT PRODUCTS ERROR:", error);
-      showToast.error(
-        error?.response?.data?.message ||
-          error?.message ||
-          "Unable to export products."
-      );
+      showToast.error(error?.response?.data?.message || "Unable to export products.");
     } finally {
       setIsExporting(false);
     }
@@ -472,7 +378,6 @@ export default function Dashboard() {
     if (!file) return;
 
     const extension = file.name.split(".").pop()?.toLowerCase();
-
     if (!["xlsx", "xls"].includes(extension)) {
       showToast.error("Please select a valid .xlsx or .xls file.");
       return;
@@ -480,24 +385,13 @@ export default function Dashboard() {
 
     try {
       setIsImporting(true);
-
-      setImportProgress({
-        current: 0,
-        total: 100,
-        success: 0,
-        failed: 0,
-      });
+      setImportProgress({ current: 0, total: 100, success: 0, failed: 0 });
 
       const formData = new FormData();
       formData.append("file", file);
 
       const response = await ProductService.importExcel(formData, (progress) => {
-        setImportProgress({
-          current: progress,
-          total: 100,
-          success: 0,
-          failed: 0,
-        });
+        setImportProgress({ current: progress, total: 100, success: 0, failed: 0 });
       });
 
       setImportProgress({
@@ -507,19 +401,12 @@ export default function Dashboard() {
         failed: response?.failedCount || response?.data?.failedCount || 0,
       });
 
-      showToast.success(
-        response?.message || "Products imported successfully."
-      );
-
+      showToast.success(response?.message || "Products imported successfully.");
       await fetchProducts();
       setCurrentPage(1);
     } catch (error) {
       console.error("IMPORT EXCEL ERROR:", error);
-      showToast.error(
-        error?.response?.data?.message ||
-          error?.message ||
-          "Unable to import Excel file."
-      );
+      showToast.error(error?.response?.data?.message || "Unable to import Excel file.");
     } finally {
       setIsImporting(false);
     }
@@ -553,20 +440,15 @@ export default function Dashboard() {
   |--------------------------------------------------------------------------
   */
   const handleDelete = async (targetId) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this product?"
-    );
-
+    const confirmed = window.confirm("Are you sure you want to delete this product?");
     if (!confirmed) return;
 
     try {
       setActionLoading(targetId);
-
       await ProductService.delete(targetId);
 
       showToast.success(
-        FRONTEND_MESSAGES?.PRODUCT?.DELETE_SUCCESS ||
-          "Product deleted successfully."
+        FRONTEND_MESSAGES?.PRODUCT?.DELETE_SUCCESS || "Product deleted successfully."
       );
 
       setSelectedProductIds((prev) => prev.filter((id) => id !== targetId));
@@ -575,7 +457,6 @@ export default function Dashboard() {
       const targetPage = isLastItemOnPage ? currentPage - 1 : currentPage;
 
       sessionStorage.setItem("productsCurrentPage", String(targetPage));
-
       if (isLastItemOnPage) {
         setCurrentPage(targetPage);
       } else {
@@ -584,9 +465,7 @@ export default function Dashboard() {
     } catch (err) {
       console.error("DELETE PRODUCT ERROR:", err);
       showToast.error(
-        err?.response?.data?.message ||
-          FRONTEND_MESSAGES?.PRODUCT?.DELETE_FAILED ||
-          "Unable to delete product."
+        err?.response?.data?.message || "Unable to delete product."
       );
     } finally {
       setActionLoading(null);
@@ -604,36 +483,27 @@ export default function Dashboard() {
 
     try {
       setFeaturedLoading(productId);
-
       const response = await ProductService.updateFeatured(productId, newStatus);
 
-      setProducts((prev) => {
-        const updatedList = prev.map((item) => {
-          const itemId = item._id || item.id;
-          if (itemId !== productId) return item;
-
-          return {
-            ...item,
-            isFeatured: response?.data?.isFeatured ?? newStatus,
-          };
-        });
-
-        return [...updatedList].sort(
-          (a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0)
-        );
-      });
+      setProducts((prev) =>
+        prev
+          .map((item) => {
+            const itemId = item._id || item.id;
+            if (itemId !== productId) return item;
+            return {
+              ...item,
+              isFeatured: response?.data?.isFeatured ?? newStatus,
+            };
+          })
+          .sort((a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0))
+      );
 
       showToast.success(
-        response?.message ||
-          (newStatus
-            ? "Product marked as featured."
-            : "Product removed from featured.")
+        response?.message || (newStatus ? "Product marked as featured." : "Product removed from featured.")
       );
     } catch (err) {
       console.error("FEATURED STATUS ERROR:", err);
-      showToast.error(
-        err?.response?.data?.message || "Unable to update featured status."
-      );
+      showToast.error(err?.response?.data?.message || "Unable to update featured status.");
     } finally {
       setFeaturedLoading(null);
     }
@@ -660,7 +530,6 @@ export default function Dashboard() {
   };
 
   const visiblePages = getVisiblePages();
-
   const startItem = totalProducts === 0 ? 0 : (currentPage - 1) * limit + 1;
   const endItem = Math.min(currentPage * limit, totalProducts);
 
@@ -679,7 +548,6 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {/* Bulk Delete Button */}
           {selectedProductIds.length > 0 && (
             <button
               type="button"
@@ -703,7 +571,7 @@ export default function Dashboard() {
             type="button"
             onClick={handleDownloadTemplate}
             disabled={isImporting}
-            className="h-12 inline-flex items-center justify-center gap-2 px-5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-50 whitespace-nowrap"
+            className="h-12 inline-flex items-center justify-center gap-2 px-5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all disabled:opacity-50 whitespace-nowrap"
           >
             <Download size={18} />
             Template
@@ -713,13 +581,9 @@ export default function Dashboard() {
             type="button"
             onClick={handleExportProducts}
             disabled={isExporting || isImporting}
-            className="h-12 inline-flex items-center justify-center gap-2 px-5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-50 whitespace-nowrap"
+            className="h-12 inline-flex items-center justify-center gap-2 px-5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all disabled:opacity-50 whitespace-nowrap"
           >
-            {isExporting ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <Download size={18} />
-            )}
+            {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
             {isExporting ? "Exporting..." : "Export Products"}
           </button>
 
@@ -735,22 +599,16 @@ export default function Dashboard() {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isImporting}
-            className="h-12 inline-flex items-center justify-center gap-2 px-5 bg-amber-500 text-slate-950 rounded-xl text-sm font-bold shadow-sm hover:bg-amber-400 hover:shadow-md transition-all disabled:opacity-50 whitespace-nowrap"
+            className="h-12 inline-flex items-center justify-center gap-2 px-5 bg-amber-500 text-slate-950 rounded-xl text-sm font-bold shadow-sm hover:bg-amber-400 transition-all disabled:opacity-50 whitespace-nowrap"
           >
-            {isImporting ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <Upload size={18} />
-            )}
-            {isImporting
-              ? `Importing ${importProgress.current}/${importProgress.total}`
-              : "Import Excel"}
+            {isImporting ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+            {isImporting ? `Importing ${importProgress.current}/${importProgress.total}` : "Import Excel"}
           </button>
 
           <button
             type="button"
             onClick={() => navigate("/admin/add-product")}
-            className="h-12 inline-flex items-center justify-center gap-2 px-5 bg-slate-950 text-white rounded-xl text-sm font-semibold shadow-sm hover:bg-slate-900 hover:shadow-md transition-all active:scale-[0.98] whitespace-nowrap"
+            className="h-12 inline-flex items-center justify-center gap-2 px-5 bg-slate-950 text-white rounded-xl text-sm font-semibold shadow-sm hover:bg-slate-900 transition-all whitespace-nowrap"
           >
             <PlusCircle size={18} className="text-amber-500" />
             Add New Product
@@ -768,7 +626,7 @@ export default function Dashboard() {
                 setCurrentPage(1);
                 setSearch(e.target.value);
               }}
-              className="h-11 w-full px-4 rounded-xl border border-slate-200 bg-white text-black placeholder:text-slate-400 outline-none focus:border-slate-900"
+              className="h-11 w-full px-4 rounded-xl border border-slate-200 bg-white text-black outline-none focus:border-slate-900"
             />
 
             <select
@@ -827,44 +685,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Excel Import Progress */}
-      {isImporting && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-          <div className="flex flex-wrap justify-between gap-3 mb-3">
-            <div>
-              <p className="font-bold text-slate-800">Importing Products</p>
-              <p className="text-xs text-slate-500 mt-1">
-                Please do not close this page while products are being created.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-4 text-xs font-semibold">
-              <span className="text-emerald-600">
-                Success: {importProgress.success}
-              </span>
-              <span className="text-red-500">
-                Failed: {importProgress.failed}
-              </span>
-            </div>
-          </div>
-
-          <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-slate-950 rounded-full transition-all duration-300"
-              style={{
-                width: importProgress.total
-                  ? `${(importProgress.current / importProgress.total) * 100}%`
-                  : "0%",
-              }}
-            />
-          </div>
-
-          <p className="text-xs text-slate-500 mt-2 text-right">
-            {importProgress.current} / {importProgress.total} products processed
-          </p>
-        </div>
-      )}
-
       {/* Table Card */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
         <div className="overflow-x-auto">
@@ -896,13 +716,8 @@ export default function Dashboard() {
                 <tr>
                   <td colSpan="9" className="p-16 text-center text-slate-400">
                     <div className="flex flex-col items-center gap-3">
-                      <Loader2
-                        size={28}
-                        className="animate-spin text-amber-500"
-                      />
-                      <span className="font-medium text-sm">
-                        Loading products...
-                      </span>
+                      <Loader2 size={28} className="animate-spin text-amber-500" />
+                      <span className="font-medium text-sm">Loading products...</span>
                     </div>
                   </td>
                 </tr>
@@ -910,13 +725,8 @@ export default function Dashboard() {
                 <tr>
                   <td colSpan="9" className="p-12 text-center">
                     <div className="inline-flex flex-col items-center justify-center p-6 bg-slate-50 rounded-2xl border border-slate-100 border-dashed">
-                      <PlusCircle
-                        size={28}
-                        className="text-slate-400 mb-3"
-                      />
-                      <span className="text-slate-500 font-semibold">
-                        No products found
-                      </span>
+                      <PlusCircle size={28} className="text-slate-400 mb-3" />
+                      <span className="text-slate-500 font-semibold">No products found</span>
                     </div>
                   </td>
                 </tr>
@@ -925,13 +735,25 @@ export default function Dashboard() {
                   const currentId = product._id || product.id;
                   const isSelected = selectedProductIds.includes(currentId);
 
-                  const previewImageUrl = product.hasVariants && product.variants?.[0]?.images?.[0]?.url
-                    ? product.variants[0].images[0].url
-                    : product.images?.[0]?.url;
+                  const previewImageUrl =
+                    product.hasVariants && product.variants?.[0]?.images?.[0]?.url
+                      ? product.variants[0].images[0].url
+                      : product.images?.[0]?.url;
 
-                  const totalStock = product.hasVariants && product.variants?.length > 0
-                    ? product.variants.reduce((acc, v) => acc + (v.stock || 0), 0)
-                    : product.stock || 0;
+                  const totalStock =
+                    product.hasVariants && product.variants?.length > 0
+                      ? product.variants.reduce(
+                          (acc, v) =>
+                            acc +
+                            (v.sizes?.reduce((sAcc, s) => sAcc + (s.stock || 0), 0) || 0),
+                          0
+                        )
+                      : product.stock || 0;
+
+                  const displayPrice =
+                    product.hasVariants && product.variants?.[0]?.sizes?.[0]?.price !== undefined
+                      ? product.variants[0].sizes[0].price
+                      : product.price || 0;
 
                   return (
                     <tr
@@ -940,7 +762,6 @@ export default function Dashboard() {
                         isSelected ? "bg-amber-50/40" : ""
                       }`}
                     >
-                      {/* Checkbox */}
                       <td className="p-4 pl-6">
                         <input
                           type="checkbox"
@@ -950,7 +771,6 @@ export default function Dashboard() {
                         />
                       </td>
 
-                      {/* Image Preview */}
                       <td className="p-4">
                         <div className="w-12 h-12 rounded-xl border border-slate-200 overflow-hidden bg-slate-50 relative">
                           {previewImageUrl ? (
@@ -970,7 +790,6 @@ export default function Dashboard() {
                         </div>
                       </td>
 
-                      {/* Product Title & Category */}
                       <td className="p-4">
                         <div className="max-w-[220px]">
                           <p className="font-semibold text-slate-800 truncate">
@@ -982,7 +801,6 @@ export default function Dashboard() {
                         </div>
                       </td>
 
-                      {/* Color Variants */}
                       <td className="p-4">
                         {product.hasVariants && product.variants?.length > 0 ? (
                           <div className="flex flex-col gap-1">
@@ -1010,45 +828,31 @@ export default function Dashboard() {
                         )}
                       </td>
 
-                      {/* SKU */}
                       <td className="p-4 text-xs font-mono text-slate-500">
                         <span className="bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
                           {product.sku || "N/A"}
                         </span>
                       </td>
 
-                      {/* Price */}
                       <td className="p-4 font-bold text-emerald-600">
-                        ₹
-                        {Number(product.price || 0).toLocaleString("en-IN")}
+                        ₹{Number(displayPrice).toLocaleString("en-IN")}
                       </td>
 
-                      {/* Stock */}
                       <td className="p-4">
                         <span
                           className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                            totalStock > 0
-                              ? "bg-blue-50 text-blue-700"
-                              : "bg-red-50 text-red-600"
+                            totalStock > 0 ? "bg-blue-50 text-blue-700" : "bg-red-50 text-red-600"
                           }`}
                         >
-                          {totalStock > 0
-                            ? `${totalStock} in stock`
-                            : "Out of stock"}
+                          {totalStock > 0 ? `${totalStock} in stock` : "Out of stock"}
                         </span>
                       </td>
 
-                      {/* Featured */}
                       <td className="p-4 text-center">
                         <button
                           type="button"
                           disabled={featuredLoading === currentId}
                           onClick={() => handleFeaturedToggle(product)}
-                          title={
-                            product.isFeatured
-                              ? "Remove Featured"
-                              : "Mark Featured"
-                          }
                           className={`inline-flex items-center justify-center w-10 h-10 rounded-xl border transition-all disabled:opacity-50 ${
                             product.isFeatured
                               ? "bg-amber-50 border-amber-200 text-amber-500"
@@ -1060,17 +864,12 @@ export default function Dashboard() {
                           ) : (
                             <Star
                               size={18}
-                              fill={
-                                product.isFeatured
-                                  ? "currentColor"
-                                  : "none"
-                              }
+                              fill={product.isFeatured ? "currentColor" : "none"}
                             />
                           )}
                         </button>
                       </td>
 
-                      {/* Actions */}
                       <td className="p-4">
                         <div className="flex justify-center gap-2">
                           <button
@@ -1199,42 +998,6 @@ export default function Dashboard() {
           </div>
         )}
       </div>
-
-      {/* Floating Sticky Bar when items are selected */}
-      {selectedProductIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-6 border border-slate-800 animate-in fade-in slide-in-from-bottom-5">
-          <div className="flex items-center gap-2">
-            <CheckSquare className="text-amber-400" size={20} />
-            <span className="text-sm font-medium">
-              <strong className="text-white">{selectedProductIds.length}</strong> items selected
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setSelectedProductIds([])}
-              className="text-xs font-semibold text-slate-400 hover:text-white transition"
-            >
-              Clear Selection
-            </button>
-
-            <button
-              type="button"
-              onClick={handleBulkDelete}
-              disabled={isBulkDeleting}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 disabled:opacity-50"
-            >
-              {isBulkDeleting ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Trash2 size={14} />
-              )}
-              Delete Selected
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

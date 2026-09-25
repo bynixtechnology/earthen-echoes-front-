@@ -30,11 +30,6 @@ import {
 } from "../../../redux/slices/productSlice";
 import { showToast } from "../../../config/toast";
 
-/*
-|--------------------------------------------------------------------------
-| Theme Colors
-|--------------------------------------------------------------------------
-*/
 export const C = {
   coral: "#F16937",
   teal: "#1BACB1",
@@ -51,21 +46,45 @@ export const C = {
   paleGreen: "#EEF6E7",
 };
 
+const emptySize = (overrides = {}) => ({
+  optionType: "capacity",
+  sizeOrCapacity: "",
+  sku: "",
+  price: "",
+  originalPrice: "",
+  discountPercentage: "",
+  stock: "",
+  specifications: {
+    composition: "100% natural red clay",
+    capacity: "",
+    height: "",
+    width: "",
+    length: "",
+    weight: "",
+  },
+  ...overrides,
+});
+
+const emptyVariant = (composition = "100% natural red clay") => ({
+  colorName: "",
+  colorCode: "#C85A32",
+  sku: "",
+  sizes: [emptySize({ specifications: { ...emptySize().specifications, composition } })],
+  existingImages: [],
+  newImages: [],
+});
+
+const imageUrl = (image) => {
+  if (!image) return "";
+  if (typeof image === "string") return image;
+  return image.url || image.secure_url || image.src || image.path || image.imageUrl || "";
+};
+
 export default function EditProduct() {
-  /*
-  |--------------------------------------------------------------------------
-  | Hooks & Params
-  |--------------------------------------------------------------------------
-  */
   const { id } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  /*
-  |--------------------------------------------------------------------------
-  | Redux State
-  |--------------------------------------------------------------------------
-  */
   const categories = useSelector(selectCategories);
   const loadingCategories = useSelector(selectCategoriesLoading);
   const { tags: productTagsList = [] } = useSelector(
@@ -73,21 +92,15 @@ export default function EditProduct() {
   );
   const selectedProduct = useSelector(selectSelectedProduct);
   const isLoading = useSelector(selectProductDetailsLoading);
-  const isSubmitting = useSelector(selectProductActionLoading);
+  const loading = useSelector(selectProductActionLoading);
 
-  /*
-  |--------------------------------------------------------------------------
-  | Local State
-  |--------------------------------------------------------------------------
-  */
   const [hasVariants, setHasVariants] = useState(false);
   const [existingImages, setExistingImages] = useState([]);
   const [newImages, setNewImages] = useState([]);
 
   const [formData, setFormData] = useState({
-    numericalId: "",
+    id: "",
     title: "",
-    slug: "",
     category: "",
     productTags: [],
     sku: "",
@@ -99,6 +112,8 @@ export default function EditProduct() {
     discountPercentage: "",
     stock: "",
     composition: "100% natural red clay",
+    optionType: "capacity",
+    capacity: "",
     height: "",
     width: "",
     length: "",
@@ -106,219 +121,255 @@ export default function EditProduct() {
     suggestedProducts: [],
   });
 
-  // Variants State
   const [variants, setVariants] = useState([
     {
       colorName: "Terracotta Red",
       colorCode: "#C85A32",
       sku: "",
-      price: "",
-      originalPrice: "",
-      stock: "",
-      specifications: {
-        composition: "100% natural red clay",
-        height: "",
-        width: "",
-        length: "",
-        weight: "",
-      },
+      sizes: [emptySize()],
       existingImages: [],
       newImages: [],
     },
   ]);
 
-  /*
-  |--------------------------------------------------------------------------
-  | Fetch Categories, Tags & Product Details
-  |--------------------------------------------------------------------------
-  */
   useEffect(() => {
     dispatch(fetchCategories());
     dispatch(fetchProductTags());
-    if (id) {
-      dispatch(fetchProductById(id));
-    }
+    if (id) dispatch(fetchProductById(id));
   }, [dispatch, id]);
 
   useEffect(() => {
-    if (selectedProduct) {
-      const categoryId =
-        selectedProduct.category?._id ||
-        selectedProduct.category?.id ||
-        selectedProduct.category ||
-        "";
+    if (!selectedProduct) return;
 
-      const mappedTags = (
-        selectedProduct.productTags ||
-        selectedProduct.tags ||
-        []
-      ).map((t) => t?._id || t?.id || t);
+    const categoryId =
+      selectedProduct.category?._id ||
+      selectedProduct.category?.id ||
+      selectedProduct.category ||
+      "";
 
-      const productHasVariants = Boolean(
-        selectedProduct.hasVariants &&
-          Array.isArray(selectedProduct.variants) &&
-          selectedProduct.variants.length > 0
+    const mappedTags = (
+      selectedProduct.productTags ||
+      selectedProduct.tags ||
+      []
+    ).map((tag) => tag?._id || tag?.id || tag);
+
+    const specs = selectedProduct.specifications || {};
+    const optionType = specs.capacity ? "capacity" : "size";
+    const productHasVariants =
+      Boolean(selectedProduct.hasVariants) &&
+      Array.isArray(selectedProduct.variants) &&
+      selectedProduct.variants.length > 0;
+
+    setHasVariants(productHasVariants);
+
+    setFormData({
+      id:
+        selectedProduct.id ??
+        selectedProduct.numericalId ??
+        selectedProduct.numericId ??
+        "",
+      title: selectedProduct.title || "",
+      category: categoryId,
+      productTags: mappedTags,
+      sku: selectedProduct.sku || "",
+      description: selectedProduct.description || "",
+      longDescription: selectedProduct.longDescription || "",
+      longDescription1: selectedProduct.longDescription1 || "",
+      price: selectedProduct.price ?? "",
+      originalPrice: selectedProduct.originalPrice ?? "",
+      discountPercentage: selectedProduct.discountPercentage ?? "",
+      stock: selectedProduct.stock ?? "",
+      composition: specs.composition || "100% natural red clay",
+      optionType,
+      capacity: specs.capacity || "",
+      height: specs.height ?? "",
+      width: specs.width ?? "",
+      length: specs.length ?? "",
+      weight: specs.weight ?? "",
+      suggestedProducts: selectedProduct.suggestedProducts || [],
+    });
+
+    if (!productHasVariants) {
+      setExistingImages(selectedProduct.images || []);
+      setNewImages([]);
+      return;
+    }
+
+    const rawVariants = selectedProduct.variants || [];
+    const grouped = new Map();
+
+    const addFlatVariant = (v) => {
+      const colorName = v.colorName || "Untitled Color";
+      if (!grouped.has(colorName)) {
+        grouped.set(colorName, {
+          colorName,
+          colorCode: v.colorCode || "#C85A32",
+          sku: v.sku || "",
+          sizes: [],
+          existingImages: [],
+          newImages: [],
+        });
+      }
+
+      const group = grouped.get(colorName);
+      const vSpecs = v.specifications || {};
+      const sizeType = vSpecs.capacity || v.sizeOrCapacity ? "capacity" : "size";
+
+      const existing = v.images || v.existingImages || [];
+      group.existingImages.push(...existing);
+
+      group.sizes.push(
+        emptySize({
+          optionType: sizeType,
+          sizeOrCapacity:
+            v.sizeOrCapacity ??
+            vSpecs.capacity ??
+            "",
+          sku: v.sku || "",
+          price: v.price ?? "",
+          originalPrice: v.originalPrice ?? "",
+          discountPercentage: v.discountPercentage ?? "",
+          stock: v.stock ?? "",
+          specifications: {
+            composition: vSpecs.composition || specs.composition || "100% natural red clay",
+            capacity: vSpecs.capacity || "",
+            height: vSpecs.height ?? "",
+            width: vSpecs.width ?? "",
+            length: vSpecs.length ?? "",
+            weight: vSpecs.weight ?? "",
+          },
+        })
       );
+    };
 
-      setHasVariants(productHasVariants);
-
-      setFormData({
-        numericalId:
-          selectedProduct.id ||
-          selectedProduct.numericalId ||
-          selectedProduct.numericId ||
-          "",
-        title: selectedProduct.title || "",
-        slug: selectedProduct.slug || "",
-        category: categoryId,
-        productTags: mappedTags,
-        sku: selectedProduct.sku || "",
-        description: selectedProduct.description || "",
-        longDescription: selectedProduct.longDescription || "",
-        longDescription1: selectedProduct.longDescription1 || "",
-        price: selectedProduct.price ?? "",
-        originalPrice: selectedProduct.originalPrice ?? "",
-        discountPercentage: selectedProduct.discountPercentage ?? "",
-        stock: selectedProduct.stock ?? "",
-        composition:
-          selectedProduct.specifications?.composition ||
-          "100% natural red clay",
-        height: selectedProduct.specifications?.height ?? "",
-        width: selectedProduct.specifications?.width ?? "",
-        length: selectedProduct.specifications?.length ?? "",
-        weight: selectedProduct.specifications?.weight ?? "",
-        suggestedProducts: selectedProduct.suggestedProducts || [],
-      });
-
-      if (productHasVariants) {
-        const mappedVariants = selectedProduct.variants.map((v) => ({
+    rawVariants.forEach((v) => {
+      if (Array.isArray(v.sizes)) {
+        const group = {
           colorName: v.colorName || "",
           colorCode: v.colorCode || "#C85A32",
           sku: v.sku || "",
-          price: v.price ?? selectedProduct.price ?? "",
-          originalPrice: v.originalPrice ?? selectedProduct.originalPrice ?? "",
-          stock: v.stock ?? selectedProduct.stock ?? "",
-          specifications: {
-            composition:
-              v.specifications?.composition || "100% natural red clay",
-            height: v.specifications?.height ?? "",
-            width: v.specifications?.width ?? "",
-            length: v.specifications?.length ?? "",
-            weight: v.specifications?.weight ?? "",
-          },
-          existingImages: v.images || [],
+          sizes: [],
+          existingImages: [],
           newImages: [],
-        }));
-        setVariants(mappedVariants);
+        };
+
+        v.sizes.forEach((sz) => {
+          const szSpecs = sz.specifications || {};
+          const existing = sz.images || sz.existingImages || v.images || [];
+          group.existingImages.push(...existing);
+
+          group.sizes.push(
+            emptySize({
+              optionType:
+                sz.optionType ||
+                (szSpecs.capacity || sz.sizeOrCapacity ? "capacity" : "size"),
+              sizeOrCapacity: sz.sizeOrCapacity ?? szSpecs.capacity ?? "",
+              sku: sz.sku || v.sku || "",
+              price: sz.price ?? v.price ?? "",
+              originalPrice: sz.originalPrice ?? v.originalPrice ?? "",
+              discountPercentage:
+                sz.discountPercentage ?? v.discountPercentage ?? "",
+              stock: sz.stock ?? v.stock ?? "",
+              specifications: {
+                composition:
+                  szSpecs.composition ||
+                  specs.composition ||
+                  "100% natural red clay",
+                capacity: szSpecs.capacity || "",
+                height: szSpecs.height ?? "",
+                width: szSpecs.width ?? "",
+                length: szSpecs.length ?? "",
+                weight: szSpecs.weight ?? "",
+              },
+            })
+          );
+        });
+
+        if (!group.sizes.length) group.sizes.push(emptySize());
+        grouped.set(group.colorName || `variant-${grouped.size}`, group);
       } else {
-        setExistingImages(selectedProduct.images || []);
+        addFlatVariant(v);
       }
-    }
+    });
+
+    const mappedVariants = Array.from(grouped.values()).map((v) => ({
+      ...v,
+      existingImages: Array.from(
+        new Map(
+          (v.existingImages || []).map((img) => [
+            imageUrl(img) || JSON.stringify(img),
+            img,
+          ])
+        ).values()
+      ),
+      newImages: [],
+    }));
+
+    setVariants(mappedVariants.length ? mappedVariants : [emptyVariant(specs.composition)]);
   }, [selectedProduct]);
 
-  /*
-  |--------------------------------------------------------------------------
-  | Input Change Handler (Main Form)
-  |--------------------------------------------------------------------------
-  */
   const handleInputChange = (e) => {
     const { name, value } = e.target;
 
     setFormData((prev) => {
-      const updated = {
-        ...prev,
-        [name]: value,
-      };
+      const updated = { ...prev, [name]: value };
 
-      if (name === "title") {
-        updated.slug = value
-          .toLowerCase()
-          .trim()
-          .replace(/[^\w\s-]/g, "")
-          .replace(/[\s_-]+/g, "-")
-          .replace(/^-+|-+$/g, "");
+      if (name === "price" || name === "originalPrice") {
+        const p = Number(name === "price" ? value : updated.price);
+        const op = Number(
+          name === "originalPrice" ? value : updated.originalPrice
+        );
+        updated.discountPercentage =
+          op > p && op > 0 ? Math.round(((op - p) / op) * 100) : 0;
+      }
+
+      if (name === "optionType") {
+        if (value === "size") {
+          updated.capacity = "";
+        } else {
+          updated.height = "";
+          updated.width = "";
+          updated.length = "";
+          updated.weight = "";
+        }
       }
 
       return updated;
     });
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | Tag Selection Toggle
-  |--------------------------------------------------------------------------
-  */
   const handleTagToggle = (tagId) => {
-    setFormData((prev) => {
-      const currentTags = prev.productTags;
-      if (currentTags.includes(tagId)) {
-        return {
-          ...prev,
-          productTags: currentTags.filter((id) => id !== tagId),
-        };
-      } else {
-        return {
-          ...prev,
-          productTags: [...currentTags, tagId],
-        };
-      }
-    });
+    setFormData((prev) => ({
+      ...prev,
+      productTags: prev.productTags.includes(tagId)
+        ? prev.productTags.filter((item) => item !== tagId)
+        : [...prev.productTags, tagId],
+    }));
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | Single Mode Image Handlers
-  |--------------------------------------------------------------------------
-  */
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files || []);
-    const total = existingImages.length + newImages.length + files.length;
-
-    if (total > 5) {
+    if (existingImages.length + newImages.length + files.length > 5) {
       showToast.error("Maximum 5 images are allowed in total.");
       e.target.value = "";
       return;
     }
-
     setNewImages((prev) => [...prev, ...files]);
     e.target.value = "";
   };
 
+  const removeExistingImage = (index) => {
+    setExistingImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const removeNewImage = (index) => {
-    setNewImages((prev) => prev.filter((_, idx) => idx !== index));
+    setNewImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const removeExistingImage = (indexToRemove) => {
-    setExistingImages((prev) =>
-      prev.filter((_, idx) => idx !== indexToRemove)
-    );
-  };
-
-  /*
-  |--------------------------------------------------------------------------
-  | Variant Operations Handlers
-  |--------------------------------------------------------------------------
-  */
   const addVariant = () => {
     setVariants((prev) => [
       ...prev,
-      {
-        colorName: "",
-        colorCode: "#C85A32",
-        sku: "",
-        price: formData.price || "",
-        originalPrice: formData.originalPrice || "",
-        stock: formData.stock || "",
-        specifications: {
-          composition: formData.composition || "100% natural red clay",
-          height: formData.height || "",
-          width: formData.width || "",
-          length: formData.length || "",
-          weight: formData.weight || "",
-        },
-        existingImages: [],
-        newImages: [],
-      },
+      emptyVariant(formData.composition || "100% natural red clay"),
     ]);
   };
 
@@ -327,7 +378,7 @@ export default function EditProduct() {
       showToast.error("At least one variant is required when variants are enabled.");
       return;
     }
-    setVariants((prev) => prev.filter((_, idx) => idx !== index));
+    setVariants((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleVariantChange = (index, field, value) => {
@@ -338,26 +389,96 @@ export default function EditProduct() {
     });
   };
 
-  const handleVariantSpecChange = (variantIndex, specField, value) => {
+  const addSizeToVariant = (variantIndex) => {
     setVariants((prev) => {
       const updated = [...prev];
       updated[variantIndex] = {
         ...updated[variantIndex],
+        sizes: [...updated[variantIndex].sizes, emptySize()],
+      };
+      return updated;
+    });
+  };
+
+  const removeSizeFromVariant = (variantIndex, sizeIndex) => {
+    setVariants((prev) => {
+      const updated = [...prev];
+      if (updated[variantIndex].sizes.length === 1) {
+        showToast.error("Each color variant must have at least one option.");
+        return prev;
+      }
+      updated[variantIndex] = {
+        ...updated[variantIndex],
+        sizes: updated[variantIndex].sizes.filter((_, i) => i !== sizeIndex),
+      };
+      return updated;
+    });
+  };
+
+  const handleSizeChange = (variantIndex, sizeIndex, field, value) => {
+    setVariants((prev) => {
+      const updated = [...prev];
+      const sizes = [...updated[variantIndex].sizes];
+      const target = {
+        ...sizes[sizeIndex],
+        specifications: { ...sizes[sizeIndex].specifications },
+      };
+
+      target[field] = value;
+
+      if (field === "sizeOrCapacity" && target.optionType === "capacity") {
+        target.specifications.capacity = value;
+      }
+
+      if (field === "price" || field === "originalPrice") {
+        const p = Number(field === "price" ? value : target.price);
+        const op = Number(
+          field === "originalPrice" ? value : target.originalPrice
+        );
+        target.discountPercentage =
+          op > p && op > 0 ? Math.round(((op - p) / op) * 100) : 0;
+      }
+
+      if (field === "optionType") {
+        if (value === "size") {
+          target.sizeOrCapacity = "";
+          target.specifications.capacity = "";
+        } else {
+          target.specifications.height = "";
+          target.specifications.width = "";
+          target.specifications.length = "";
+          target.specifications.weight = "";
+        }
+      }
+
+      sizes[sizeIndex] = target;
+      updated[variantIndex] = { ...updated[variantIndex], sizes };
+      return updated;
+    });
+  };
+
+  const handleSizeSpecChange = (variantIndex, sizeIndex, field, value) => {
+    setVariants((prev) => {
+      const updated = [...prev];
+      const sizes = [...updated[variantIndex].sizes];
+      sizes[sizeIndex] = {
+        ...sizes[sizeIndex],
         specifications: {
-          ...updated[variantIndex].specifications,
-          [specField]: value,
+          ...sizes[sizeIndex].specifications,
+          [field]: value,
         },
       };
+      updated[variantIndex] = { ...updated[variantIndex], sizes };
       return updated;
     });
   };
 
   const handleVariantImageChange = (variantIndex, e) => {
     const files = Array.from(e.target.files || []);
-    const current = variants[variantIndex];
+    const variant = variants[variantIndex];
     const total =
-      (current.existingImages?.length || 0) +
-      (current.newImages?.length || 0) +
+      (variant.existingImages?.length || 0) +
+      (variant.newImages?.length || 0) +
       files.length;
 
     if (total > 5) {
@@ -368,45 +489,53 @@ export default function EditProduct() {
 
     setVariants((prev) => {
       const updated = [...prev];
-      updated[variantIndex].newImages = [
-        ...(updated[variantIndex].newImages || []),
-        ...files,
-      ];
+      updated[variantIndex] = {
+        ...updated[variantIndex],
+        newImages: [
+          ...(updated[variantIndex].newImages || []),
+          ...files,
+        ],
+      };
       return updated;
     });
 
     e.target.value = "";
   };
 
-  const removeVariantExistingImage = (variantIndex, imgIndex) => {
+  const removeVariantExistingImage = (variantIndex, imageIndex) => {
     setVariants((prev) => {
       const updated = [...prev];
-      updated[variantIndex].existingImages = updated[
-        variantIndex
-      ].existingImages.filter((_, idx) => idx !== imgIndex);
+      updated[variantIndex] = {
+        ...updated[variantIndex],
+        existingImages: updated[variantIndex].existingImages.filter(
+          (_, i) => i !== imageIndex
+        ),
+      };
       return updated;
     });
   };
 
-  const removeVariantNewImage = (variantIndex, imgIndex) => {
+  const removeVariantNewImage = (variantIndex, imageIndex) => {
     setVariants((prev) => {
       const updated = [...prev];
-      updated[variantIndex].newImages = updated[variantIndex].newImages.filter(
-        (_, idx) => idx !== imgIndex
-      );
+      updated[variantIndex] = {
+        ...updated[variantIndex],
+        newImages: updated[variantIndex].newImages.filter(
+          (_, i) => i !== imageIndex
+        ),
+      };
       return updated;
     });
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | Submit Updated Product via Redux Thunk
-  |--------------------------------------------------------------------------
-  */
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
 
-    if (isSubmitting) return;
+    if (!id) {
+      showToast.error("Product ID is missing.");
+      return;
+    }
 
     if (!formData.category) {
       showToast.error("Please select a valid category.");
@@ -414,49 +543,71 @@ export default function EditProduct() {
     }
 
     if (hasVariants) {
-      if (variants.length === 0) {
+      if (!variants.length) {
         showToast.error("Please add at least one color variant.");
         return;
       }
 
       for (let i = 0; i < variants.length; i++) {
         const v = variants[i];
+
         if (!v.colorName.trim()) {
           showToast.error(`Color Name is required for variant #${i + 1}.`);
           return;
         }
-        const totalImages =
-          (v.existingImages?.length || 0) + (v.newImages?.length || 0);
-        if (totalImages === 0) {
+
+        if (!v.sizes?.length) {
+          showToast.error(`At least one option is required for "${v.colorName}".`);
+          return;
+        }
+
+        if (
+          (v.existingImages?.length || 0) +
+            (v.newImages?.length || 0) ===
+          0
+        ) {
           showToast.error(
             `At least one image is required for variant "${v.colorName}".`
           );
           return;
         }
+
+        for (let s = 0; s < v.sizes.length; s++) {
+          const size = v.sizes[s];
+
+          if (size.optionType === "capacity" && !size.sizeOrCapacity.trim()) {
+            showToast.error(
+              `Capacity is required for ${v.colorName}, option #${s + 1}.`
+            );
+            return;
+          }
+
+          if (size.price === "" || Number.isNaN(Number(size.price))) {
+            showToast.error(
+              `Sale price is required for ${v.colorName}, option #${s + 1}.`
+            );
+            return;
+          }
+
+          if (size.stock === "" || Number.isNaN(Number(size.stock))) {
+            showToast.error(
+              `Stock is required for ${v.colorName}, option #${s + 1}.`
+            );
+            return;
+          }
+        }
       }
-    } else {
-      if (existingImages.length === 0 && newImages.length === 0) {
-        showToast.error("At least one product image is required.");
-        return;
-      }
+    } else if (
+      existingImages.length + newImages.length === 0
+    ) {
+      showToast.error("At least one product image is required.");
+      return;
     }
 
     const data = new FormData();
 
-    data.append("id", formData.numericalId);
-    data.append("numericalId", formData.numericalId);
+    data.append("id", formData.id);
     data.append("title", formData.title.trim());
-
-    const productSlug =
-      formData.slug ||
-      formData.title
-        .toLowerCase()
-        .trim()
-        .replace(/[^\w\s-]/g, "")
-        .replace(/[\s_-]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-
-    data.append("slug", productSlug);
     data.append("category", formData.category);
     data.append("sku", formData.sku.trim());
     data.append("description", formData.description.trim());
@@ -466,70 +617,118 @@ export default function EditProduct() {
       data.append("longDescription1", formData.longDescription1.trim());
     }
 
-    data.append("price", Number(formData.price));
-    if (formData.originalPrice !== "") {
-      data.append("originalPrice", Number(formData.originalPrice));
-    }
-    if (formData.discountPercentage !== "") {
-      data.append("discountPercentage", Number(formData.discountPercentage));
+    if (!hasVariants) {
+      data.append("price", Number(formData.price));
+      if (formData.originalPrice !== "") {
+        data.append("originalPrice", Number(formData.originalPrice));
+      }
+      data.append(
+        "discountPercentage",
+        Number(formData.discountPercentage || 0)
+      );
+      data.append("stock", Number(formData.stock || 0));
+
+      data.append(
+        "specifications",
+        JSON.stringify({
+          composition:
+            formData.composition?.trim() || "100% natural red clay",
+          capacity:
+            formData.optionType === "capacity"
+              ? formData.capacity?.trim() || undefined
+              : undefined,
+          height:
+            formData.optionType === "size" && formData.height !== ""
+              ? Number(formData.height)
+              : undefined,
+          width:
+            formData.optionType === "size" && formData.width !== ""
+              ? Number(formData.width)
+              : undefined,
+          length:
+            formData.optionType === "size" && formData.length !== ""
+              ? Number(formData.length)
+              : undefined,
+          weight:
+            formData.optionType === "size" && formData.weight !== ""
+              ? Number(formData.weight)
+              : undefined,
+        })
+      );
+
+      data.append("existingImages", JSON.stringify(existingImages));
+      newImages.forEach((file) => data.append("images", file));
+    } else {
+      const flattenedVariants = [];
+
+      variants.forEach((variant, variantIndex) => {
+        variant.sizes.forEach((size) => {
+          flattenedVariants.push({
+            colorName: variant.colorName.trim(),
+            colorCode: variant.colorCode.trim(),
+            sizeOrCapacity:
+              size.optionType === "capacity"
+                ? size.sizeOrCapacity?.trim() || undefined
+                : undefined,
+            optionType: size.optionType,
+            sku: size.sku?.trim() || variant.sku?.trim() || undefined,
+            price: size.price !== "" ? Number(size.price) : 0,
+            originalPrice:
+              size.originalPrice !== ""
+                ? Number(size.originalPrice)
+                : 0,
+            discountPercentage: Number(size.discountPercentage || 0),
+            stock: size.stock !== "" ? Number(size.stock) : 0,
+            specifications: {
+              composition:
+                size.specifications.composition?.trim() ||
+                "100% natural red clay",
+              capacity:
+                size.optionType === "capacity"
+                  ? size.sizeOrCapacity?.trim() ||
+                    size.specifications.capacity?.trim() ||
+                    undefined
+                  : undefined,
+              height:
+                size.optionType === "size" &&
+                size.specifications.height !== ""
+                  ? Number(size.specifications.height)
+                  : undefined,
+              width:
+                size.optionType === "size" &&
+                size.specifications.width !== ""
+                  ? Number(size.specifications.width)
+                  : undefined,
+              length:
+                size.optionType === "size" &&
+                size.specifications.length !== ""
+                  ? Number(size.specifications.length)
+                  : undefined,
+              weight:
+                size.optionType === "size" &&
+                size.specifications.weight !== ""
+                  ? Number(size.specifications.weight)
+                  : undefined,
+            },
+            existingImages: variant.existingImages || [],
+          });
+        });
+
+        (variant.newImages || []).forEach((file) => {
+          data.append(`variant_${variantIndex}_images`, file);
+        });
+      });
+
+      data.append("variants", JSON.stringify(flattenedVariants));
     }
 
-    data.append("stock", Number(formData.stock || 0));
-    
-    // Status is always sent as active
     data.append("isActive", "true");
     data.append("hasVariants", String(hasVariants));
 
-    if (formData.productTags && formData.productTags.length > 0) {
+    if (formData.productTags?.length) {
       data.append("productTags", JSON.stringify(formData.productTags));
-    }
-
-    if (hasVariants) {
-      const variantsMetadata = variants.map((v) => ({
-        colorName: v.colorName.trim(),
-        colorCode: v.colorCode.trim(),
-        sku: v.sku.trim() || undefined,
-        price: v.price ? Number(v.price) : Number(formData.price),
-        originalPrice: v.originalPrice
-          ? Number(v.originalPrice)
-          : Number(formData.originalPrice) || 0,
-        stock: v.stock !== "" ? Number(v.stock) : Number(formData.stock) || 0,
-        images: v.existingImages || [],
-        specifications: {
-          composition:
-            v.specifications?.composition?.trim() || "100% natural red clay",
-          height: v.specifications.height !== "" ? Number(v.specifications.height) : undefined,
-          width: v.specifications.width !== "" ? Number(v.specifications.width) : undefined,
-          length: v.specifications.length !== "" ? Number(v.specifications.length) : undefined,
-          weight: v.specifications.weight !== "" ? Number(v.specifications.weight) : undefined,
-        },
-      }));
-
-      data.append("variants", JSON.stringify(variantsMetadata));
-
-      variants.forEach((v, vIndex) => {
-        (v.newImages || []).forEach((imgFile) => {
-          data.append(`variant_${vIndex}_images`, imgFile);
-        });
-      });
     } else {
-      const specifications = {
-        composition:
-          formData.composition?.trim() || "100% natural red clay",
-        height: formData.height !== "" ? Number(formData.height) : undefined,
-        width: formData.width !== "" ? Number(formData.width) : undefined,
-        length: formData.length !== "" ? Number(formData.length) : undefined,
-        weight: formData.weight !== "" ? Number(formData.weight) : undefined,
-      };
-      data.append("specifications", JSON.stringify(specifications));
-
-      if (existingImages.length > 0) {
-        data.append("existingImages", JSON.stringify(existingImages));
-      }
-
-      newImages.forEach((image) => {
-        data.append("images", image);
-      });
+      data.append("productTags", JSON.stringify([]));
     }
 
     if (formData.suggestedProducts?.length) {
@@ -540,18 +739,14 @@ export default function EditProduct() {
     }
 
     try {
-      const resultAction = await dispatch(updateProduct({ id, data }));
+      const response = await dispatch(
+        updateProduct({ id, data })
+      ).unwrap();
 
-      if (updateProduct.fulfilled.match(resultAction)) {
-        showToast.success(
-          resultAction.payload?.message || "Product updated successfully."
-        );
-        navigate("/admin/product", { replace: true });
-      } else {
-        throw new Error(
-          resultAction.payload || "Failed to update product."
-        );
-      }
+      showToast.success(
+        response?.message || "Product updated successfully."
+      );
+      navigate("/admin/product", { replace: true });
     } catch (error) {
       console.error("UPDATE PRODUCT ERROR:", error);
       showToast.error(
@@ -561,17 +756,6 @@ export default function EditProduct() {
       );
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <Loader2 size={32} className="animate-spin text-[#1BACB1]" />
-        <p className="text-sm font-medium text-slate-500">
-          Loading product details...
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div
@@ -600,7 +784,7 @@ export default function EditProduct() {
             className="text-xs mt-0.5 font-medium"
             style={{ color: C.teal }}
           >
-            Update inventory, color variants and details.
+            Update product details, pricing, variants and images.
           </p>
         </div>
       </div>
@@ -634,8 +818,8 @@ export default function EditProduct() {
                 <input
                   type="number"
                   required
-                  name="numericalId"
-                  value={formData.numericalId}
+                  name="id"
+                  value={formData.id}
                   onChange={handleInputChange}
                   placeholder="101"
                   className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
@@ -748,9 +932,7 @@ export default function EditProduct() {
                           : "bg-white text-slate-600 hover:bg-slate-50"
                       }`}
                       style={{
-                        backgroundColor: isSelected
-                          ? C.paleCoral
-                          : "#FFFFFF",
+                        backgroundColor: isSelected ? C.paleCoral : "#FFFFFF",
                         color: isSelected ? C.coral : "#475569",
                         borderColor: isSelected ? C.coral : C.blush,
                       }}
@@ -768,406 +950,122 @@ export default function EditProduct() {
             </div>
           </div>
 
-          {/* FINANCIALS & BASE STOCK */}
-          <div
-            className="bg-white p-6 rounded-2xl border shadow-sm space-y-4"
-            style={{ borderColor: C.blush, backgroundColor: C.ivory }}
-          >
-            <h3
-              className="text-sm font-bold border-b pb-2"
-              style={{ borderColor: C.blush, color: C.dark }}
+          {/* FINANCIALS & BASE STOCK (Shown ONLY when Variants are Disabled) */}
+          {!hasVariants && (
+            <div
+              className="bg-white p-6 rounded-2xl border shadow-sm space-y-4"
+              style={{ borderColor: C.blush, backgroundColor: C.ivory }}
             >
-              2. Base Financials & Stock
-            </h3>
+              <h3
+                className="text-sm font-bold border-b pb-2"
+                style={{ borderColor: C.blush, color: C.dark }}
+              >
+                2. Base Financials & Stock
+              </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-              {[
-                { name: "price", label: "Sale Price", required: true },
-                { name: "originalPrice", label: "Original Price" },
-                { name: "discountPercentage", label: "Discount %" },
-                { name: "stock", label: "Base Stock", required: !hasVariants },
-              ].map((field) => (
-                <div key={field.name}>
-                  <label
-                    className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-                    style={{ color: C.darkTeal }}
-                  >
-                    {field.label}
-                  </label>
-                  <input
-                    type="number"
-                    required={field.required}
-                    name={field.name}
-                    value={formData[field.name]}
-                    onChange={handleInputChange}
-                    className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
-                    style={{ borderColor: C.blush }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* COLOR VARIANTS TOGGLE AND SECTION */}
-          <div
-            className="bg-white p-6 rounded-2xl border shadow-sm space-y-4"
-            style={{ borderColor: C.blush, backgroundColor: C.ivory }}
-          >
-            <div className="flex items-center justify-between border-b pb-3">
-              <div className="flex items-center gap-2">
-                <Layers size={18} style={{ color: C.coral }} />
-                <h3 className="text-sm font-bold" style={{ color: C.dark }}>
-                  Color Variants Mode
-                </h3>
-              </div>
-
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={hasVariants}
-                  onChange={(e) => setHasVariants(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F16937]"></div>
-                <span className="ml-2 text-xs font-bold text-slate-700">
-                  {hasVariants ? "Enabled" : "Disabled"}
-                </span>
-              </label>
-            </div>
-
-            {hasVariants ? (
-              <div className="space-y-6 pt-2">
-                {variants.map((variant, index) => (
-                  <div
-                    key={index}
-                    className="bg-white p-4 sm:p-5 rounded-xl border space-y-4 shadow-sm"
-                    style={{ borderColor: C.blush }}
-                  >
-                    <div className="flex items-center justify-between border-b pb-2">
-                      <span
-                        className="text-xs font-bold uppercase tracking-wider flex items-center gap-2"
-                        style={{ color: C.darkTeal }}
-                      >
-                        <span
-                          className="w-4 h-4 rounded-full border shadow-inner"
-                          style={{
-                            backgroundColor: variant.colorCode || "#C85A32",
-                            borderColor: C.blush,
-                          }}
-                        ></span>
-                        Variant #{index + 1}: {variant.colorName || "Untitled Color"}
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() => removeVariant(index)}
-                        className="text-rose-500 hover:text-rose-700 p-1 rounded-lg hover:bg-rose-50 transition"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-
-                    {/* Color Info & Color Picker */}
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold mb-1">
-                          Color Name *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={variant.colorName}
-                          onChange={(e) =>
-                            handleVariantChange(
-                              index,
-                              "colorName",
-                              e.target.value
-                            )
-                          }
-                          placeholder="Terracotta Red"
-                          className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                          style={{ borderColor: C.blush }}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold mb-1">
-                          Color Code (Hex)
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            value={variant.colorCode || "#C85A32"}
-                            onChange={(e) =>
-                              handleVariantChange(
-                                index,
-                                "colorCode",
-                                e.target.value
-                              )
-                            }
-                            className="w-9 h-9 rounded-lg border cursor-pointer p-0.5 bg-white"
-                            style={{ borderColor: C.blush }}
-                          />
-                          <input
-                            type="text"
-                            value={variant.colorCode}
-                            onChange={(e) =>
-                              handleVariantChange(
-                                index,
-                                "colorCode",
-                                e.target.value
-                              )
-                            }
-                            placeholder="#C85A32"
-                            className="w-full px-2.5 py-2 bg-slate-50 border rounded-lg text-xs font-mono focus:outline-none uppercase"
-                            style={{ borderColor: C.blush }}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold mb-1">
-                          Variant SKU
-                        </label>
-                        <input
-                          type="text"
-                          value={variant.sku}
-                          onChange={(e) =>
-                            handleVariantChange(index, "sku", e.target.value)
-                          }
-                          placeholder="EE-POT-RED"
-                          className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                          style={{ borderColor: C.blush }}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold mb-1">
-                          Stock Quantity
-                        </label>
-                        <input
-                          type="number"
-                          value={variant.stock}
-                          onChange={(e) =>
-                            handleVariantChange(
-                              index,
-                              "stock",
-                              e.target.value
-                            )
-                          }
-                          placeholder="10"
-                          className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                          style={{ borderColor: C.blush }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Specifications (Composition, Height, Width, Length, Weight) */}
-                    <div className="space-y-3 pt-1 border-t">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="sm:col-span-2">
-                          <label className="block text-xs font-semibold mb-1">
-                            Composition
-                          </label>
-                          <input
-                            type="text"
-                            value={variant.specifications.composition}
-                            onChange={(e) =>
-                              handleVariantSpecChange(
-                                index,
-                                "composition",
-                                e.target.value
-                              )
-                            }
-                            placeholder="100% natural red clay"
-                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                            style={{ borderColor: C.blush }}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1">
-                            Height (Optional)
-                          </label>
-                          <input
-                            type="number"
-                            value={variant.specifications.height}
-                            onChange={(e) =>
-                              handleVariantSpecChange(
-                                index,
-                                "height",
-                                e.target.value
-                              )
-                            }
-                            placeholder="e.g. 15"
-                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                            style={{ borderColor: C.blush }}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1">
-                            Width (Optional)
-                          </label>
-                          <input
-                            type="number"
-                            value={variant.specifications.width}
-                            onChange={(e) =>
-                              handleVariantSpecChange(
-                                index,
-                                "width",
-                                e.target.value
-                              )
-                            }
-                            placeholder="e.g. 10"
-                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                            style={{ borderColor: C.blush }}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1">
-                            Length (Optional)
-                          </label>
-                          <input
-                            type="number"
-                            value={variant.specifications.length}
-                            onChange={(e) =>
-                              handleVariantSpecChange(
-                                index,
-                                "length",
-                                e.target.value
-                              )
-                            }
-                            placeholder="e.g. 12"
-                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                            style={{ borderColor: C.blush }}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1">
-                            Weight (Optional)
-                          </label>
-                          <input
-                            type="number"
-                            value={variant.specifications.weight}
-                            onChange={(e) =>
-                              handleVariantSpecChange(
-                                index,
-                                "weight",
-                                e.target.value
-                              )
-                            }
-                            placeholder="e.g. 500"
-                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                            style={{ borderColor: C.blush }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Variant Images Upload */}
-                    <div className="pt-1 border-t">
-                      <label className="block text-xs font-semibold mb-1.5">
-                        Variant Images (Max 5) *
-                      </label>
-                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                        {/* Existing Images */}
-                        {(variant.existingImages || []).map((imgObj, imgIdx) => (
-                          <div
-                            key={`v-exist-${imgIdx}`}
-                            className="relative aspect-square rounded-lg overflow-hidden border group bg-slate-50"
-                            style={{ borderColor: C.blush }}
-                          >
-                            <img
-                              src={imgObj.url}
-                              alt="Variant Existing"
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.src = "/no-image.png";
-                              }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() =>
-                                removeVariantExistingImage(index, imgIdx)
-                              }
-                              className="absolute top-1 right-1 p-1 rounded bg-black/70 text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition"
-                            >
-                              <X size={12} />
-                            </button>
-                          </div>
-                        ))}
-
-                        {/* New Uploaded Images */}
-                        {(variant.newImages || []).map((imgFile, imgIdx) => (
-                          <ImagePreview
-                            key={`v-new-${imgIdx}`}
-                            image={imgFile}
-                            onRemove={() =>
-                              removeVariantNewImage(index, imgIdx)
-                            }
-                          />
-                        ))}
-
-                        {((variant.existingImages?.length || 0) +
-                          (variant.newImages?.length || 0)) <
-                          5 && (
-                          <label
-                            className="aspect-square rounded-lg border-2 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition gap-1"
-                            style={{
-                              borderColor: C.blush,
-                              color: C.teal,
-                            }}
-                          >
-                            <Upload size={16} />
-                            <span className="text-[10px] font-bold">
-                              Add Photo
-                            </span>
-                            <input
-                              type="file"
-                              multiple
-                              accept="image/*"
-                              onChange={(e) =>
-                                handleVariantImageChange(index, e)
-                              }
-                              className="hidden"
-                            />
-                          </label>
-                        )}
-                      </div>
-                    </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                {[
+                  { name: "price", label: "Sale Price", required: true },
+                  { name: "originalPrice", label: "Original Price" },
+                  { name: "discountPercentage", label: "Discount %" },
+                  { name: "stock", label: "Base Stock", required: true },
+                ].map((field) => (
+                  <div key={field.name}>
+                    <label
+                      className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+                      style={{ color: C.darkTeal }}
+                    >
+                      {field.label}
+                    </label>
+                    <input
+                      type="number"
+                      required={field.required}
+                      name={field.name}
+                      value={formData[field.name]}
+                      onChange={handleInputChange}
+                      className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
+                      style={{ borderColor: C.blush }}
+                    />
                   </div>
                 ))}
-
-                <button
-                  type="button"
-                  onClick={addVariant}
-                  className="w-full py-2.5 border-2 border-dashed rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-50 transition"
-                  style={{ borderColor: C.coral, color: C.coral }}
-                >
-                  <Plus size={16} />
-                  Add Another Color Variant
-                </button>
               </div>
-            ) : (
-              /* SINGLE SPECIFICATIONS FALLBACK */
-              <div className="space-y-4">
+            </div>
+          )}
+
+          {/* SINGLE SPECIFICATIONS & CAPACITY (Shown ONLY when Variants are Disabled) */}
+          {!hasVariants && (
+            <div
+              className="bg-white p-6 rounded-2xl border shadow-sm space-y-4"
+              style={{ borderColor: C.blush, backgroundColor: C.ivory }}
+            >
+              <h3
+                className="text-sm font-bold border-b pb-2"
+                style={{ borderColor: C.blush, color: C.dark }}
+              >
+                Specifications & Capacity
+              </h3>
+              <div>
+                <label
+                  className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+                  style={{ color: C.darkTeal }}
+                >
+                  Composition
+                </label>
+                <input
+                  type="text"
+                  name="composition"
+                  value={formData.composition}
+                  onChange={handleInputChange}
+                  placeholder="e.g. 100% natural red clay"
+                  className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
+                  style={{ borderColor: C.blush }}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label
                     className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
                     style={{ color: C.darkTeal }}
                   >
-                    Composition
+                    Type *
                   </label>
-                  <input
-                    type="text"
-                    name="composition"
-                    value={formData.composition}
+                  <select
+                    name="optionType"
+                    value={formData.optionType || "capacity"}
                     onChange={handleInputChange}
-                    placeholder="e.g. 100% natural red clay"
                     className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
                     style={{ borderColor: C.blush }}
-                  />
+                  >
+                    <option value="capacity">Capacity</option>
+                    <option value="size">Size / Dimensions</option>
+                  </select>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                {formData.optionType === "capacity" && (
+                  <div>
+                    <label
+                      className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+                      style={{ color: C.darkTeal }}
+                    >
+                      Capacity (e.g. 1L, 500ml) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      name="capacity"
+                      value={formData.capacity}
+                      onChange={handleInputChange}
+                      placeholder="e.g. 1 Litre"
+                      className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
+                      style={{ borderColor: C.blush }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {formData.optionType === "size" && (
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-2 border-t">
                   <div>
                     <label
                       className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
@@ -1237,6 +1135,364 @@ export default function EditProduct() {
                     />
                   </div>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* COLOR & SIZES VARIANTS TOGGLE AND SECTION */}
+          <div
+            className="bg-white p-6 rounded-2xl border shadow-sm space-y-4"
+            style={{ borderColor: C.blush, backgroundColor: C.ivory }}
+          >
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <Layers size={18} style={{ color: C.coral }} />
+                <h3 className="text-sm font-bold" style={{ color: C.dark }}>
+                  Color & Size Variants Mode
+                </h3>
+              </div>
+
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hasVariants}
+                  onChange={(e) => setHasVariants(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F16937]"></div>
+                <span className="ml-2 text-xs font-bold text-slate-700">
+                  {hasVariants ? "Enabled" : "Disabled"}
+                </span>
+              </label>
+            </div>
+
+            {hasVariants && (
+              <div className="space-y-6 pt-2">
+                {variants.map((variant, variantIndex) => (
+                  <div
+                    key={variantIndex}
+                    className="bg-white p-4 sm:p-5 rounded-xl border space-y-4 shadow-sm"
+                    style={{ borderColor: C.blush }}
+                  >
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <span
+                        className="text-xs font-bold uppercase tracking-wider flex items-center gap-2"
+                        style={{ color: C.darkTeal }}
+                      >
+                        <span
+                          className="w-4 h-4 rounded-full border shadow-inner"
+                          style={{
+                            backgroundColor: variant.colorCode || "#C85A32",
+                            borderColor: C.blush,
+                          }}
+                        ></span>
+                        Color Variant #{variantIndex + 1}: {variant.colorName || "Untitled Color"}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => removeVariant(variantIndex)}
+                        className="text-rose-500 hover:text-rose-700 p-1 rounded-lg hover:bg-rose-50 transition"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+
+                    {/* Color Name & Hex Code */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold mb-1">
+                          Color Name *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={variant.colorName}
+                          onChange={(e) =>
+                            handleVariantChange(variantIndex, "colorName", e.target.value)
+                          }
+                          placeholder="Terracotta Red"
+                          className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
+                          style={{ borderColor: C.blush }}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold mb-1">
+                          Color Code (Hex)
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={variant.colorCode || "#C85A32"}
+                            onChange={(e) =>
+                              handleVariantChange(variantIndex, "colorCode", e.target.value)
+                            }
+                            className="w-9 h-9 rounded-lg border cursor-pointer p-0.5 bg-white"
+                            style={{ borderColor: C.blush }}
+                          />
+                          <input
+                            type="text"
+                            value={variant.colorCode}
+                            onChange={(e) =>
+                              handleVariantChange(variantIndex, "colorCode", e.target.value)
+                            }
+                            placeholder="#C85A32"
+                            className="w-full px-2.5 py-2 bg-slate-50 border rounded-lg text-xs font-mono focus:outline-none uppercase"
+                            style={{ borderColor: C.blush }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* OPTIONS & PRICING */}
+                    <div className="space-y-4 pt-2 border-t">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                          Options & Pricing for {variant.colorName || "this color"}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => addSizeToVariant(variantIndex)}
+                          className="text-xs font-bold px-2.5 py-1 rounded-lg border bg-slate-50 hover:bg-slate-100 flex items-center gap-1"
+                          style={{ color: C.coral, borderColor: C.blush }}
+                        >
+                          <Plus size={13} /> Add Option
+                        </button>
+                      </div>
+
+                      {variant.sizes.map((sizeItem, sizeIndex) => (
+                        <div
+                          key={sizeIndex}
+                          className="p-4 rounded-xl border bg-slate-50/60 space-y-3 relative"
+                          style={{ borderColor: C.blush }}
+                        >
+                          <div className="flex items-center justify-between border-b pb-2">
+                            <span className="text-xs font-bold text-slate-700">
+                              Option #{sizeIndex + 1}
+                            </span>
+                            {variant.sizes.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeSizeFromVariant(variantIndex, sizeIndex)}
+                                className="text-rose-500 hover:text-rose-700 p-1"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className={`grid grid-cols-1 ${sizeItem.optionType === "capacity" ? "sm:grid-cols-4" : "sm:grid-cols-3"} gap-3`}>
+                            <div>
+                              <label className="block text-[11px] font-semibold mb-1">
+                                Type *
+                              </label>
+                              <select
+                                value={sizeItem.optionType || "capacity"}
+                                onChange={(e) =>
+                                  handleSizeChange(variantIndex, sizeIndex, "optionType", e.target.value)
+                                }
+                                className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
+                                style={{ borderColor: C.blush }}
+                              >
+                                <option value="capacity">Capacity</option>
+                                <option value="size">Size / Dimensions</option>
+                              </select>
+                            </div>
+
+                            {/* CONDITIONAL RENDERING: Hide capacity text input when optionType is "size" */}
+                            {sizeItem.optionType === "capacity" && (
+                              <div>
+                                <label className="block text-[11px] font-semibold mb-1">
+                                  Capacity (e.g. 500ml, 1L) *
+                                </label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={sizeItem.sizeOrCapacity}
+                                  onChange={(e) =>
+                                    handleSizeChange(variantIndex, sizeIndex, "sizeOrCapacity", e.target.value)
+                                  }
+                                  placeholder="e.g. 500ml"
+                                  className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
+                                  style={{ borderColor: C.blush }}
+                                />
+                              </div>
+                            )}
+
+                            <div>
+                              <label className="block text-[11px] font-semibold mb-1">
+                                Sale Price (₹) *
+                              </label>
+                              <input
+                                type="number"
+                                required
+                                value={sizeItem.price}
+                                onChange={(e) =>
+                                  handleSizeChange(variantIndex, sizeIndex, "price", e.target.value)
+                                }
+                                placeholder="299"
+                                className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
+                                style={{ borderColor: C.blush }}
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-semibold mb-1">
+                                Stock *
+                              </label>
+                              <input
+                                type="number"
+                                required
+                                value={sizeItem.stock}
+                                onChange={(e) =>
+                                  handleSizeChange(variantIndex, sizeIndex, "stock", e.target.value)
+                                }
+                                placeholder="10"
+                                className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
+                                style={{ borderColor: C.blush }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Height, Width, Length, Weight shown ONLY if optionType is "size" */}
+                          {sizeItem.optionType === "size" && (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t">
+                              <div>
+                                <label className="block text-[10px] font-semibold mb-1">Height</label>
+                                <input
+                                  type="number"
+                                  value={sizeItem.specifications.height}
+                                  onChange={(e) =>
+                                    handleSizeSpecChange(variantIndex, sizeIndex, "height", e.target.value)
+                                  }
+                                  placeholder="e.g. 15"
+                                  className="w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs"
+                                  style={{ borderColor: C.blush }}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-semibold mb-1">Width</label>
+                                <input
+                                  type="number"
+                                  value={sizeItem.specifications.width}
+                                  onChange={(e) =>
+                                    handleSizeSpecChange(variantIndex, sizeIndex, "width", e.target.value)
+                                  }
+                                  placeholder="e.g. 10"
+                                  className="w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs"
+                                  style={{ borderColor: C.blush }}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-semibold mb-1">Length</label>
+                                <input
+                                  type="number"
+                                  value={sizeItem.specifications.length}
+                                  onChange={(e) =>
+                                    handleSizeSpecChange(variantIndex, sizeIndex, "length", e.target.value)
+                                  }
+                                  placeholder="e.g. 12"
+                                  className="w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs"
+                                  style={{ borderColor: C.blush }}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-semibold mb-1">Weight (g)</label>
+                                <input
+                                  type="number"
+                                  value={sizeItem.specifications.weight}
+                                  onChange={(e) =>
+                                    handleSizeSpecChange(variantIndex, sizeIndex, "weight", e.target.value)
+                                  }
+                                  placeholder="e.g. 500"
+                                  className="w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs"
+                                  style={{ borderColor: C.blush }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Variant Images Upload */}
+                    <div className="pt-1 border-t">
+                      <label className="block text-xs font-semibold mb-1.5">
+                        Variant Images (Max 5) *
+                      </label>
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                        {(variant.existingImages || []).map((img, imgIdx) => (
+                          <div
+                            key={`v-existing-${imgIdx}`}
+                            className="relative aspect-square rounded-lg overflow-hidden border group bg-white"
+                            style={{ borderColor: C.blush }}
+                          >
+                            <img
+                              src={imageUrl(img)}
+                              alt="Existing variant"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.src = "/no-image.png";
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeVariantExistingImage(variantIndex, imgIdx)
+                              }
+                              className="absolute top-1 right-1 p-1 rounded bg-black/70 text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+
+                        {(variant.newImages || []).map((img, imgIdx) => (
+                          <ImagePreview
+                            key={`v-new-${imgIdx}`}
+                            image={img}
+                            onRemove={() =>
+                              removeVariantNewImage(variantIndex, imgIdx)
+                            }
+                          />
+                        ))}
+
+                        {(variant.existingImages.length + variant.newImages.length) < 5 && (
+                          <label
+                            className="aspect-square rounded-lg border-2 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition gap-1"
+                            style={{
+                              borderColor: C.blush,
+                              color: C.teal,
+                            }}
+                          >
+                            <Upload size={16} />
+                            <span className="text-[10px] font-bold">
+                              Add Photo
+                            </span>
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/*"
+                              onChange={(e) => handleVariantImageChange(variantIndex, e)}
+                              className="hidden"
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={addVariant}
+                  className="w-full py-2.5 border-2 border-dashed rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-50 transition"
+                  style={{ borderColor: C.coral, color: C.coral }}
+                >
+                  <Plus size={16} />
+                  Add Another Color Variant
+                </button>
               </div>
             )}
           </div>
@@ -1299,51 +1555,47 @@ export default function EditProduct() {
                 className="text-sm font-bold border-b pb-2"
                 style={{ borderColor: C.blush, color: C.dark }}
               >
-                4. Product Images
+                4. Main Product Images
               </h3>
 
               <p className="text-xs" style={{ color: C.teal }}>
-                Maximum 5 images total (existing + new).
+                Maximum 5 images allowed.
               </p>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {/* Existing Images */}
-                {existingImages.map((imgObj, idx) => (
+                {existingImages.map((image, index) => (
                   <div
-                    key={`existing-${idx}`}
+                    key={`existing-${index}`}
                     className="relative aspect-square rounded-xl overflow-hidden border group"
                     style={{ borderColor: C.blush, backgroundColor: C.cream }}
                   >
                     <img
-                      src={imgObj.url}
-                      alt="Existing"
-                      className="w-full h-full object-cover"
+                      src={imageUrl(image)}
+                      alt="Existing product"
                       onError={(e) => {
                         e.currentTarget.src = "/no-image.png";
                       }}
+                      className="w-full h-full object-cover"
                     />
                     <button
                       type="button"
-                      onClick={() => removeExistingImage(idx)}
+                      onClick={() => removeExistingImage(index)}
                       className="absolute top-2 right-2 p-1.5 rounded-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition"
                       style={{ backgroundColor: C.dark, color: "#FFFFFF" }}
-                      title="Remove Image"
                     >
                       <Trash2 size={14} />
                     </button>
                   </div>
                 ))}
 
-                {/* Newly Uploaded Files Preview */}
                 {newImages.map((image, index) => (
                   <ImagePreview
-                    key={`new-${image.name}-${index}`}
+                    key={`${image.name}-${index}`}
                     image={image}
                     onRemove={() => removeNewImage(index)}
                   />
                 ))}
 
-                {/* Upload Input Button */}
                 {existingImages.length + newImages.length < 5 && (
                   <label
                     className="aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition gap-2"
@@ -1371,11 +1623,11 @@ export default function EditProduct() {
           {/* SUBMIT BUTTON */}
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={loading}
             className="w-full rounded-xl py-4 font-bold transition shadow-md flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ backgroundColor: C.coral, color: "#FFFFFF" }}
           >
-            {isSubmitting ? (
+            {loading ? (
               <>
                 <Loader2 className="animate-spin" size={18} />
                 Updating Product...
@@ -1390,21 +1642,23 @@ export default function EditProduct() {
   );
 }
 
+
+
 /*
 |--------------------------------------------------------------------------
-| Image Preview Component for New Files
+| Image Preview Component
 |--------------------------------------------------------------------------
 */
 function ImagePreview({ image, onRemove }) {
   const [preview, setPreview] = useState("");
 
   useEffect(() => {
+    if (!image) return undefined;
+
     const url = URL.createObjectURL(image);
     setPreview(url);
 
-    return () => {
-      URL.revokeObjectURL(url);
-    };
+    return () => URL.revokeObjectURL(url);
   }, [image]);
 
   return (
@@ -1431,4 +1685,4 @@ function ImagePreview({ image, onRemove }) {
       </button>
     </div>
   );
-} 
+}

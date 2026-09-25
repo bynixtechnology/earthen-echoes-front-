@@ -87,6 +87,8 @@ export default function AddProduct() {
     discountPercentage: "",
     stock: "",
     composition: "100% natural red clay",
+    optionType: "capacity", // "capacity" or "size" for single product specifications
+    capacity: "",
     height: "",
     width: "",
     length: "",
@@ -94,22 +96,31 @@ export default function AddProduct() {
     suggestedProducts: [],
   });
 
-  // Color Variants State Array
+  // Color Variants State Array with Nested Sizes Matching Schema
   const [variants, setVariants] = useState([
     {
       colorName: "Terracotta Red",
       colorCode: "#C85A32",
       sku: "",
-      price: "",
-      originalPrice: "",
-      stock: "",
-      specifications: {
-        composition: "100% natural red clay",
-        height: "",
-        width: "",
-        length: "",
-        weight: "",
-      },
+      sizes: [
+        {
+          optionType: "capacity", // "capacity" or "size"
+          sizeOrCapacity: "500ml",
+          sku: "",
+          price: "",
+          originalPrice: "",
+          discountPercentage: "",
+          stock: "",
+          specifications: {
+            composition: "100% natural red clay",
+            capacity: "500ml",
+            height: "",
+            width: "",
+            length: "",
+            weight: "",
+          },
+        },
+      ],
       images: [],
     },
   ]);
@@ -131,10 +142,29 @@ export default function AddProduct() {
   */
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: value };
+      if (name === "price" || name === "originalPrice") {
+        const p = Number(name === "price" ? value : updated.price);
+        const op = Number(name === "originalPrice" ? value : updated.originalPrice);
+        if (op > p && op > 0) {
+          updated.discountPercentage = Math.round(((op - p) / op) * 100);
+        } else {
+          updated.discountPercentage = 0;
+        }
+      }
+      if (name === "optionType") {
+        if (value === "size") {
+          updated.capacity = "";
+        } else {
+          updated.height = "";
+          updated.width = "";
+          updated.length = "";
+          updated.weight = "";
+        }
+      }
+      return updated;
+    });
   };
 
   /*
@@ -193,16 +223,25 @@ export default function AddProduct() {
         colorName: "",
         colorCode: "#C85A32",
         sku: "",
-        price: formData.price || "",
-        originalPrice: formData.originalPrice || "",
-        stock: formData.stock || "",
-        specifications: {
-          composition: formData.composition || "100% natural red clay",
-          height: formData.height || "",
-          width: formData.width || "",
-          length: formData.length || "",
-          weight: formData.weight || "",
-        },
+        sizes: [
+          {
+            optionType: "capacity",
+            sizeOrCapacity: "",
+            sku: "",
+            price: "",
+            originalPrice: "",
+            discountPercentage: "",
+            stock: "",
+            specifications: {
+              composition: formData.composition || "100% natural red clay",
+              capacity: "",
+              height: "",
+              width: "",
+              length: "",
+              weight: "",
+            },
+          },
+        ],
         images: [],
       },
     ]);
@@ -224,16 +263,83 @@ export default function AddProduct() {
     });
   };
 
-  const handleVariantSpecChange = (variantIndex, specField, value) => {
+  const addSizeToVariant = (variantIndex) => {
     setVariants((prev) => {
       const updated = [...prev];
-      updated[variantIndex] = {
-        ...updated[variantIndex],
+      updated[variantIndex].sizes.push({
+        optionType: "capacity",
+        sizeOrCapacity: "",
+        sku: "",
+        price: "",
+        originalPrice: "",
+        discountPercentage: "",
+        stock: "",
         specifications: {
-          ...updated[variantIndex].specifications,
-          [specField]: value,
+          composition: "100% natural red clay",
+          capacity: "",
+          height: "",
+          width: "",
+          length: "",
+          weight: "",
         },
-      };
+      });
+      return updated;
+    });
+  };
+
+  const removeSizeFromVariant = (variantIndex, sizeIndex) => {
+    setVariants((prev) => {
+      const updated = [...prev];
+      if (updated[variantIndex].sizes.length === 1) {
+        showToast.error("Each color variant must have at least one option.");
+        return prev;
+      }
+      updated[variantIndex].sizes = updated[variantIndex].sizes.filter(
+        (_, idx) => idx !== sizeIndex
+      );
+      return updated;
+    });
+  };
+
+  const handleSizeChange = (variantIndex, sizeIndex, field, value) => {
+    setVariants((prev) => {
+      const updated = [...prev];
+      const targetSize = updated[variantIndex].sizes[sizeIndex];
+      targetSize[field] = value;
+
+      if (field === "sizeOrCapacity" && targetSize.optionType === "capacity") {
+        targetSize.specifications.capacity = value;
+      }
+
+      if (field === "price" || field === "originalPrice") {
+        const p = Number(field === "price" ? value : targetSize.price);
+        const op = Number(field === "originalPrice" ? value : targetSize.originalPrice);
+        if (op > p && op > 0) {
+          targetSize.discountPercentage = Math.round(((op - p) / op) * 100);
+        } else {
+          targetSize.discountPercentage = 0;
+        }
+      }
+
+      if (field === "optionType") {
+        if (value === "size") {
+          targetSize.sizeOrCapacity = "";
+          targetSize.specifications.capacity = "";
+        } else {
+          targetSize.specifications.height = "";
+          targetSize.specifications.width = "";
+          targetSize.specifications.length = "";
+          targetSize.specifications.weight = "";
+        }
+      }
+      return updated;
+    });
+  };
+
+  const handleSizeSpecChange = (variantIndex, sizeIndex, specField, value) => {
+    setVariants((prev) => {
+      const updated = [...prev];
+      updated[variantIndex].sizes[sizeIndex].specifications[specField] = value;
       return updated;
     });
   };
@@ -320,17 +426,17 @@ export default function AddProduct() {
       data.append("longDescription1", formData.longDescription1.trim());
     }
 
-    data.append("price", Number(formData.price));
-    if (formData.originalPrice !== "") {
-      data.append("originalPrice", Number(formData.originalPrice));
-    }
-    if (formData.discountPercentage !== "") {
-      data.append("discountPercentage", Number(formData.discountPercentage));
+    if (!hasVariants) {
+      data.append("price", Number(formData.price));
+      if (formData.originalPrice !== "") {
+        data.append("originalPrice", Number(formData.originalPrice));
+      }
+      if (formData.discountPercentage !== "") {
+        data.append("discountPercentage", Number(formData.discountPercentage));
+      }
+      data.append("stock", Number(formData.stock || 0));
     }
 
-    data.append("stock", Number(formData.stock || 0));
-    
-    // Status is always sent as active (true)
     data.append("isActive", "true");
     data.append("hasVariants", String(hasVariants));
 
@@ -339,23 +445,31 @@ export default function AddProduct() {
     }
 
     if (hasVariants) {
-      const variantsMetadata = variants.map((v) => ({
+      // Pass the complete hierarchical variants array matching the updated schema
+      const formattedVariants = variants.map((v) => ({
         colorName: v.colorName.trim(),
         colorCode: v.colorCode.trim(),
-        sku: v.sku.trim() || undefined,
-        price: v.price ? Number(v.price) : Number(formData.price),
-        originalPrice: v.originalPrice ? Number(v.originalPrice) : Number(formData.originalPrice) || 0,
-        stock: v.stock !== "" ? Number(v.stock) : Number(formData.stock) || 0,
-        specifications: {
-          composition: v.specifications.composition?.trim() || "100% natural red clay",
-          height: v.specifications.height !== "" ? Number(v.specifications.height) : undefined,
-          width: v.specifications.width !== "" ? Number(v.specifications.width) : undefined,
-          length: v.specifications.length !== "" ? Number(v.specifications.length) : undefined,
-          weight: v.specifications.weight !== "" ? Number(v.specifications.weight) : undefined,
-        },
+        sku: v.sku?.trim() || undefined,
+        sizes: v.sizes.map((sz) => ({
+          optionType: sz.optionType,
+          sizeOrCapacity: sz.optionType === "capacity" ? sz.sizeOrCapacity?.trim() || undefined : undefined,
+          sku: sz.sku?.trim() || undefined,
+          price: sz.price !== "" ? Number(sz.price) : 0,
+          originalPrice: sz.originalPrice !== "" ? Number(sz.originalPrice) : 0,
+          discountPercentage: sz.discountPercentage !== undefined ? Number(sz.discountPercentage) : 0,
+          stock: sz.stock !== "" ? Number(sz.stock) : 0,
+          specifications: {
+            composition: sz.specifications.composition?.trim() || "100% natural red clay",
+            capacity: sz.optionType === "capacity" ? (sz.sizeOrCapacity?.trim() || sz.specifications.capacity?.trim() || undefined) : undefined,
+            height: sz.optionType === "size" && sz.specifications.height !== "" ? Number(sz.specifications.height) : undefined,
+            width: sz.optionType === "size" && sz.specifications.width !== "" ? Number(sz.specifications.width) : undefined,
+            length: sz.optionType === "size" && sz.specifications.length !== "" ? Number(sz.specifications.length) : undefined,
+            weight: sz.optionType === "size" && sz.specifications.weight !== "" ? Number(sz.specifications.weight) : undefined,
+          },
+        })),
       }));
 
-      data.append("variants", JSON.stringify(variantsMetadata));
+      data.append("variants", JSON.stringify(formattedVariants));
 
       variants.forEach((v, vIndex) => {
         v.images.forEach((imgFile) => {
@@ -365,10 +479,11 @@ export default function AddProduct() {
     } else {
       const specifications = {
         composition: formData.composition?.trim() || "100% natural red clay",
-        height: formData.height !== "" ? Number(formData.height) : undefined,
-        width: formData.width !== "" ? Number(formData.width) : undefined,
-        length: formData.length !== "" ? Number(formData.length) : undefined,
-        weight: formData.weight !== "" ? Number(formData.weight) : undefined,
+        capacity: formData.optionType === "capacity" ? (formData.capacity?.trim() || undefined) : undefined,
+        height: formData.optionType === "size" && formData.height !== "" ? Number(formData.height) : undefined,
+        width: formData.optionType === "size" && formData.width !== "" ? Number(formData.width) : undefined,
+        length: formData.optionType === "size" && formData.length !== "" ? Number(formData.length) : undefined,
+        weight: formData.optionType === "size" && formData.weight !== "" ? Number(formData.weight) : undefined,
       };
       data.append("specifications", JSON.stringify(specifications));
 
@@ -589,356 +704,122 @@ export default function AddProduct() {
             </div>
           </div>
 
-          {/* FINANCIALS & BASE STOCK */}
-          <div
-            className="bg-white p-6 rounded-2xl border shadow-sm space-y-4"
-            style={{ borderColor: C.blush, backgroundColor: C.ivory }}
-          >
-            <h3
-              className="text-sm font-bold border-b pb-2"
-              style={{ borderColor: C.blush, color: C.dark }}
+          {/* FINANCIALS & BASE STOCK (Shown ONLY when Variants are Disabled) */}
+          {!hasVariants && (
+            <div
+              className="bg-white p-6 rounded-2xl border shadow-sm space-y-4"
+              style={{ borderColor: C.blush, backgroundColor: C.ivory }}
             >
-              2. Base Financials & Stock
-            </h3>
+              <h3
+                className="text-sm font-bold border-b pb-2"
+                style={{ borderColor: C.blush, color: C.dark }}
+              >
+                2. Base Financials & Stock
+              </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-              {[
-                { name: "price", label: "Sale Price", required: true },
-                { name: "originalPrice", label: "Original Price" },
-                { name: "discountPercentage", label: "Discount %" },
-                { name: "stock", label: "Base Stock", required: !hasVariants },
-              ].map((field) => (
-                <div key={field.name}>
-                  <label
-                    className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-                    style={{ color: C.darkTeal }}
-                  >
-                    {field.label}
-                  </label>
-                  <input
-                    type="number"
-                    required={field.required}
-                    name={field.name}
-                    value={formData[field.name]}
-                    onChange={handleInputChange}
-                    className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
-                    style={{ borderColor: C.blush }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* COLOR VARIANTS TOGGLE AND SECTION */}
-          <div
-            className="bg-white p-6 rounded-2xl border shadow-sm space-y-4"
-            style={{ borderColor: C.blush, backgroundColor: C.ivory }}
-          >
-            <div className="flex items-center justify-between border-b pb-3">
-              <div className="flex items-center gap-2">
-                <Layers size={18} style={{ color: C.coral }} />
-                <h3 className="text-sm font-bold" style={{ color: C.dark }}>
-                  Color Variants Mode
-                </h3>
-              </div>
-
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={hasVariants}
-                  onChange={(e) => setHasVariants(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F16937]"></div>
-                <span className="ml-2 text-xs font-bold text-slate-700">
-                  {hasVariants ? "Enabled" : "Disabled"}
-                </span>
-              </label>
-            </div>
-
-            {hasVariants ? (
-              <div className="space-y-6 pt-2">
-                {variants.map((variant, index) => (
-                  <div
-                    key={index}
-                    className="bg-white p-4 sm:p-5 rounded-xl border space-y-4 shadow-sm"
-                    style={{ borderColor: C.blush }}
-                  >
-                    <div className="flex items-center justify-between border-b pb-2">
-                      <span
-                        className="text-xs font-bold uppercase tracking-wider flex items-center gap-2"
-                        style={{ color: C.darkTeal }}
-                      >
-                        <span
-                          className="w-4 h-4 rounded-full border shadow-inner"
-                          style={{
-                            backgroundColor: variant.colorCode || "#C85A32",
-                            borderColor: C.blush,
-                          }}
-                        ></span>
-                        Variant #{index + 1}: {variant.colorName || "Untitled Color"}
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() => removeVariant(index)}
-                        className="text-rose-500 hover:text-rose-700 p-1 rounded-lg hover:bg-rose-50 transition"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-
-                    {/* Color Info & Color Picker */}
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold mb-1">
-                          Color Name *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={variant.colorName}
-                          onChange={(e) =>
-                            handleVariantChange(index, "colorName", e.target.value)
-                          }
-                          placeholder="Terracotta Red"
-                          className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                          style={{ borderColor: C.blush }}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold mb-1">
-                          Color Code (Hex)
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            value={variant.colorCode || "#C85A32"}
-                            onChange={(e) =>
-                              handleVariantChange(index, "colorCode", e.target.value)
-                            }
-                            className="w-9 h-9 rounded-lg border cursor-pointer p-0.5 bg-white"
-                            style={{ borderColor: C.blush }}
-                          />
-                          <input
-                            type="text"
-                            value={variant.colorCode}
-                            onChange={(e) =>
-                              handleVariantChange(index, "colorCode", e.target.value)
-                            }
-                            placeholder="#C85A32"
-                            className="w-full px-2.5 py-2 bg-slate-50 border rounded-lg text-xs font-mono focus:outline-none uppercase"
-                            style={{ borderColor: C.blush }}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold mb-1">
-                          Variant SKU
-                        </label>
-                        <input
-                          type="text"
-                          value={variant.sku}
-                          onChange={(e) =>
-                            handleVariantChange(index, "sku", e.target.value)
-                          }
-                          placeholder="EE-POT-RED"
-                          className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                          style={{ borderColor: C.blush }}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold mb-1">
-                          Stock Quantity
-                        </label>
-                        <input
-                          type="number"
-                          value={variant.stock}
-                          onChange={(e) =>
-                            handleVariantChange(index, "stock", e.target.value)
-                          }
-                          placeholder="10"
-                          className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                          style={{ borderColor: C.blush }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Specifications (Composition, Height, Width, Length, Weight) */}
-                    <div className="space-y-3 pt-1 border-t">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="sm:col-span-2">
-                          <label className="block text-xs font-semibold mb-1">
-                            Composition
-                          </label>
-                          <input
-                            type="text"
-                            value={variant.specifications.composition}
-                            onChange={(e) =>
-                              handleVariantSpecChange(
-                                index,
-                                "composition",
-                                e.target.value
-                              )
-                            }
-                            placeholder="100% natural red clay"
-                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                            style={{ borderColor: C.blush }}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1">
-                            Height (Optional)
-                          </label>
-                          <input
-                            type="number"
-                            value={variant.specifications.height}
-                            onChange={(e) =>
-                              handleVariantSpecChange(
-                                index,
-                                "height",
-                                e.target.value
-                              )
-                            }
-                            placeholder="e.g. 15"
-                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                            style={{ borderColor: C.blush }}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1">
-                            Width (Optional)
-                          </label>
-                          <input
-                            type="number"
-                            value={variant.specifications.width}
-                            onChange={(e) =>
-                              handleVariantSpecChange(
-                                index,
-                                "width",
-                                e.target.value
-                              )
-                            }
-                            placeholder="e.g. 10"
-                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                            style={{ borderColor: C.blush }}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1">
-                            Length (Optional)
-                          </label>
-                          <input
-                            type="number"
-                            value={variant.specifications.length}
-                            onChange={(e) =>
-                              handleVariantSpecChange(
-                                index,
-                                "length",
-                                e.target.value
-                              )
-                            }
-                            placeholder="e.g. 12"
-                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                            style={{ borderColor: C.blush }}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1">
-                            Weight (Optional)
-                          </label>
-                          <input
-                            type="number"
-                            value={variant.specifications.weight}
-                            onChange={(e) =>
-                              handleVariantSpecChange(
-                                index,
-                                "weight",
-                                e.target.value
-                              )
-                            }
-                            placeholder="e.g. 500"
-                            className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
-                            style={{ borderColor: C.blush }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Variant Images Upload */}
-                    <div className="pt-1 border-t">
-                      <label className="block text-xs font-semibold mb-1.5">
-                        Variant Images (Max 5) *
-                      </label>
-                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                        {variant.images.map((img, imgIdx) => (
-                          <ImagePreview
-                            key={imgIdx}
-                            image={img}
-                            onRemove={() => removeVariantImage(index, imgIdx)}
-                          />
-                        ))}
-
-                        {variant.images.length < 5 && (
-                          <label
-                            className="aspect-square rounded-lg border-2 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition gap-1"
-                            style={{
-                              borderColor: C.blush,
-                              color: C.teal,
-                            }}
-                          >
-                            <Upload size={16} />
-                            <span className="text-[10px] font-bold">
-                              Add Photo
-                            </span>
-                            <input
-                              type="file"
-                              multiple
-                              accept="image/*"
-                              onChange={(e) => handleVariantImageChange(index, e)}
-                              className="hidden"
-                            />
-                          </label>
-                        )}
-                      </div>
-                    </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                {[
+                  { name: "price", label: "Sale Price", required: true },
+                  { name: "originalPrice", label: "Original Price" },
+                  { name: "discountPercentage", label: "Discount %" },
+                  { name: "stock", label: "Base Stock", required: true },
+                ].map((field) => (
+                  <div key={field.name}>
+                    <label
+                      className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+                      style={{ color: C.darkTeal }}
+                    >
+                      {field.label}
+                    </label>
+                    <input
+                      type="number"
+                      required={field.required}
+                      name={field.name}
+                      value={formData[field.name]}
+                      onChange={handleInputChange}
+                      className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
+                      style={{ borderColor: C.blush }}
+                    />
                   </div>
                 ))}
-
-                <button
-                  type="button"
-                  onClick={addVariant}
-                  className="w-full py-2.5 border-2 border-dashed rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-50 transition"
-                  style={{ borderColor: C.coral, color: C.coral }}
-                >
-                  <Plus size={16} />
-                  Add Another Color Variant
-                </button>
               </div>
-            ) : (
-              /* SINGLE SPECIFICATIONS FALLBACK */
-              <div className="space-y-4">
+            </div>
+          )}
+
+          {/* SINGLE SPECIFICATIONS & CAPACITY (Shown ONLY when Variants are Disabled) */}
+          {!hasVariants && (
+            <div
+              className="bg-white p-6 rounded-2xl border shadow-sm space-y-4"
+              style={{ borderColor: C.blush, backgroundColor: C.ivory }}
+            >
+              <h3
+                className="text-sm font-bold border-b pb-2"
+                style={{ borderColor: C.blush, color: C.dark }}
+              >
+                Specifications & Capacity
+              </h3>
+              <div>
+                <label
+                  className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+                  style={{ color: C.darkTeal }}
+                >
+                  Composition
+                </label>
+                <input
+                  type="text"
+                  name="composition"
+                  value={formData.composition}
+                  onChange={handleInputChange}
+                  placeholder="e.g. 100% natural red clay"
+                  className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
+                  style={{ borderColor: C.blush }}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label
                     className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
                     style={{ color: C.darkTeal }}
                   >
-                    Composition
+                    Type *
                   </label>
-                  <input
-                    type="text"
-                    name="composition"
-                    value={formData.composition}
+                  <select
+                    name="optionType"
+                    value={formData.optionType || "capacity"}
                     onChange={handleInputChange}
-                    placeholder="e.g. 100% natural red clay"
                     className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
                     style={{ borderColor: C.blush }}
-                  />
+                  >
+                    <option value="capacity">Capacity</option>
+                    <option value="size">Size / Dimensions</option>
+                  </select>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                {formData.optionType === "capacity" && (
+                  <div>
+                    <label
+                      className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+                      style={{ color: C.darkTeal }}
+                    >
+                      Capacity (e.g. 1L, 500ml) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      name="capacity"
+                      value={formData.capacity}
+                      onChange={handleInputChange}
+                      placeholder="e.g. 1 Litre"
+                      className="w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none"
+                      style={{ borderColor: C.blush }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {formData.optionType === "size" && (
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-2 border-t">
                   <div>
                     <label
                       className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
@@ -1008,6 +889,334 @@ export default function AddProduct() {
                     />
                   </div>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* COLOR & SIZES VARIANTS TOGGLE AND SECTION */}
+          <div
+            className="bg-white p-6 rounded-2xl border shadow-sm space-y-4"
+            style={{ borderColor: C.blush, backgroundColor: C.ivory }}
+          >
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <Layers size={18} style={{ color: C.coral }} />
+                <h3 className="text-sm font-bold" style={{ color: C.dark }}>
+                  Color & Size Variants Mode
+                </h3>
+              </div>
+
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hasVariants}
+                  onChange={(e) => setHasVariants(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F16937]"></div>
+                <span className="ml-2 text-xs font-bold text-slate-700">
+                  {hasVariants ? "Enabled" : "Disabled"}
+                </span>
+              </label>
+            </div>
+
+            {hasVariants && (
+              <div className="space-y-6 pt-2">
+                {variants.map((variant, variantIndex) => (
+                  <div
+                    key={variantIndex}
+                    className="bg-white p-4 sm:p-5 rounded-xl border space-y-4 shadow-sm"
+                    style={{ borderColor: C.blush }}
+                  >
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <span
+                        className="text-xs font-bold uppercase tracking-wider flex items-center gap-2"
+                        style={{ color: C.darkTeal }}
+                      >
+                        <span
+                          className="w-4 h-4 rounded-full border shadow-inner"
+                          style={{
+                            backgroundColor: variant.colorCode || "#C85A32",
+                            borderColor: C.blush,
+                          }}
+                        ></span>
+                        Color Variant #{variantIndex + 1}: {variant.colorName || "Untitled Color"}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => removeVariant(variantIndex)}
+                        className="text-rose-500 hover:text-rose-700 p-1 rounded-lg hover:bg-rose-50 transition"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+
+                    {/* Color Name & Hex Code */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold mb-1">
+                          Color Name *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={variant.colorName}
+                          onChange={(e) =>
+                            handleVariantChange(variantIndex, "colorName", e.target.value)
+                          }
+                          placeholder="Terracotta Red"
+                          className="w-full px-3 py-2 bg-slate-50 border rounded-lg text-xs focus:outline-none"
+                          style={{ borderColor: C.blush }}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold mb-1">
+                          Color Code (Hex)
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={variant.colorCode || "#C85A32"}
+                            onChange={(e) =>
+                              handleVariantChange(variantIndex, "colorCode", e.target.value)
+                            }
+                            className="w-9 h-9 rounded-lg border cursor-pointer p-0.5 bg-white"
+                            style={{ borderColor: C.blush }}
+                          />
+                          <input
+                            type="text"
+                            value={variant.colorCode}
+                            onChange={(e) =>
+                              handleVariantChange(variantIndex, "colorCode", e.target.value)
+                            }
+                            placeholder="#C85A32"
+                            className="w-full px-2.5 py-2 bg-slate-50 border rounded-lg text-xs font-mono focus:outline-none uppercase"
+                            style={{ borderColor: C.blush }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* OPTIONS & PRICING */}
+                    <div className="space-y-4 pt-2 border-t">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                          Options & Pricing for {variant.colorName || "this color"}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => addSizeToVariant(variantIndex)}
+                          className="text-xs font-bold px-2.5 py-1 rounded-lg border bg-slate-50 hover:bg-slate-100 flex items-center gap-1"
+                          style={{ color: C.coral, borderColor: C.blush }}
+                        >
+                          <Plus size={13} /> Add Option
+                        </button>
+                      </div>
+
+                      {variant.sizes.map((sizeItem, sizeIndex) => (
+                        <div
+                          key={sizeIndex}
+                          className="p-4 rounded-xl border bg-slate-50/60 space-y-3 relative"
+                          style={{ borderColor: C.blush }}
+                        >
+                          <div className="flex items-center justify-between border-b pb-2">
+                            <span className="text-xs font-bold text-slate-700">
+                              Option #{sizeIndex + 1}
+                            </span>
+                            {variant.sizes.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeSizeFromVariant(variantIndex, sizeIndex)}
+                                className="text-rose-500 hover:text-rose-700 p-1"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className={`grid grid-cols-1 ${sizeItem.optionType === "capacity" ? "sm:grid-cols-4" : "sm:grid-cols-3"} gap-3`}>
+                            <div>
+                              <label className="block text-[11px] font-semibold mb-1">
+                                Type *
+                              </label>
+                              <select
+                                value={sizeItem.optionType || "capacity"}
+                                onChange={(e) =>
+                                  handleSizeChange(variantIndex, sizeIndex, "optionType", e.target.value)
+                                }
+                                className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
+                                style={{ borderColor: C.blush }}
+                              >
+                                <option value="capacity">Capacity</option>
+                                <option value="size">Size / Dimensions</option>
+                              </select>
+                            </div>
+
+                            {sizeItem.optionType === "capacity" && (
+                              <div>
+                                <label className="block text-[11px] font-semibold mb-1">
+                                  Capacity (e.g. 500ml, 1L) *
+                                </label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={sizeItem.sizeOrCapacity}
+                                  onChange={(e) =>
+                                    handleSizeChange(variantIndex, sizeIndex, "sizeOrCapacity", e.target.value)
+                                  }
+                                  placeholder="e.g. 500ml"
+                                  className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
+                                  style={{ borderColor: C.blush }}
+                                />
+                              </div>
+                            )}
+
+                            <div>
+                              <label className="block text-[11px] font-semibold mb-1">
+                                Sale Price (₹) *
+                              </label>
+                              <input
+                                type="number"
+                                required
+                                value={sizeItem.price}
+                                onChange={(e) =>
+                                  handleSizeChange(variantIndex, sizeIndex, "price", e.target.value)
+                                }
+                                placeholder="299"
+                                className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
+                                style={{ borderColor: C.blush }}
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-semibold mb-1">
+                                Stock *
+                              </label>
+                              <input
+                                type="number"
+                                required
+                                value={sizeItem.stock}
+                                onChange={(e) =>
+                                  handleSizeChange(variantIndex, sizeIndex, "stock", e.target.value)
+                                }
+                                placeholder="10"
+                                className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
+                                style={{ borderColor: C.blush }}
+                              />
+                            </div>
+                          </div>
+
+                          {sizeItem.optionType === "size" && (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t">
+                              <div>
+                                <label className="block text-[10px] font-semibold mb-1">Height</label>
+                                <input
+                                  type="number"
+                                  value={sizeItem.specifications.height}
+                                  onChange={(e) =>
+                                    handleSizeSpecChange(variantIndex, sizeIndex, "height", e.target.value)
+                                  }
+                                  placeholder="e.g. 15"
+                                  className="w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs"
+                                  style={{ borderColor: C.blush }}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-semibold mb-1">Width</label>
+                                <input
+                                  type="number"
+                                  value={sizeItem.specifications.width}
+                                  onChange={(e) =>
+                                    handleSizeSpecChange(variantIndex, sizeIndex, "width", e.target.value)
+                                  }
+                                  placeholder="e.g. 10"
+                                  className="w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs"
+                                  style={{ borderColor: C.blush }}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-semibold mb-1">Length</label>
+                                <input
+                                  type="number"
+                                  value={sizeItem.specifications.length}
+                                  onChange={(e) =>
+                                    handleSizeSpecChange(variantIndex, sizeIndex, "length", e.target.value)
+                                  }
+                                  placeholder="e.g. 12"
+                                  className="w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs"
+                                  style={{ borderColor: C.blush }}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-semibold mb-1">Weight (g)</label>
+                                <input
+                                  type="number"
+                                  value={sizeItem.specifications.weight}
+                                  onChange={(e) =>
+                                    handleSizeSpecChange(variantIndex, sizeIndex, "weight", e.target.value)
+                                  }
+                                  placeholder="e.g. 500"
+                                  className="w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs"
+                                  style={{ borderColor: C.blush }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Variant Images Upload */}
+                    <div className="pt-1 border-t">
+                      <label className="block text-xs font-semibold mb-1.5">
+                        Variant Images (Max 5) *
+                      </label>
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                        {variant.images.map((img, imgIdx) => (
+                          <ImagePreview
+                            key={imgIdx}
+                            image={img}
+                            onRemove={() => removeVariantImage(variantIndex, imgIdx)}
+                          />
+                        ))}
+
+                        {variant.images.length < 5 && (
+                          <label
+                            className="aspect-square rounded-lg border-2 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition gap-1"
+                            style={{
+                              borderColor: C.blush,
+                              color: C.teal,
+                            }}
+                          >
+                            <Upload size={16} />
+                            <span className="text-[10px] font-bold">
+                              Add Photo
+                            </span>
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/*"
+                              onChange={(e) => handleVariantImageChange(variantIndex, e)}
+                              className="hidden"
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={addVariant}
+                  className="w-full py-2.5 border-2 border-dashed rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-50 transition"
+                  style={{ borderColor: C.coral, color: C.coral }}
+                >
+                  <Plus size={16} />
+                  Add Another Color Variant
+                </button>
               </div>
             )}
           </div>

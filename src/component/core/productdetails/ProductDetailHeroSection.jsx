@@ -71,6 +71,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
 
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
+  const [selectedSizeIndex, setSelectedSizeIndex] = useState(0);
   const [selectedImage, setSelectedImage] = useState("");
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [zoomed, setZoomed] = useState(false);
@@ -117,6 +118,14 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
     return product.variants[selectedVariantIndex] || product.variants[0];
   }, [hasVariants, product?.variants, selectedVariantIndex]);
 
+  // Handle active size/capacity option resolution inside the variant
+  const activeSizeOption = useMemo(() => {
+    if (activeVariant && Array.isArray(activeVariant.sizes) && activeVariant.sizes.length > 0) {
+      return activeVariant.sizes[selectedSizeIndex] || activeVariant.sizes[0];
+    }
+    return null;
+  }, [activeVariant, selectedSizeIndex]);
+
   // Dynamic Image extraction logic
   const productImages = useMemo(() => {
     let imagesSource = [];
@@ -155,6 +164,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
   useEffect(() => {
     setQuantity(1);
     setSelectedVariantIndex(0);
+    setSelectedSizeIndex(0);
     setActiveTab("description");
     setPincode("");
     setPincodeMsg("");
@@ -175,15 +185,15 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
     });
   }, [wishlistItems, product?._id]);
 
-  // Dynamic pricing, stock, sku based on active variant or main product
+  // Dynamic pricing, stock, sku based on active size option, variant, or main product
   const stock = Number(
-    activeVariant?.stock ?? product?.stock ?? product?.quantity ?? 0
+    activeSizeOption?.stock ?? activeVariant?.stock ?? product?.stock ?? product?.quantity ?? 0
   );
-  const price = Number(activeVariant?.price ?? product?.price ?? 0);
+  const price = Number(activeSizeOption?.price ?? activeVariant?.price ?? product?.price ?? 0);
   const originalPrice = Number(
-    activeVariant?.originalPrice ?? product?.originalPrice ?? product?.mrp ?? 0
+    activeSizeOption?.originalPrice ?? activeVariant?.originalPrice ?? product?.originalPrice ?? product?.mrp ?? 0
   );
-  const sku = activeVariant?.sku || product?.sku || "N/A";
+  const sku = activeSizeOption?.sku || activeVariant?.sku || product?.sku || "N/A";
 
   const categoryName =
     typeof product?.category === "object"
@@ -249,6 +259,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
           productId: product._id,
           quantity,
           variant: activeVariant ? activeVariant : undefined,
+          sizeOption: activeSizeOption ? activeSizeOption : undefined,
         })
       ).unwrap();
 
@@ -292,6 +303,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
       quantity,
       price,
       selectedVariant: activeVariant,
+      selectedSizeOption: activeSizeOption,
     };
 
     if (!isAuthenticated) {
@@ -384,9 +396,13 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
     selectImage(productImages[nextIndex], nextIndex);
   };
 
-  const currentSpecs = activeVariant?.specifications || product?.specifications || {};
+  const currentSpecs =
+    activeSizeOption?.specifications ||
+    activeVariant?.specifications ||
+    product?.specifications ||
+    {};
 
-  // Dynamically build potterySpecs using height, width, length, and weight if available in specifications
+  // Dynamically build potterySpecs combining Material, Capacity, Dimensions, and Weight
   const potterySpecs = useMemo(() => {
     const specs = [
       {
@@ -399,27 +415,33 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
       },
     ];
 
-    if (currentSpecs.height !== undefined && currentSpecs.height !== null && currentSpecs.height !== "") {
+    const capacity = activeSizeOption?.sizeOrCapacity || currentSpecs.capacity;
+    if (capacity !== undefined && capacity !== null && String(capacity).trim() !== "") {
       specs.push({
-        icon: Sparkles,
-        title: "Height",
-        value: `${currentSpecs.height} cm`,
+        icon: Droplets,
+        title: "Capacity",
+        value: capacity,
       });
     }
 
-    if (currentSpecs.width !== undefined && currentSpecs.width !== null && currentSpecs.width !== "") {
-      specs.push({
-        icon: Sparkles,
-        title: "Width",
-        value: `${currentSpecs.width} cm`,
-      });
-    }
+    const h = currentSpecs.height;
+    const w = currentSpecs.width;
+    const l = currentSpecs.length;
 
-    if (currentSpecs.length !== undefined && currentSpecs.length !== null && currentSpecs.length !== "") {
+    if (
+      (h !== undefined && h !== null && h !== "") ||
+      (w !== undefined && w !== null && w !== "") ||
+      (l !== undefined && l !== null && l !== "")
+    ) {
+      const dimParts = [];
+      if (h !== undefined && h !== null && h !== "") dimParts.push(`${h}`);
+      if (w !== undefined && w !== null && w !== "") dimParts.push(`${w}`);
+      if (l !== undefined && l !== null && l !== "") dimParts.push(`${l}`);
+
       specs.push({
         icon: Sparkles,
-        title: "Length",
-        value: `${currentSpecs.length} cm`,
+        title: "Height * Width * Length",
+        value: dimParts.join(" * ") + " (inches)",
       });
     }
 
@@ -431,7 +453,6 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
       });
     }
 
-    // Fallback to default specifications if dimensions/weight are not present
     if (specs.length === 1) {
       specs.push(
         {
@@ -466,7 +487,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
     );
 
     return specs;
-  }, [currentSpecs, product]);
+  }, [currentSpecs, product, activeSizeOption]);
 
   if (loading) {
     return (
@@ -688,7 +709,10 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
                       <button
                         key={variant.sku || index}
                         type="button"
-                        onClick={() => setSelectedVariantIndex(index)}
+                        onClick={() => {
+                          setSelectedVariantIndex(index);
+                          setSelectedSizeIndex(0); // Reset size index on color change
+                        }}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all cursor-pointer ${
                           isSelected
                             ? "border-[#F16937] bg-[#FEF1EC] text-[#F16937] ring-1 ring-[#F16937]"
@@ -702,6 +726,50 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
                           }}
                         />
                         <span>{variant.colorName}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* SIZE / CAPACITY OPTIONS SELECTOR */}
+            {activeVariant && Array.isArray(activeVariant.sizes) && activeVariant.sizes.length > 0 && (
+              <div className="space-y-2 pb-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs sm:text-sm font-bold text-[#1C1917]">
+                    {activeVariant.sizes[0]?.optionType === "size" ? "Size / Dimensions" : "Capacity"}:{" "}
+                    <span className="text-[#F16937]">
+                      {activeSizeOption?.sizeOrCapacity ||
+                        activeSizeOption?.specifications?.capacity ||
+                        `${activeSizeOption?.specifications?.height || ""}x${activeSizeOption?.specifications?.width || ""}` ||
+                        "Standard"}
+                    </span>
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {activeVariant.sizes.map((sizeOpt, sIndex) => {
+                    const isSelected = selectedSizeIndex === sIndex;
+                    const label =
+                      sizeOpt.sizeOrCapacity ||
+                      sizeOpt.specifications?.capacity ||
+                      (sizeOpt.optionType === "size"
+                        ? `${sizeOpt.specifications?.height || 0}x${sizeOpt.specifications?.width || 0} in`
+                        : `Option ${sIndex + 1}`);
+
+                    return (
+                      <button
+                        key={sizeOpt._id || sIndex}
+                        type="button"
+                        onClick={() => setSelectedSizeIndex(sIndex)}
+                        className={`px-3.5 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? "border-[#F16937] bg-[#FEF1EC] text-[#F16937] ring-1 ring-[#F16937]"
+                            : "border-[rgba(28,25,23,0.15)] bg-white text-[#78716C] hover:border-[#F16937]"
+                        }`}
+                      >
+                        {label}
                       </button>
                     );
                   })}
