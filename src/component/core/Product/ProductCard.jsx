@@ -1078,6 +1078,11 @@ const Stars = ({ rating }) => {
 | Product Gallery Component (With Fixed Image Extraction for Variants)
 |--------------------------------------------------------------------------
 */
+/*
+|--------------------------------------------------------------------------
+| Product Gallery Component (With Fixed Variant Image & Price Extraction)
+|--------------------------------------------------------------------------
+*/
 const ProductGallery = ({
   product,
   onAddToCart,
@@ -1094,19 +1099,32 @@ const ProductGallery = ({
     return imageObj.url || imageObj.secure_url || null;
   };
 
-  // Image Fallback Logic: Variant Images -> Main Images -> Placeholder
+  // Active Variant and Size Options
+  const activeVariant =
+    product?.hasVariants && Array.isArray(product?.variants) && product.variants.length > 0
+      ? product.variants[selectedVariantIndex] || product.variants[0]
+      : null;
+
+  const activeSize =
+    activeVariant && Array.isArray(activeVariant?.sizes) && activeVariant.sizes.length > 0
+      ? activeVariant.sizes[0]
+      : null;
+
+  // Image Fallback Logic: Active Variant Images -> Main Images -> Placeholder
   const image1 = useMemo(() => {
-    if (product?.hasVariants && Array.isArray(product?.variants) && product.variants.length > 0) {
-      const activeVariant = product.variants[selectedVariantIndex] || product.variants[0];
-      const variantImg = getImageUrl(activeVariant?.images?.[0]);
-      if (variantImg) return variantImg;
-    }
+    const variantImg = getImageUrl(activeVariant?.images?.[0]);
+    if (variantImg) return variantImg;
 
     const mainImg = getImageUrl(product?.images?.[0]);
     if (mainImg) return mainImg;
 
     return "/placeholder.png";
-  }, [product, selectedVariantIndex]);
+  }, [product, activeVariant]);
+
+  // Price & Original Price Fallback Logic: Active Size -> Variant -> Product Level
+  const displayPrice = activeSize?.price ?? activeVariant?.price ?? product?.price ?? 0;
+  const displayOriginalPrice = activeSize?.originalPrice ?? activeVariant?.originalPrice ?? product?.originalPrice ?? 0;
+  const displayStock = activeSize?.stock ?? activeVariant?.stock ?? product?.stock ?? 0;
 
   const isWishlisted = wishlistItems?.some((item) => {
     return (
@@ -1389,7 +1407,7 @@ const ProductGallery = ({
 
                 <button
                   type="button"
-                  disabled={product?.stock <= 0}
+                  disabled={displayStock <= 0}
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -1410,7 +1428,7 @@ const ProductGallery = ({
                     disabled:cursor-not-allowed
                   "
                 >
-                  {product?.stock > 0 ? "Add To Cart" : "Out Of Stock"}
+                  {displayStock > 0 ? "Add To Cart" : "Out Of Stock"}
                 </button>
               </div>
             </div>
@@ -1452,51 +1470,26 @@ const ProductGallery = ({
               {product?.title || "Product"}
             </h3>
 
-            {/* COLOR VARIANTS SWATCHES */}
-            {product?.hasVariants &&
-              Array.isArray(product?.variants) &&
-              product.variants.length > 0 && (
-                <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                  {product.variants.map((v, idx) => (
-                    <button
-                      key={v.sku || idx}
-                      type="button"
-                      title={v.colorName}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setSelectedVariantIndex(idx);
-                      }}
-                      className={`
-                        w-4 h-4 rounded-full border border-gray-300 transition-transform
-                        ${selectedVariantIndex === idx ? "scale-125 ring-2 ring-primary ring-offset-1" : "hover:scale-110"}
-                      `}
-                      style={{ backgroundColor: v.colorCode || "#CCC" }}
-                    />
-                  ))}
-                </div>
-              )}
+           
 
             {/* PRICE */}
             <div className="mt-3 flex flex-wrap items-end gap-2">
               <span className="text-[14px] font-bold text-[#F16937]">
-                ₹{Number(product?.price || 0).toLocaleString()}
+                ₹{Number(displayPrice).toLocaleString()}
               </span>
 
-              {product?.originalPrice > product?.price && (
+              {displayOriginalPrice > displayPrice && (
                 <span className="text-[11px] text-[#9AA0AD] line-through">
-                  ₹{Number(product.originalPrice).toLocaleString()}
+                  ₹{Number(displayOriginalPrice).toLocaleString()}
                 </span>
               )}
             </div>
 
             {/* SAVINGS */}
-            {product?.originalPrice > product?.price && (
+            {displayOriginalPrice > displayPrice && (
               <p className="mt-1 text-[10px] font-medium text-green-600">
                 You Save ₹
-                {Number(
-                  product.originalPrice - product.price
-                ).toLocaleString()}
+                {Number(displayOriginalPrice - displayPrice).toLocaleString()}
               </p>
             )}
 
@@ -1549,13 +1542,13 @@ const ProductGallery = ({
                   text-[10px]
                   font-semibold
                   ${
-                    product?.stock > 0
+                    displayStock > 0
                       ? "bg-green-100 text-green-700"
                       : "bg-red-100 text-red-600"
                   }
                 `}
               >
-                {product?.stock > 0 ? "In Stock" : "Out Of Stock"}
+                {displayStock > 0 ? "In Stock" : "Out Of Stock"}
               </span>
             </div>
           </div>
@@ -1565,7 +1558,7 @@ const ProductGallery = ({
         <div className="px-5 pb-3 pt-0 md:hidden">
           <button
             type="button"
-            disabled={product?.stock <= 0}
+            disabled={displayStock <= 0}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -1589,7 +1582,7 @@ const ProductGallery = ({
               disabled:cursor-not-allowed
             "
           >
-            {product?.stock > 0 ? "Add to Cart" : "Out of Stock"}
+            {displayStock > 0 ? "Add to Cart" : "Out of Stock"}
           </button>
         </div>
       </div>

@@ -29,11 +29,6 @@ import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
-  fetchProductBySlug,
-  fetchProductById,
-} from "../../../redux/thunks/productThunk";
-import {
-  clearSelectedProduct,
   selectSelectedProduct,
   selectProductDetailsLoading,
   selectProductError,
@@ -50,7 +45,6 @@ import { showToast } from "../../../config/toast";
 const TABS = ["description", "specifications", "shipping", "reviews"];
 
 const ProductDetailHeroSection = ({ setCategoryId }) => {
-  // Extract slug param matching updated route /products/:slug
   const { slug, id } = useParams();
   const activeIdentifier = slug || id;
 
@@ -89,22 +83,10 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Fetch product by slug (with ID fallback)
+  // Fetch wishlist on mount
   useEffect(() => {
-    if (!activeIdentifier) return;
-
-    if (slug) {
-      dispatch(fetchProductBySlug(slug));
-    } else if (id) {
-      dispatch(fetchProductById(id));
-    }
-
     dispatch(getWishlist());
-
-    return () => {
-      dispatch(clearSelectedProduct());
-    };
-  }, [dispatch, activeIdentifier, slug, id]);
+  }, [dispatch]);
 
   // Handle active variant resolution
   const hasVariants = Boolean(
@@ -126,7 +108,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
     return null;
   }, [activeVariant, selectedSizeIndex]);
 
-  // Dynamic Image extraction logic
+  // Dynamic Image extraction logic tied directly to active variant
   const productImages = useMemo(() => {
     let imagesSource = [];
 
@@ -144,6 +126,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
       .filter(Boolean);
   }, [hasVariants, activeVariant, product?.images]);
 
+  // Automatically reset selected image when variant changes
   useEffect(() => {
     const firstImage = productImages[0] || "/placeholder.png";
     setSelectedImage(firstImage);
@@ -396,31 +379,51 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
     selectImage(productImages[nextIndex], nextIndex);
   };
 
-  const currentSpecs =
-    activeSizeOption?.specifications ||
-    activeVariant?.specifications ||
-    product?.specifications ||
-    {};
+  const currentSpecs = useMemo(() => {
+    return {
+      composition:
+        activeSizeOption?.specifications?.composition ||
+        activeVariant?.specifications?.composition ||
+        product?.specifications?.composition ||
+        "100% natural red clay",
+      capacity:
+        activeSizeOption?.sizeOrCapacity ||
+        activeSizeOption?.specifications?.capacity ||
+        activeVariant?.specifications?.capacity ||
+        product?.specifications?.capacity,
+      height:
+        activeSizeOption?.specifications?.height ??
+        activeVariant?.specifications?.height ??
+        product?.specifications?.height,
+      width:
+        activeSizeOption?.specifications?.width ??
+        activeVariant?.specifications?.width ??
+        product?.specifications?.width,
+      length:
+        activeSizeOption?.specifications?.length ??
+        activeVariant?.specifications?.length ??
+        product?.specifications?.length,
+      weight:
+        activeSizeOption?.specifications?.weight ??
+        activeVariant?.specifications?.weight ??
+        product?.specifications?.weight,
+    };
+  }, [activeSizeOption, activeVariant, product]);
 
-  // Dynamically build potterySpecs combining Material, Capacity, Dimensions, and Weight
   const potterySpecs = useMemo(() => {
     const specs = [
       {
         icon: Leaf,
         title: "Material / Composition",
-        value:
-          currentSpecs.composition ||
-          product?.composition ||
-          "100% Natural Red Clay",
+        value: currentSpecs.composition,
       },
     ];
 
-    const capacity = activeSizeOption?.sizeOrCapacity || currentSpecs.capacity;
-    if (capacity !== undefined && capacity !== null && String(capacity).trim() !== "") {
+    if (currentSpecs.capacity !== undefined && currentSpecs.capacity !== null && String(currentSpecs.capacity).trim() !== "") {
       specs.push({
         icon: Droplets,
         title: "Capacity",
-        value: capacity,
+        value: currentSpecs.capacity,
       });
     }
 
@@ -487,7 +490,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
     );
 
     return specs;
-  }, [currentSpecs, product, activeSizeOption]);
+  }, [currentSpecs]);
 
   if (loading) {
     return (
@@ -503,17 +506,6 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
       <div className="min-h-[560px] flex flex-col items-center justify-center text-center px-4">
         <h2 className="text-2xl font-heading font-bold">Unable to load product</h2>
         <p className="mt-2 text-sm text-[#78716C]">{error}</p>
-        <button
-          type="button"
-          onClick={() => {
-            if (slug) dispatch(fetchProductBySlug(slug));
-            else if (id) dispatch(fetchProductById(id));
-          }}
-          className="mt-5 px-5 py-3 bg-[#F16937] text-white rounded-xl flex items-center gap-2"
-        >
-          <RefreshCw size={16} />
-          Try Again
-        </button>
       </div>
     );
   }
@@ -711,7 +703,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
                         type="button"
                         onClick={() => {
                           setSelectedVariantIndex(index);
-                          setSelectedSizeIndex(0); // Reset size index on color change
+                          setSelectedSizeIndex(0);
                         }}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all cursor-pointer ${
                           isSelected
@@ -734,7 +726,7 @@ const ProductDetailHeroSection = ({ setCategoryId }) => {
             )}
 
             {/* SIZE / CAPACITY OPTIONS SELECTOR */}
-            {activeVariant && Array.isArray(activeVariant.sizes) && activeVariant.sizes.length > 0 && (
+            {activeVariant && Array.isArray(activeVariant.sizes) && activeVariant.sizes.length > 0 && activeVariant.sizes[0]?.optionType !== "color" && (
               <div className="space-y-2 pb-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs sm:text-sm font-bold text-[#1C1917]">

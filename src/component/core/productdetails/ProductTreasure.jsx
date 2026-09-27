@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { Heart, Loader2, ShoppingCart } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -316,11 +316,39 @@ const ProductGallery = ({
 
   const image2 = resolveImage(imagesSource?.[1]) || image1;
 
-  const price = Number(activeVariant?.price ?? product?.price ?? 0);
-  const originalPrice = Number(
-    activeVariant?.originalPrice ?? product?.originalPrice ?? 0
-  );
-  const stock = Number(activeVariant?.stock ?? product?.stock ?? 0);
+  // Dynamic calculation for Price and Stock (handling nested sizes array)
+  const { displayPrice, displayOriginalPrice, displayStock } = useMemo(() => {
+    if (hasVariants && activeVariant) {
+      let minPrice = Infinity;
+      let maxOriginal = 0;
+      let totalStock = 0;
+
+      if (Array.isArray(activeVariant.sizes) && activeVariant.sizes.length > 0) {
+        activeVariant.sizes.forEach((s) => {
+          if (s.price !== undefined && s.price < minPrice) minPrice = s.price;
+          if (s.originalPrice && s.originalPrice > maxOriginal) maxOriginal = s.originalPrice;
+          totalStock += s.stock || 0;
+        });
+      } else {
+        if (activeVariant.price !== undefined && activeVariant.price < minPrice) minPrice = activeVariant.price;
+        if (activeVariant.originalPrice && activeVariant.originalPrice > maxOriginal) maxOriginal = activeVariant.originalPrice;
+        totalStock += activeVariant.stock || 0;
+      }
+
+      return {
+        displayPrice: minPrice === Infinity ? (product?.price || 0) : minPrice,
+        displayOriginalPrice: maxOriginal || (product?.originalPrice || 0),
+        displayStock: totalStock > 0 ? totalStock : (product?.stock || 0),
+      };
+    }
+
+    return {
+      displayPrice: product?.price || 0,
+      displayOriginalPrice: product?.originalPrice || 0,
+      displayStock: product?.stock || 0,
+    };
+  }, [product, hasVariants, activeVariant]);
+
   const discount = Number(product?.discountPercentage || 0);
 
   // Use slug parameter with _id as fallback
@@ -376,7 +404,7 @@ const ProductGallery = ({
 
             <button
               type="button"
-              disabled={stock <= 0}
+              disabled={displayStock <= 0}
               onClick={(e) => onAddToCart(e, product, activeVariant)}
               aria-label="Add to cart"
               className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F16937] text-white shadow-[0_4px_12px_rgba(241,105,55,0.30)] transition active:scale-90 disabled:cursor-not-allowed disabled:bg-[#D6D3D1] disabled:shadow-none"
@@ -403,11 +431,11 @@ const ProductGallery = ({
 
               <button
                 type="button"
-                disabled={stock <= 0}
+                disabled={displayStock <= 0}
                 onClick={(e) => onAddToCart(e, product, activeVariant)}
                 className="h-12 flex-1 rounded-2xl bg-[#F16937] px-4 text-sm font-bold text-white shadow-[0_10px_24px_rgba(241,105,55,0.28)] transition-all hover:bg-[#E85D2C] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#D6D3D1] disabled:shadow-none"
               >
-                {stock > 0 ? "Add To Cart" : "Out Of Stock"}
+                {displayStock > 0 ? "Add To Cart" : "Out Of Stock"}
               </button>
             </div>
           </div>
@@ -423,59 +451,35 @@ const ProductGallery = ({
             {product?.title || "Product"}
           </h3>
 
-          {/* COLOR VARIANTS SWATCHES */}
-          {hasVariants && (
-            <div
-              className="mt-2 flex items-center gap-1.5 flex-wrap"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-            >
-              {product.variants.map((v, idx) => (
-                <button
-                  key={v.sku || idx}
-                  type="button"
-                  title={v.colorName}
-                  onClick={() => setSelectedVariantIndex(idx)}
-                  className={`w-3.5 h-3.5 rounded-full border border-gray-300 transition-transform ${
-                    selectedVariantIndex === idx
-                      ? "scale-125 ring-1 ring-[#F16937] ring-offset-1"
-                      : "hover:scale-110"
-                  }`}
-                  style={{ backgroundColor: v.colorCode || "#CCC" }}
-                />
-              ))}
-            </div>
-          )}
+         
 
           <div className="mt-2 flex flex-wrap items-end gap-x-2 gap-y-0.5 sm:mt-4">
             <span className="text-base font-bold text-[#F16937] sm:text-2xl">
-              ₹{price.toLocaleString("en-IN")}
+              ₹{displayPrice.toLocaleString("en-IN")}
             </span>
 
-            {originalPrice > price && (
+            {displayOriginalPrice > displayPrice && (
               <span className="pb-0.5 text-[11px] text-[#A8A29E] line-through sm:text-sm">
-                ₹{originalPrice.toLocaleString("en-IN")}
+                ₹{displayOriginalPrice.toLocaleString("en-IN")}
               </span>
             )}
           </div>
 
-          {originalPrice > price && (
+          {displayOriginalPrice > displayPrice && (
             <p className="mt-0.5 text-[10px] font-semibold text-[#76A845] sm:text-xs">
-              You Save ₹{(originalPrice - price).toLocaleString("en-IN")}
+              You Save ₹{(displayOriginalPrice - displayPrice).toLocaleString("en-IN")}
             </p>
           )}
 
           <div className="mt-2.5 flex items-center justify-between sm:mt-4">
             <span
               className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold sm:px-3 sm:py-1 sm:text-xs ${
-                stock > 0
+                displayStock > 0
                   ? "bg-[rgba(118,168,69,0.12)] text-[#5B842F]"
                   : "bg-[rgba(228,69,135,0.10)] text-[#E44587]"
               }`}
             >
-              {stock > 0 ? `${stock} In Stock` : "Out Of Stock"}
+              {displayStock > 0 ? `${displayStock} In Stock` : "Out Of Stock"}
             </span>
 
             <span className="hidden text-[10px] font-bold uppercase tracking-wider text-[#78716C] sm:inline">

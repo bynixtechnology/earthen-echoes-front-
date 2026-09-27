@@ -70,7 +70,11 @@ export default function AddProduct() {
   | Local State
   |--------------------------------------------------------------------------
   */
-  const [hasVariants, setHasVariants] = useState(false);
+  // Variant mode is mutually exclusive:
+  // "none" = normal product, "colorSize" = Color & Size, "color" = Only Color
+  const [variantMode, setVariantMode] = useState("none");
+  const hasVariants = variantMode !== "none";
+
   const [images, setImages] = useState([]); // Fallback single product images
 
   const [formData, setFormData] = useState({
@@ -404,6 +408,11 @@ export default function AddProduct() {
           showToast.error(`At least one image is required for variant "${v.colorName}".`);
           return;
         }
+
+        if (variantMode === "colorSize" && (!v.sizes || v.sizes.length === 0)) {
+          showToast.error(`At least one option is required for variant "${v.colorName}".`);
+          return;
+        }
       }
     } else {
       if (images.length === 0) {
@@ -439,6 +448,7 @@ export default function AddProduct() {
 
     data.append("isActive", "true");
     data.append("hasVariants", String(hasVariants));
+    data.append("variantMode", variantMode);
 
     if (formData.productTags && formData.productTags.length > 0) {
       data.append("productTags", JSON.stringify(formData.productTags));
@@ -446,28 +456,94 @@ export default function AddProduct() {
 
     if (hasVariants) {
       // Pass the complete hierarchical variants array matching the updated schema
-      const formattedVariants = variants.map((v) => ({
-        colorName: v.colorName.trim(),
-        colorCode: v.colorCode.trim(),
-        sku: v.sku?.trim() || undefined,
-        sizes: v.sizes.map((sz) => ({
-          optionType: sz.optionType,
-          sizeOrCapacity: sz.optionType === "capacity" ? sz.sizeOrCapacity?.trim() || undefined : undefined,
-          sku: sz.sku?.trim() || undefined,
-          price: sz.price !== "" ? Number(sz.price) : 0,
-          originalPrice: sz.originalPrice !== "" ? Number(sz.originalPrice) : 0,
-          discountPercentage: sz.discountPercentage !== undefined ? Number(sz.discountPercentage) : 0,
-          stock: sz.stock !== "" ? Number(sz.stock) : 0,
-          specifications: {
-            composition: sz.specifications.composition?.trim() || "100% natural red clay",
-            capacity: sz.optionType === "capacity" ? (sz.sizeOrCapacity?.trim() || sz.specifications.capacity?.trim() || undefined) : undefined,
-            height: sz.optionType === "size" && sz.specifications.height !== "" ? Number(sz.specifications.height) : undefined,
-            width: sz.optionType === "size" && sz.specifications.width !== "" ? Number(sz.specifications.width) : undefined,
-            length: sz.optionType === "size" && sz.specifications.length !== "" ? Number(sz.specifications.length) : undefined,
-            weight: sz.optionType === "size" && sz.specifications.weight !== "" ? Number(sz.specifications.weight) : undefined,
-          },
-        })),
-      }));
+      const formattedVariants = variants.map((v) => {
+        if (variantMode === "color") {
+          const colorOption = v.sizes?.[0] || {};
+
+          return {
+            colorName: v.colorName.trim(),
+            colorCode: v.colorCode.trim(),
+            sku: v.sku?.trim() || undefined,
+            // Only Color mode: no size/capacity/dimension data.
+            // Keep one internal item only for backend compatibility.
+            sizes: [
+              {
+                optionType: "color",
+                sku: colorOption.sku?.trim() || undefined,
+                price: colorOption.price !== "" ? Number(colorOption.price) : 0,
+                originalPrice:
+                  colorOption.originalPrice !== ""
+                    ? Number(colorOption.originalPrice)
+                    : 0,
+                discountPercentage:
+                  colorOption.discountPercentage !== undefined
+                    ? Number(colorOption.discountPercentage)
+                    : 0,
+                stock:
+                  colorOption.stock !== "" ? Number(colorOption.stock) : 0,
+                specifications: {
+                  composition:
+                    colorOption.specifications?.composition?.trim() ||
+                    "100% natural red clay",
+                },
+              },
+            ],
+          };
+        }
+
+        return {
+          colorName: v.colorName.trim(),
+          colorCode: v.colorCode.trim(),
+          sku: v.sku?.trim() || undefined,
+          sizes: v.sizes.map((sz) => ({
+            optionType: sz.optionType,
+            sizeOrCapacity:
+              sz.optionType === "capacity"
+                ? sz.sizeOrCapacity?.trim() || undefined
+                : undefined,
+            sku: sz.sku?.trim() || undefined,
+            price: sz.price !== "" ? Number(sz.price) : 0,
+            originalPrice:
+              sz.originalPrice !== "" ? Number(sz.originalPrice) : 0,
+            discountPercentage:
+              sz.discountPercentage !== undefined
+                ? Number(sz.discountPercentage)
+                : 0,
+            stock: sz.stock !== "" ? Number(sz.stock) : 0,
+            specifications: {
+              composition:
+                sz.specifications.composition?.trim() ||
+                "100% natural red clay",
+              capacity:
+                sz.optionType === "capacity"
+                  ? sz.sizeOrCapacity?.trim() ||
+                    sz.specifications.capacity?.trim() ||
+                    undefined
+                  : undefined,
+              height:
+                sz.optionType === "size" &&
+                sz.specifications.height !== ""
+                  ? Number(sz.specifications.height)
+                  : undefined,
+              width:
+                sz.optionType === "size" &&
+                sz.specifications.width !== ""
+                  ? Number(sz.specifications.width)
+                  : undefined,
+              length:
+                sz.optionType === "size" &&
+                sz.specifications.length !== ""
+                  ? Number(sz.specifications.length)
+                  : undefined,
+              weight:
+                sz.optionType === "size" &&
+                sz.specifications.weight !== ""
+                  ? Number(sz.specifications.weight)
+                  : undefined,
+            },
+          })),
+        };
+      });
 
       data.append("variants", JSON.stringify(formattedVariants));
 
@@ -477,6 +553,14 @@ export default function AddProduct() {
         });
       });
     } else {
+      images.forEach((image) => {
+        data.append("images", image);
+      });
+    }
+
+    // Normal Product + Only Color both use the main Specifications & Capacity box.
+    // Color & Size keeps specifications inside each variant option.
+    if (variantMode !== "colorSize") {
       const specifications = {
         composition: formData.composition?.trim() || "100% natural red clay",
         capacity: formData.optionType === "capacity" ? (formData.capacity?.trim() || undefined) : undefined,
@@ -486,10 +570,6 @@ export default function AddProduct() {
         weight: formData.optionType === "size" && formData.weight !== "" ? Number(formData.weight) : undefined,
       };
       data.append("specifications", JSON.stringify(specifications));
-
-      images.forEach((image) => {
-        data.append("images", image);
-      });
     }
 
     if (formData.suggestedProducts?.length) {
@@ -746,8 +826,8 @@ export default function AddProduct() {
             </div>
           )}
 
-          {/* SINGLE SPECIFICATIONS & CAPACITY (Shown ONLY when Variants are Disabled) */}
-          {!hasVariants && (
+          {/* SPECIFICATIONS & CAPACITY (Shown for Normal Product and Only Color modes) */}
+          {variantMode !== "colorSize" && (
             <div
               className="bg-white p-6 rounded-2xl border shadow-sm space-y-4"
               style={{ borderColor: C.blush, backgroundColor: C.ivory }}
@@ -893,35 +973,84 @@ export default function AddProduct() {
             </div>
           )}
 
-          {/* COLOR & SIZES VARIANTS TOGGLE AND SECTION */}
+          {/* VARIANT MODE - MUTUALLY EXCLUSIVE */}
           <div
             className="bg-white p-6 rounded-2xl border shadow-sm space-y-4"
             style={{ borderColor: C.blush, backgroundColor: C.ivory }}
           >
-            <div className="flex items-center justify-between border-b pb-3">
-              <div className="flex items-center gap-2">
+            <div className="border-b pb-3">
+              <div className="flex items-center gap-2 mb-3">
                 <Layers size={18} style={{ color: C.coral }} />
                 <h3 className="text-sm font-bold" style={{ color: C.dark }}>
-                  Color & Size Variants Mode
+                  Variant Mode
                 </h3>
               </div>
 
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={hasVariants}
-                  onChange={(e) => setHasVariants(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F16937]"></div>
-                <span className="ml-2 text-xs font-bold text-slate-700">
-                  {hasVariants ? "Enabled" : "Disabled"}
-                </span>
-              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setVariantMode("none")}
+                  className="px-3 py-2.5 rounded-xl border text-xs font-bold transition"
+                  style={{
+                    borderColor: variantMode === "none" ? C.teal : C.blush,
+                    backgroundColor: variantMode === "none" ? C.paleTeal : "#FFFFFF",
+                    color: variantMode === "none" ? C.darkTeal : "#475569",
+                  }}
+                >
+                  Normal Product
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setVariantMode("colorSize")}
+                  className="px-3 py-2.5 rounded-xl border text-xs font-bold transition"
+                  style={{
+                    borderColor: variantMode === "colorSize" ? C.coral : C.blush,
+                    backgroundColor: variantMode === "colorSize" ? C.paleCoral : "#FFFFFF",
+                    color: variantMode === "colorSize" ? C.coral : "#475569",
+                  }}
+                >
+                  Color & Size Variants
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setVariantMode("color")}
+                  className="px-3 py-2.5 rounded-xl border text-xs font-bold transition"
+                  style={{
+                    borderColor: variantMode === "color" ? C.raspberry : C.blush,
+                    backgroundColor: variantMode === "color" ? C.paleBlush : "#FFFFFF",
+                    color: variantMode === "color" ? C.raspberry : "#475569",
+                  }}
+                >
+                  Only Color
+                </button>
+              </div>
+
+              <p className="text-[11px] text-slate-500 mt-2">
+                Only one mode can be active at a time. Both variant modes use the same fields.
+              </p>
             </div>
 
             {hasVariants && (
               <div className="space-y-6 pt-2">
+                <div
+                  className="px-3 py-2 rounded-xl border text-xs font-bold"
+                  style={{
+                    borderColor: variantMode === "colorSize" ? C.coral : C.raspberry,
+                    backgroundColor: variantMode === "colorSize" ? C.paleCoral : C.paleBlush,
+                    color: variantMode === "colorSize" ? C.coral : C.raspberry,
+                  }}
+                >
+                  Active Mode:{" "}
+                  {variantMode === "colorSize"
+                    ? "Color & Size Variants"
+                    : "Only Color Mode"}
+                  <span className="font-normal text-slate-500 ml-1">
+                    — same fields are used for every color variant.
+                  </span>
+                </div>
+
                 {variants.map((variant, variantIndex) => (
                   <div
                     key={variantIndex}
@@ -1003,169 +1132,251 @@ export default function AddProduct() {
                     <div className="space-y-4 pt-2 border-t">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-                          Options & Pricing for {variant.colorName || "this color"}
+                          {variantMode === "color"
+                            ? `Pricing & Stock for ${variant.colorName || "this color"}`
+                            : `Options & Pricing for ${variant.colorName || "this color"}`}
                         </label>
-                        <button
-                          type="button"
-                          onClick={() => addSizeToVariant(variantIndex)}
-                          className="text-xs font-bold px-2.5 py-1 rounded-lg border bg-slate-50 hover:bg-slate-100 flex items-center gap-1"
-                          style={{ color: C.coral, borderColor: C.blush }}
-                        >
-                          <Plus size={13} /> Add Option
-                        </button>
+
+                        {variantMode === "colorSize" && (
+                          <button
+                            type="button"
+                            onClick={() => addSizeToVariant(variantIndex)}
+                            className="text-xs font-bold px-2.5 py-1 rounded-lg border bg-slate-50 hover:bg-slate-100 flex items-center gap-1"
+                            style={{ color: C.coral, borderColor: C.blush }}
+                          >
+                            <Plus size={13} /> Add Option
+                          </button>
+                        )}
                       </div>
 
-                      {variant.sizes.map((sizeItem, sizeIndex) => (
-                        <div
-                          key={sizeIndex}
-                          className="p-4 rounded-xl border bg-slate-50/60 space-y-3 relative"
-                          style={{ borderColor: C.blush }}
-                        >
-                          <div className="flex items-center justify-between border-b pb-2">
-                            <span className="text-xs font-bold text-slate-700">
-                              Option #{sizeIndex + 1}
-                            </span>
-                            {variant.sizes.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => removeSizeFromVariant(variantIndex, sizeIndex)}
-                                className="text-rose-500 hover:text-rose-700 p-1"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            )}
+                      {variantMode === "color" ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-semibold mb-1">
+                              Sale Price (₹) *
+                            </label>
+                            <input
+                              type="number"
+                              required
+                              value={variant.sizes?.[0]?.price ?? ""}
+                              onChange={(e) =>
+                                handleSizeChange(
+                                  variantIndex,
+                                  0,
+                                  "price",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="299"
+                              className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
+                              style={{ borderColor: C.blush }}
+                            />
                           </div>
 
-                          <div className={`grid grid-cols-1 ${sizeItem.optionType === "capacity" ? "sm:grid-cols-4" : "sm:grid-cols-3"} gap-3`}>
-                            <div>
-                              <label className="block text-[11px] font-semibold mb-1">
-                                Type *
-                              </label>
-                              <select
-                                value={sizeItem.optionType || "capacity"}
-                                onChange={(e) =>
-                                  handleSizeChange(variantIndex, sizeIndex, "optionType", e.target.value)
-                                }
-                                className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
-                                style={{ borderColor: C.blush }}
-                              >
-                                <option value="capacity">Capacity</option>
-                                <option value="size">Size / Dimensions</option>
-                              </select>
+                          <div>
+                            <label className="block text-[11px] font-semibold mb-1">
+                              Original Price
+                            </label>
+                            <input
+                              type="number"
+                              value={variant.sizes?.[0]?.originalPrice ?? ""}
+                              onChange={(e) =>
+                                handleSizeChange(
+                                  variantIndex,
+                                  0,
+                                  "originalPrice",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="399"
+                              className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
+                              style={{ borderColor: C.blush }}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold mb-1">
+                              Stock *
+                            </label>
+                            <input
+                              type="number"
+                              required
+                              value={variant.sizes?.[0]?.stock ?? ""}
+                              onChange={(e) =>
+                                handleSizeChange(
+                                  variantIndex,
+                                  0,
+                                  "stock",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="10"
+                              className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
+                              style={{ borderColor: C.blush }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        variant.sizes.map((sizeItem, sizeIndex) => (
+                          <div
+                            key={sizeIndex}
+                            className="p-4 rounded-xl border bg-slate-50/60 space-y-3 relative"
+                            style={{ borderColor: C.blush }}
+                          >
+                            <div className="flex items-center justify-between border-b pb-2">
+                              <span className="text-xs font-bold text-slate-700">
+                                Option #{sizeIndex + 1}
+                              </span>
+                              {variant.sizes.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    removeSizeFromVariant(
+                                      variantIndex,
+                                      sizeIndex
+                                    )
+                                  }
+                                  className="text-rose-500 hover:text-rose-700 p-1"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
                             </div>
 
-                            {sizeItem.optionType === "capacity" && (
+                            <div
+                              className={`grid grid-cols-1 ${
+                                sizeItem.optionType === "capacity"
+                                  ? "sm:grid-cols-4"
+                                  : "sm:grid-cols-3"
+                              } gap-3`}
+                            >
                               <div>
                                 <label className="block text-[11px] font-semibold mb-1">
-                                  Capacity (e.g. 500ml, 1L) *
+                                  Type *
+                                </label>
+                                <select
+                                  value={sizeItem.optionType || "capacity"}
+                                  onChange={(e) =>
+                                    handleSizeChange(
+                                      variantIndex,
+                                      sizeIndex,
+                                      "optionType",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
+                                  style={{ borderColor: C.blush }}
+                                >
+                                  <option value="capacity">Capacity</option>
+                                  <option value="size">
+                                    Size / Dimensions
+                                  </option>
+                                </select>
+                              </div>
+
+                              {sizeItem.optionType === "capacity" && (
+                                <div>
+                                  <label className="block text-[11px] font-semibold mb-1">
+                                    Capacity (e.g. 500ml, 1L) *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    required
+                                    value={sizeItem.sizeOrCapacity}
+                                    onChange={(e) =>
+                                      handleSizeChange(
+                                        variantIndex,
+                                        sizeIndex,
+                                        "sizeOrCapacity",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="e.g. 500ml"
+                                    className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
+                                    style={{ borderColor: C.blush }}
+                                  />
+                                </div>
+                              )}
+
+                              <div>
+                                <label className="block text-[11px] font-semibold mb-1">
+                                  Sale Price (₹) *
                                 </label>
                                 <input
-                                  type="text"
+                                  type="number"
                                   required
-                                  value={sizeItem.sizeOrCapacity}
+                                  value={sizeItem.price}
                                   onChange={(e) =>
-                                    handleSizeChange(variantIndex, sizeIndex, "sizeOrCapacity", e.target.value)
+                                    handleSizeChange(
+                                      variantIndex,
+                                      sizeIndex,
+                                      "price",
+                                      e.target.value
+                                    )
                                   }
-                                  placeholder="e.g. 500ml"
+                                  placeholder="299"
                                   className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
                                   style={{ borderColor: C.blush }}
                                 />
                               </div>
+
+                              <div>
+                                <label className="block text-[11px] font-semibold mb-1">
+                                  Stock *
+                                </label>
+                                <input
+                                  type="number"
+                                  required
+                                  value={sizeItem.stock}
+                                  onChange={(e) =>
+                                    handleSizeChange(
+                                      variantIndex,
+                                      sizeIndex,
+                                      "stock",
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="10"
+                                  className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
+                                  style={{ borderColor: C.blush }}
+                                />
+                              </div>
+                            </div>
+
+                            {sizeItem.optionType === "size" && (
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t">
+                                {[
+                                  ["height", "Height", "e.g. 15"],
+                                  ["width", "Width", "e.g. 10"],
+                                  ["length", "Length", "e.g. 12"],
+                                  ["weight", "Weight (g)", "e.g. 500"],
+                                ].map(([field, label, placeholder]) => (
+                                  <div key={field}>
+                                    <label className="block text-[10px] font-semibold mb-1">
+                                      {label}
+                                    </label>
+                                    <input
+                                      type="number"
+                                      value={sizeItem.specifications[field]}
+                                      onChange={(e) =>
+                                        handleSizeSpecChange(
+                                          variantIndex,
+                                          sizeIndex,
+                                          field,
+                                          e.target.value
+                                        )
+                                      }
+                                      placeholder={placeholder}
+                                      className="w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs"
+                                      style={{ borderColor: C.blush }}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
                             )}
-
-                            <div>
-                              <label className="block text-[11px] font-semibold mb-1">
-                                Sale Price (₹) *
-                              </label>
-                              <input
-                                type="number"
-                                required
-                                value={sizeItem.price}
-                                onChange={(e) =>
-                                  handleSizeChange(variantIndex, sizeIndex, "price", e.target.value)
-                                }
-                                placeholder="299"
-                                className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
-                                style={{ borderColor: C.blush }}
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-[11px] font-semibold mb-1">
-                                Stock *
-                              </label>
-                              <input
-                                type="number"
-                                required
-                                value={sizeItem.stock}
-                                onChange={(e) =>
-                                  handleSizeChange(variantIndex, sizeIndex, "stock", e.target.value)
-                                }
-                                placeholder="10"
-                                className="w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none"
-                                style={{ borderColor: C.blush }}
-                              />
-                            </div>
                           </div>
-
-                          {sizeItem.optionType === "size" && (
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t">
-                              <div>
-                                <label className="block text-[10px] font-semibold mb-1">Height</label>
-                                <input
-                                  type="number"
-                                  value={sizeItem.specifications.height}
-                                  onChange={(e) =>
-                                    handleSizeSpecChange(variantIndex, sizeIndex, "height", e.target.value)
-                                  }
-                                  placeholder="e.g. 15"
-                                  className="w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs"
-                                  style={{ borderColor: C.blush }}
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] font-semibold mb-1">Width</label>
-                                <input
-                                  type="number"
-                                  value={sizeItem.specifications.width}
-                                  onChange={(e) =>
-                                    handleSizeSpecChange(variantIndex, sizeIndex, "width", e.target.value)
-                                  }
-                                  placeholder="e.g. 10"
-                                  className="w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs"
-                                  style={{ borderColor: C.blush }}
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] font-semibold mb-1">Length</label>
-                                <input
-                                  type="number"
-                                  value={sizeItem.specifications.length}
-                                  onChange={(e) =>
-                                    handleSizeSpecChange(variantIndex, sizeIndex, "length", e.target.value)
-                                  }
-                                  placeholder="e.g. 12"
-                                  className="w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs"
-                                  style={{ borderColor: C.blush }}
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] font-semibold mb-1">Weight (g)</label>
-                                <input
-                                  type="number"
-                                  value={sizeItem.specifications.weight}
-                                  onChange={(e) =>
-                                    handleSizeSpecChange(variantIndex, sizeIndex, "weight", e.target.value)
-                                  }
-                                  placeholder="e.g. 500"
-                                  className="w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs"
-                                  style={{ borderColor: C.blush }}
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
 
                     {/* Variant Images Upload */}
